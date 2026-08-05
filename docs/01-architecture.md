@@ -14,10 +14,12 @@ graph TD
   E --> B[blade.js<br/>генератор лопаток]
   ST -.проверяется.-> T[test/engine-state.test.mjs]
   ST -.проверяется.-> T2[test/heat-haze.test.mjs]
+  E -.проверяется.-> T3[test/spiral-blur.test.mjs]
   H -.проверяется.-> T2
   style ST fill:#1c3a4d,stroke:#4fc3ff
   style T fill:#1c3a4d,stroke:#4fc3ff
   style T2 fill:#1c3a4d,stroke:#4fc3ff
+  style T3 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
 Зависимости однонаправленные. Два модуля намеренно не знают ни про Three.js,
@@ -33,8 +35,8 @@ graph TD
 
 | Файл | Строк | Ответственность |
 |---|---:|---|
-| `src/engine.js` | 962 | Вся геометрия двигателя, материалы, прокси для выбора узлов |
-| `src/main.js` | 506 | Сцена, освещение, постобработка, вырез, UI, цикл кадра |
+| `src/engine.js` | 1039 | Вся геометрия двигателя, материалы, прокси для выбора узлов |
+| `src/main.js` | 508 | Сцена, освещение, постобработка, вырез, UI, цикл кадра |
 | `src/sound.js` | 345 | Синтез звука на Web Audio |
 | `src/airflow.js` | 329 | Каналы потоков, частицы, линии тока, реактивная струя |
 | `src/style.css` | 302 | Оформление панелей |

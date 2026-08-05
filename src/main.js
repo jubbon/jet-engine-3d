@@ -443,6 +443,8 @@ function animate() {
   }
   engine.n1Rotors.forEach((g) => (g.rotation.x = n1Angle));
   engine.n2Rotors.forEach((g) => (g.rotation.x = n2Angle));
+  // спираль на коке смазывается с оборотами; при выключенном вращении смаза нет
+  engine.setSpiralBlur(state.spin ? keff : 0);
 
   // разнесение узлов
   engine.modules.forEach((m) => {

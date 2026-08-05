@@ -30,6 +30,46 @@ export const ST = {
   caseR: 1.62,
 };
 
+/* -------------------- смаз спирали на коке -------------------------- *
+ *  Спираль на коке существует, чтобы её было видно: на стоянке и малых
+ *  оборотах она предупреждает наземный персонал о работающем двигателе.
+ *  Но глаз усредняет картинку примерно за 1/25 с, и уже на средних
+ *  оборотах спираль заметает полный круг - остаётся ровное кольцо, а на
+ *  взлётном режиме её не видно вовсе.
+ *
+ *  Считаем это накоплением: рисуем несколько копий спирали, растянутых
+ *  по углу на заметённый сектор. Точка кадра, закрытая одной копией из
+ *  n, получает прозрачность 1/n - ровно ту долю времени, которую спираль
+ *  реально провела в этой точке.
+ *
+ *  Заметённый угол берём НЕ от экранной скорости вращения: в модели
+ *  роторы намеренно замедлены ради читаемости (см. docs/03-physics.md),
+ *  и по ней спираль не смазалась бы никогда. Привязка идёт к
+ *  приведённому режиму keff, чтобы на малом газе спираль читалась,
+ *  а к взлётному исчезала - как на настоящем двигателе.
+ * -------------------------------------------------------------------- */
+
+// Максимум копий. Нужен такой, чтобы на взлётном режиме шаг между ними не
+// превысил толщину спирали: иначе вместо ровного кольца выйдут полосы.
+export const SPIRAL_GHOSTS = 56;
+const SPIRAL_WIDTH = 0.13; // угловая толщина спирали у середины кока, рад
+const SPIRAL_SWEEP = Math.PI * 2; // сколько она заметает на взлётном режиме
+
+/**
+ * @param {number} keff приведённый режим 0..1 (0 - малый газ и ниже)
+ * @returns {{ghosts: number, spread: number, opacity: number}}
+ */
+export function spiralBlur(keff) {
+  const k = Math.max(0, Math.min(1, keff));
+  const spread = SPIRAL_SWEEP * Math.pow(k, 1.4);
+  // пока заметённый угол меньше самой спирали, смазывать нечего
+  if (spread <= SPIRAL_WIDTH) return { ghosts: 1, spread: 0, opacity: 1 };
+  // Шаг между копиями держим меньше толщины спирали, иначе смаз полосит.
+  // Копий на одну больше числа промежутков - их и раскладываем по сектору.
+  const ghosts = Math.min(SPIRAL_GHOSTS, Math.ceil((1.5 * spread) / SPIRAL_WIDTH) + 1);
+  return { ghosts, spread, opacity: 1 / ghosts };
+}
+
 /* ----------------------------- материалы ---------------------------- */
 
 const shellMaterials = [];
@@ -84,7 +124,14 @@ export const MATS = {
   shaft: mat({ color: 0x6f767d, metalness: 0.95, roughness: 0.25 }),
   accessory: mat({ color: 0x454b52, metalness: 0.7, roughness: 0.5 }),
   paint: mat({ color: 0xf2f4f6, metalness: 0.1, roughness: 0.5 }),
-  dark: mat({ color: 0x22262b, metalness: 0.5, roughness: 0.6 }),
+  // спираль на коке: прозрачность нужна для смаза на больших оборотах
+  spiral: mat({
+    color: 0x22262b,
+    metalness: 0.5,
+    roughness: 0.6,
+    transparent: true,
+    depthWrite: false,
+  }),
   pylon: mat({ color: 0xdfe3e7, metalness: 0.3, roughness: 0.4, side: THREE.DoubleSide }, { shell: true }),
 };
 
@@ -274,19 +321,25 @@ export function buildEngine() {
   spinnerPts.push([0.54, ST.fan + 0.12]);
   fanRot.add(lathe(spinnerPts, MATS.paint, 64));
 
-  // белая спираль на коке
-  {
-    const curve = new THREE.CatmullRomCurve3(
-      Array.from({ length: 60 }, (_, i) => {
-        const t = i / 59;
-        const x = THREE.MathUtils.lerp(-4.76, ST.fan - 0.04, t);
-        const r = 0.545 * Math.pow(t, 0.72) + 0.004;
-        const a = t * Math.PI * 2.4;
-        return new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a));
-      })
-    );
-    fanRot.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 120, 0.022, 8), MATS.dark));
-  }
+  // спираль на коке (см. spiralBlur: на оборотах размазывается в кольцо)
+  const spiralCurve = new THREE.CatmullRomCurve3(
+    Array.from({ length: 60 }, (_, i) => {
+      const t = i / 59;
+      const x = THREE.MathUtils.lerp(-4.76, ST.fan - 0.04, t);
+      const r = 0.545 * Math.pow(t, 0.72) + 0.004;
+      const a = t * Math.PI * 2.4;
+      return new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a));
+    })
+  );
+  // тесселяция скромнее исходной: трубка тонкая, а копий её теперь десятки
+  const spiral = new THREE.InstancedMesh(
+    new THREE.TubeGeometry(spiralCurve, 88, 0.022, 6),
+    MATS.spiral,
+    SPIRAL_GHOSTS
+  );
+  spiral.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  spiral.count = 1;
+  fanRot.add(spiral);
 
   // диск и замки лопаток
   fanRot.add(drum(ST.fan - 0.12, ST.fan + 0.3, 0.54, 0.56, MATS.disk));
@@ -949,6 +1002,29 @@ export function buildEngine() {
     pickables.push(box);
   }
 
+  /* --------------------- смаз спирали на коке ---------------------- */
+  const _spiralM = new THREE.Matrix4();
+  let shownGhosts = -1;
+  let shownSpread = -1;
+
+  /** @param {number} keff приведённый режим 0..1 */
+  function setSpiralBlur(keff) {
+    const { ghosts, spread, opacity } = spiralBlur(keff);
+    MATS.spiral.opacity = opacity;
+    // пока спираль непрозрачна, пусть пишет глубину и не просвечивает сама себя
+    MATS.spiral.depthWrite = opacity > 0.95;
+    if (ghosts === shownGhosts && Math.abs(spread - shownSpread) < 0.004) return;
+    shownGhosts = ghosts;
+    shownSpread = spread;
+    spiral.count = ghosts;
+    for (let i = 0; i < ghosts; i++) {
+      // копии тянутся назад по вращению - это шлейф, а не опережение
+      _spiralM.makeRotationX(ghosts > 1 ? -spread * (i / (ghosts - 1)) : 0);
+      spiral.setMatrixAt(i, _spiralM);
+    }
+    spiral.instanceMatrix.needsUpdate = true;
+  }
+
   return {
     root,
     modules,
@@ -957,6 +1033,7 @@ export function buildEngine() {
     n2Rotors,
     labels,
     flameMat,
+    setSpiralBlur,
     parts: { mNac, mFan, mBoost, mHpc, mComb, mHpt, mLpt, mExh, mCowl, mShaft, mAcc },
   };
 }
