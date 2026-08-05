@@ -1,21 +1,63 @@
 /* ------------------------------------------------------------------ *
- *  Процедурный звук двигателя (Web Audio API, без сэмплов).
+ *  Звук двигателя: синтез на Web Audio API без сэмплов.
  *
- *  Складывается из четырёх составляющих реального ТРДД:
- *    · низкий рокот   - горение и вибрация конструкции (шумовой НЧ);
- *    · рёв струи      - смешение горячей струи с наружным потоком;
- *    · шипение        - высокочастотный шум выхлопа и наружного контура;
- *    · тональный вой  - частота следования лопаток вентилятора
- *                       (об/мин N1 / 60 x 22 лопатки) и свист ротора ВД.
+ *  Модель настроена по CFM56-7B (Boeing 737NG) и по спектральному анализу
+ *  реальных записей этого двигателя. Что дал анализ (подробности в
+ *  docs/06-sound.md):
  *
- *  Все частоты и уровни пересчитываются от текущего режима, поэтому
- *  раскрутка и сброс газа слышны так же, как видны на роторе.
+ *   · тоны стоят на гармониках частоты вращения вала НД, а не только на
+ *     частоте следования лопаток: в записи 50…58 % найденных тонов легли
+ *     на целые порядки вала с частотой 79.0…79.4 Гц (92 % N1);
+ *   · огибающая по порядкам имеет максимум около 0.9…1.3 частоты следования
+ *     лопаток и сильно изрезана — соседние порядки различаются на 10…18 дБ;
+ *   · широкополосная часть (шум струи) имеет максимум на 200…300 Гц и круто
+ *     спадает вверх: −15 дБ на 1 кГц, −30 дБ на 2 кГц.
+ *
+ *  Это и есть buzz-saw (multiple pure tones): при сверхзвуковом обтекании
+ *  концов лопаток от каждой лопатки вперёд по каналу уходит скачок уплотнения.
+ *  Лопатки чуть отличаются друг от друга, поэтому картина повторяется не за
+ *  период следования лопаток, а за оборот вала — отсюда гребёнка по порядкам.
  * ------------------------------------------------------------------ */
 
-const MASTER_TRIM = 3.2; // общий подъём уровня после фильтров
-const FAN_BLADES = 22;
-const N1_MAX_RPM = 3300; // об/мин ротора НД на 100 %
-const N2_MAX_RPM = 15000; // об/мин ротора ВД на 100 %
+const MASTER_TRIM = 3.0;
+
+/** CFM56-7B (Boeing 737NG) */
+const CFM = {
+  fanBlades: 24,
+  n1MaxRpm: 5175, // 100 % N1
+  n2MaxRpm: 14460, // 100 % N2
+  fanDiameter: 1.55, // м
+};
+
+/**
+ * Измеренная огибающая buzz-saw: относительные амплитуды порядков вала 1…48,
+ * снятые с записи CFM56 на 92 % N1. Изрезанность оставлена как есть - именно
+ * она отличает живой двигатель от ровной пилы синтезатора.
+ */
+const BUZZSAW = [
+  0.123, 0.209, 0.176, 0.26, 0.263, 0.468, 0.351, 0.347,
+  0.174, 0.292, 0.457, 0.266, 0.442, 0.153, 0.232, 0.209,
+  0.226, 0.457, 0.155, 0.447, 1.0, 0.295, 0.115, 0.891,
+  0.101, 0.126, 0.151, 0.75, 0.123, 0.351, 1.0, 0.457,
+  0.442, 0.245, 0.313, 0.359, 0.313, 0.299, 0.17, 0.188,
+  0.412, 0.313, 0.14, 0.398, 0.582, 0.219, 0.112, 0.385,
+];
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const smoothstep = (x, a, b) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Относительное число Маха на конце лопатки вентилятора.
+ * Buzz-saw появляется, когда оно переходит через единицу.
+ */
+function tipMachRelative(n1) {
+  const u = (Math.PI * CFM.fanDiameter * n1 * CFM.n1MaxRpm) / 60; // окружная, м/с
+  const axial = 150 * (0.3 + 0.7 * n1); // осевая скорость на входе, м/с
+  return Math.hypot(u, axial) / 340;
+}
 
 function noiseBuffer(ctx, seconds, brown) {
   const len = Math.floor(ctx.sampleRate * seconds);
@@ -31,8 +73,7 @@ function noiseBuffer(ctx, seconds, brown) {
       d[i] = white * 0.6;
     }
   }
-  // сшиваем концы, чтобы петля не щёлкала
-  const fade = Math.min(2048, Math.floor(len / 8));
+  const fade = Math.min(4096, Math.floor(len / 8));
   for (let i = 0; i < fade; i++) {
     const t = i / fade;
     d[len - fade + i] = d[len - fade + i] * (1 - t) + d[i] * t;
@@ -43,18 +84,25 @@ function noiseBuffer(ctx, seconds, brown) {
 /**
  * @param {object} [opts]
  * @param {() => BaseAudioContext} [opts.makeContext] - подмена контекста
- *        (используется для офлайн-проверки графа в тестах)
+ *        для офлайн-проверки графа в тестах
  */
 export function createEngineSound(opts = {}) {
-  const makeContext = opts.makeContext || (() => new (window.AudioContext || window.webkitAudioContext)());
+  const makeContext =
+    opts.makeContext || (() => new (window.AudioContext || window.webkitAudioContext)());
   let ctx = null;
   let ready = false;
-  let master, bus, panner;
-  let rumbleGain, roarGain, hissGain, fanGain, fan2Gain, n2Gain;
-  let roarFilter, hissFilter, fanFilter, n2Filter;
-  let fanOsc, fan2Osc, n2Osc, lfo, lfoGain;
   let volume = 0.5;
   let enabled = false;
+
+  // узлы графа
+  let master, bus, panner;
+  let combOsc, combGain, combFilter;
+  let bpfOsc, bpfGain, bpf2Osc, bpf2Gain;
+  let n2Osc, n2Gain, n2Filter;
+  let jetBand, jetLow, jetLow2, jetGain;
+  let rumbleFilter, rumbleGain;
+  let fanBbBand, fanBbGain;
+  let wander, wanderGain, turb, turbGain;
 
   function build() {
     ctx = makeContext();
@@ -63,23 +111,32 @@ export function createEngineSound(opts = {}) {
     master.gain.value = 0;
 
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.ratio.value = 6;
-    comp.attack.value = 0.01;
-    comp.release.value = 0.25;
+    comp.threshold.value = -16;
+    comp.ratio.value = 5;
+    comp.attack.value = 0.012;
+    comp.release.value = 0.3;
 
     panner = ctx.createStereoPanner();
     bus = ctx.createGain();
     bus.gain.value = 1;
-
-    bus.connect(panner);
+    // инфранизкие частоты только съедают запас по уровню
+    const busHp = ctx.createBiquadFilter();
+    busHp.type = 'highpass';
+    busHp.frequency.value = 58;
+    busHp.Q.value = 0.7;
+    const busHp2 = ctx.createBiquadFilter();
+    busHp2.type = 'highpass';
+    busHp2.frequency.value = 52;
+    busHp2.Q.value = 0.6;
+    bus.connect(busHp);
+    busHp.connect(busHp2);
+    busHp2.connect(panner);
     panner.connect(comp);
     comp.connect(master);
     master.connect(ctx.destination);
 
-    const brown = noiseBuffer(ctx, 3, true);
-    const white = noiseBuffer(ctx, 3, false);
-
+    const brown = noiseBuffer(ctx, 4, true);
+    const white = noiseBuffer(ctx, 4, false);
     const src = (buf) => {
       const s = ctx.createBufferSource();
       s.buffer = buf;
@@ -90,79 +147,117 @@ export function createEngineSound(opts = {}) {
     const brownSrc = src(brown);
     const whiteSrc = src(white);
 
-    // низкий рокот
-    const rumbleFilter = ctx.createBiquadFilter();
-    rumbleFilter.type = 'lowpass';
-    rumbleFilter.frequency.value = 130;
-    rumbleFilter.Q.value = 0.9;
-    rumbleGain = ctx.createGain();
-    rumbleGain.gain.value = 0;
-    brownSrc.connect(rumbleFilter).connect(rumbleGain).connect(bus);
+    /* ---- 1. Buzz-saw: вся гребёнка порядков из одного осциллятора ---- *
+     * PeriodicWave задаёт амплитуду каждой гармоники, поэтому осциллятор
+     * на частоте вала сразу даёт все 48 порядков с измеренной огибающей,
+     * и при изменении оборотов гребёнка едет целиком, как у настоящего
+     * двигателя. Форма волны band-limited, поэтому алиасинга нет.       */
+    const real = new Float32Array(BUZZSAW.length + 1);
+    const imag = new Float32Array(BUZZSAW.length + 1);
+    for (let n = 1; n <= BUZZSAW.length; n++) {
+      // случайная, но постоянная фаза: скачки от разных лопаток не синфазны
+      const phase = (n * 2.399963) % (Math.PI * 2);
+      real[n] = BUZZSAW[n - 1] * Math.cos(phase);
+      imag[n] = BUZZSAW[n - 1] * Math.sin(phase);
+    }
+    combOsc = ctx.createOscillator();
+    combOsc.setPeriodicWave(ctx.createPeriodicWave(real, imag, { disableNormalization: false }));
+    combFilter = ctx.createBiquadFilter();
+    combFilter.type = 'highpass'; // самые низкие порядки в дальнем поле не слышны
+    combFilter.frequency.value = 200;
+    combFilter.Q.value = 0.7;
+    combGain = ctx.createGain();
+    combGain.gain.value = 0;
+    combOsc.connect(combFilter).connect(combGain).connect(bus);
+    combOsc.start();
 
-    // рёв струи
-    roarFilter = ctx.createBiquadFilter();
-    roarFilter.type = 'bandpass';
-    roarFilter.frequency.value = 420;
-    roarFilter.Q.value = 0.6;
-    roarGain = ctx.createGain();
-    roarGain.gain.value = 0;
-    brownSrc.connect(roarFilter).connect(roarGain).connect(bus);
+    /* ---- 2. Тон следования лопаток и вторая гармоника ---- *
+     * На малых оборотах концы лопаток дозвуковые, buzz-saw нет, и остаётся
+     * чистый тон следования лопаток - характерный вой на рулении.        */
+    bpfOsc = ctx.createOscillator();
+    bpfOsc.type = 'sine'; // тон следования лопаток - одиночный, без стека гармоник
+    bpfGain = ctx.createGain();
+    bpfGain.gain.value = 0;
+    bpfOsc.connect(bpfGain).connect(bus);
+    bpfOsc.start();
 
-    // шипение выхлопа
-    hissFilter = ctx.createBiquadFilter();
-    hissFilter.type = 'highpass';
-    hissFilter.frequency.value = 2600;
-    hissGain = ctx.createGain();
-    hissGain.gain.value = 0;
-    whiteSrc.connect(hissFilter).connect(hissGain).connect(bus);
+    bpf2Osc = ctx.createOscillator();
+    bpf2Osc.type = 'sine';
+    bpf2Gain = ctx.createGain();
+    bpf2Gain.gain.value = 0;
+    bpf2Osc.connect(bpf2Gain).connect(bus);
+    bpf2Osc.start();
 
-    // тон вентилятора: частота следования лопаток
-    fanOsc = ctx.createOscillator();
-    fanOsc.type = 'sawtooth';
-    fanFilter = ctx.createBiquadFilter();
-    fanFilter.type = 'lowpass';
-    fanFilter.frequency.value = 3200;
-    fanFilter.Q.value = 1.4;
-    fanGain = ctx.createGain();
-    fanGain.gain.value = 0;
-    fanOsc.connect(fanFilter).connect(fanGain).connect(bus);
-    fanOsc.start();
-
-    // вторая гармоника
-    fan2Osc = ctx.createOscillator();
-    fan2Osc.type = 'sine';
-    fan2Gain = ctx.createGain();
-    fan2Gain.gain.value = 0;
-    fan2Osc.connect(fan2Gain).connect(bus);
-    fan2Osc.start();
-
-    // свист ротора высокого давления
+    /* ---- 3. Свист ротора высокого давления ---- */
     n2Osc = ctx.createOscillator();
     n2Osc.type = 'sawtooth';
     n2Filter = ctx.createBiquadFilter();
     n2Filter.type = 'bandpass';
-    n2Filter.frequency.value = 900;
-    n2Filter.Q.value = 2.2;
+    n2Filter.Q.value = 3.5;
     n2Gain = ctx.createGain();
     n2Gain.gain.value = 0;
     n2Osc.connect(n2Filter).connect(n2Gain).connect(bus);
     n2Osc.start();
 
-    // медленная модуляция рёва - «дыхание» струи
-    lfo = ctx.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.27;
-    lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.05;
-    lfo.connect(lfoGain).connect(roarGain.gain);
-    lfo.start();
+    /* ---- 4. Шум струи: максимум 200…300 Гц, крутой спад вверх ---- *
+     * В записи уровень падает примерно на 13 дБ на октаву выше 300 Гц,
+     * поэтому одного полосового фильтра мало - за ним каскад из двух ФНЧ. */
+    jetBand = ctx.createBiquadFilter();
+    jetBand.type = 'bandpass';
+    jetBand.frequency.value = 230;
+    jetBand.Q.value = 0.7;
+    jetLow = ctx.createBiquadFilter();
+    jetLow.type = 'lowpass';
+    jetLow.frequency.value = 420;
+    jetLow.Q.value = 0.7;
+    jetLow2 = ctx.createBiquadFilter();
+    jetLow2.type = 'lowpass';
+    jetLow2.frequency.value = 520;
+    jetLow2.Q.value = 0.5;
+    jetGain = ctx.createGain();
+    jetGain.gain.value = 0;
+    brownSrc.connect(jetBand).connect(jetLow).connect(jetLow2).connect(jetGain).connect(bus);
+
+    /* ---- 5. Низкий рокот: горение и вибрация конструкции ---- *
+     * В записи максимум низкочастотной части приходится на 80…100 Гц,
+     * а не на инфранизкие частоты, поэтому полоса, а не просто ФНЧ.     */
+    rumbleFilter = ctx.createBiquadFilter();
+    rumbleFilter.type = 'bandpass';
+    rumbleFilter.frequency.value = 88;
+    rumbleFilter.Q.value = 1.0;
+    rumbleGain = ctx.createGain();
+    rumbleGain.gain.value = 0;
+    brownSrc.connect(rumbleFilter).connect(rumbleGain).connect(bus);
+
+    /* ---- 6. Широкополосный шум вентилятора ---- */
+    fanBbBand = ctx.createBiquadFilter();
+    fanBbBand.type = 'bandpass';
+    fanBbBand.frequency.value = 1800;
+    fanBbBand.Q.value = 0.4;
+    fanBbGain = ctx.createGain();
+    fanBbGain.gain.value = 0;
+    whiteSrc.connect(fanBbBand).connect(fanBbGain).connect(bus);
+
+    /* ---- 7. Живость: увод оборотов и турбулентность струи ---- */
+    wander = ctx.createOscillator(); // медленный увод частоты вала
+    wander.frequency.value = 0.13;
+    wanderGain = ctx.createGain();
+    wanderGain.gain.value = 0;
+    wander.connect(wanderGain);
+    wanderGain.connect(combOsc.frequency);
+    wander.start();
+
+    turb = ctx.createOscillator(); // «дыхание» струи
+    turb.frequency.value = 0.31;
+    turbGain = ctx.createGain();
+    turbGain.gain.value = 0.05;
+    turb.connect(turbGain).connect(jetGain.gain);
+    turb.start();
 
     ready = true;
   }
 
-  const set = (param, value, tc = 0.09) => {
-    param.setTargetAtTime(value, ctx.currentTime, tc);
-  };
+  const set = (param, value, tc = 0.09) => param.setTargetAtTime(value, ctx.currentTime, tc);
 
   /**
    * @param {number} n1      обороты ротора НД, доля от максимума 0..1
@@ -170,41 +265,50 @@ export function createEngineSound(opts = {}) {
    * @param {number} burn    интенсивность горения 0..1 (0 - топливо отсечено)
    * @param {number} pan     -1..1, положение двигателя на экране
    * @param {number} nearness 0..1, близость камеры
-   *
-   * Шумовые составляющие привязаны к горению и расходу воздуха, тональные -
-   * к оборотам. Поэтому при отсечке топлива рёв пропадает сразу, а вой
-   * вентилятора продолжает падать по частоте, пока роторы не остановятся.
    */
   function update(n1, n2, burn, pan = 0, nearness = 0.5) {
     if (!ready || !enabled) return;
 
-    const bpf = (n1 * N1_MAX_RPM * FAN_BLADES) / 60; // Гц
-    const n2shaft = (n2 * N2_MAX_RPM) / 60;
+    const shaft = (n1 * CFM.n1MaxRpm) / 60; // частота вала НД, Гц
+    const bpf = shaft * CFM.fanBlades; // частота следования лопаток
+    const n2shaft = (n2 * CFM.n2MaxRpm) / 60;
 
-    set(fanOsc.frequency, Math.max(20, bpf));
-    set(fan2Osc.frequency, Math.max(40, bpf * 2));
-    set(n2Osc.frequency, Math.max(40, n2shaft * 3));
-    set(n2Filter.frequency, Math.max(120, n2shaft * 3));
+    // buzz-saw включается при переходе конца лопатки через скорость звука
+    const mach = tipMachRelative(n1);
+    const buzz = smoothstep(mach, 0.98, 1.18);
 
-    // шум горения и струи
-    set(rumbleGain.gain, 0.34 * (0.12 * n1 + 0.88 * burn));
-    set(roarGain.gain, 0.03 * n1 + 0.42 * Math.pow(burn, 1.3));
-    // шум прокачиваемого воздуха
-    set(hissGain.gain, 0.008 * n1 + 0.075 * Math.pow(n1, 1.6));
-    // тоны роторов
-    set(fanGain.gain, (0.012 + 0.058 * Math.pow(n1, 0.8)) * Math.min(1, n1 * 6));
-    set(fan2Gain.gain, (0.004 + 0.02 * Math.pow(n1, 1.4)) * Math.min(1, n1 * 6));
-    set(n2Gain.gain, (0.006 + 0.03 * Math.pow(n2, 1.2)) * Math.min(1, n2 * 6));
+    set(combOsc.frequency, Math.max(8, shaft));
+    set(bpfOsc.frequency, Math.max(20, bpf));
+    set(bpf2Osc.frequency, Math.max(40, bpf * 2));
+    set(n2Osc.frequency, Math.max(40, n2shaft));
+    set(n2Filter.frequency, Math.max(200, n2shaft * 4), 0.2);
 
-    set(roarFilter.frequency, 260 + 620 * burn, 0.2);
-    set(fanFilter.frequency, 1800 + 3600 * n1, 0.2);
-    set(hissFilter.frequency, 3400 - 1100 * n1, 0.2);
+    // тональные составляющие - от оборотов
+    set(combGain.gain, 0.105 * buzz * Math.pow(n1, 0.6));
+    set(bpfGain.gain, 0.042 * Math.min(1, n1 * 6) * (1 - 0.55 * buzz));
+    set(bpf2Gain.gain, 0.010 * Math.min(1, n1 * 6) * (1 - 0.55 * buzz));
+    set(n2Gain.gain, 0.032 * Math.pow(n2, 1.3) * Math.min(1, n2 * 6));
 
-    // при полной остановке звук уходит в тишину
+    // шумовые составляющие - от горения и расхода воздуха
+    set(jetGain.gain, 0.16 * Math.pow(n1, 1.2) + 0.66 * Math.pow(burn, 1.4));
+    set(rumbleGain.gain, 0.30 * (0.30 * n1 + 0.70 * burn));
+    set(fanBbGain.gain, 0.011 * (0.35 + 0.65 * n1));
+
+    // спектр струи смещается вверх с ростом скорости истечения
+    set(jetBand.frequency, 180 + 130 * burn, 0.25);
+    set(jetLow.frequency, 290 + 210 * burn, 0.25);
+    set(jetLow2.frequency, 350 + 260 * burn, 0.25);
+    set(fanBbBand.frequency, 1200 + 1600 * n1, 0.25);
+    set(combFilter.frequency, 150 + 120 * n1, 0.25);
+
+    // живость: увод тем заметнее, чем выше обороты
+    set(wanderGain.gain, 0.0025 * shaft);
+    set(turbGain.gain, 0.04 + 0.05 * burn);
+
+    // при полной остановке - тишина
     const alive = Math.min(1, Math.max(n1, n2, burn) * 8);
-    // «вблизи» слышнее тон вентилятора и шипение, издали - рокот
     set(bus.gain, (0.55 + 0.75 * nearness) * alive, 0.25);
-    set(panner.pan, Math.max(-0.85, Math.min(0.85, pan)), 0.15);
+    set(panner.pan, clamp(pan, -0.85, 0.85), 0.15);
     set(master.gain, volume * MASTER_TRIM, 0.2);
   }
 
@@ -235,5 +339,7 @@ export function createEngineSound(opts = {}) {
       if (ready && enabled && ctx.state === 'suspended') ctx.resume();
     },
     update,
+    /** параметры двигателя - используются в проверках */
+    spec: CFM,
   };
 }

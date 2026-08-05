@@ -3,3 +3,7 @@ dist/
 .playwright-mcp/
 .omc/
 *.log
+test/audio/*.mp3
+test/audio/*.wav
+synth.json
+demo.json
