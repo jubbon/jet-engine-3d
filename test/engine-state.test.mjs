@@ -22,7 +22,7 @@ const check = (name, cond, detail = '') => {
     if (n2StopAt === null && eng.n2 === 0) n2StopAt = t;
     if (n1StopAt === null && eng.n1 === 0) n1StopAt = t;
     if (offAt === null && eng.mode === 'off') { offAt = t; }
-    if (trace.length < 8 && Math.abs(t % 3) < DT) trace.push(
+    if (trace.length < 8 && Math.abs(t % 5) < DT) trace.push(
       `t=${t.toFixed(0).padStart(3)}с  N1=${(eng.n1*100).toFixed(0).padStart(3)}%  N2=${(eng.n2*100).toFixed(0).padStart(3)}%  T4=${eng.t4.toFixed(0).padStart(4)}°C  горение=${eng.burn.toFixed(2)}`);
     if (offAt !== null && t > offAt + 30) break;
   }
@@ -62,23 +62,30 @@ const check = (name, cond, detail = '') => {
   check('двигатель выключен перед запуском', eng.mode === 'off');
 
   eng.setMode('start');
-  let t = 0, lightAt = null, t4peak = 0, runAt = null;
+  let t = 0, fuelAt = null, lightAt = null, t4peak = 0, runAt = null, t4beforeLight = 0;
   while (t < 120 && runAt === null) {
     eng.update(DT, 0.0);
     t += DT;
+    if (fuelAt === null && eng.fuel) fuelAt = t;
     if (lightAt === null && eng.lightOff) lightAt = t;
+    if (lightAt === null) t4beforeLight = Math.max(t4beforeLight, eng.t4);
     if (lightAt !== null) t4peak = Math.max(t4peak, eng.t4);
     if (eng.mode === 'run') runAt = t;
   }
   console.log('\n=== ЗАПУСК ===');
+  console.log(`подача топлива: ${fuelAt?.toFixed(1)} с (N2 = 22 %)`);
   console.log(`розжиг: ${lightAt?.toFixed(1)} с (N2 = ${(eng.n2*100).toFixed(0)} % на момент выхода)`);
   console.log(`заброс T4 при розжиге: ${t4peak.toFixed(0)} °C`);
   console.log(`выход на малый газ: ${runAt?.toFixed(1)} с\n`);
 
   check('розжиг происходит', lightAt !== null, `${lightAt?.toFixed(1)} с`);
   check('розжиг после раскрутки стартером, а не сразу', lightAt > 1.0, `${lightAt?.toFixed(1)} с`);
+  check('пламя появляется позже подачи топлива', lightAt - fuelAt > 2.0,
+    `подача ${fuelAt?.toFixed(1)} с, пламя ${lightAt?.toFixed(1)} с`);
+  check('до розжига тракт остаётся холодным', t4beforeLight < 40, `${t4beforeLight.toFixed(0)} °C`);
   check('есть заброс температуры при розжиге', t4peak > 600, `${t4peak.toFixed(0)} °C`);
   check('двигатель выходит на режим «работа»', runAt !== null, `${runAt?.toFixed(1)} с`);
+  check('запуск занимает натурное время', runAt > 25 && runAt < 60, `${runAt?.toFixed(1)} с`);
 
   // после выхода на малый газ при РУД = 0
   for (let i = 0; i < 60 * 30; i++) eng.update(DT, 0.0);
