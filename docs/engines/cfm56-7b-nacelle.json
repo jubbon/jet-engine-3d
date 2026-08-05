@@ -1,0 +1,429 @@
+{
+  "$schema_version": "1.0",
+  "id": "cfm56-7b-nacelle",
+  "title": "Мотогондола CFM56-7B (Boeing 737NG) — технические характеристики",
+  "description": "Справочник по силовой установке-прототипу модели: гондола (мотогондола) двигателя CFM56-7B на Boeing 737-600/-700/-800/-900. Каждое числовое значение снабжено ссылкой на источник и признаком достоверности: documented — прямо указано в источнике, derived — получено обмером масштабного чертежа Boeing (метод описан в measurement_method).",
+  "compiled_at": "2026-08-05",
+  "language": "ru",
+  "units": "СИ (метры, килограммы, градусы); в скобках — оригинальные величины источника",
+
+  "identification": {
+    "engine_model": "CFM International CFM56-7B",
+    "engine_family": "CFM56-7",
+    "manufacturer": "CFM International (GE Aerospace + Safran Aircraft Engines)",
+    "airframe": "Boeing 737 Next Generation (737-600 / -700 / -700C / -800 / -900 / -900ER, BBJ)",
+    "nacelle_design_authority": "Boeing (разработчик технических требований и облика гондолы)",
+    "nacelle_manufacturer": {
+      "value": "UTC Aerospace Systems (UTAS) — ранее Rohr Inc. / Goodrich Aerostructures, ныне Collins Aerospace (RTX)",
+      "source": "ntsb_aar_19_03",
+      "confidence": "documented",
+      "note": "NTSB: «Boeing created the design specifications for the inlet. UTC Aerospace Systems (UTAS) was the inlet manufacturer» — то же и для капотов вентилятора"
+    },
+    "nacelle_development_period": {
+      "value": "1994–1997",
+      "source": "ntsb_aar_19_03",
+      "confidence": "documented",
+      "note": "Конструкция и материалы близки к гондоле 737-300 (CFM56-3)"
+    }
+  },
+
+  "nacelle_overall_dimensions": {
+    "comment": "Габариты гондолы. Ключевое опубликованное значение — выноска «APPROX 8 FT (2.44 M)» на виде спереди в Boeing ACAP; она проставлена ровно между наружными обводами гондолы (проверено попиксельным совмещением выносных линий с контуром: расхождение < 0.05 м).",
+
+    "max_width": {
+      "value": 2.44,
+      "unit": "m",
+      "original": "APPROX 8 FT",
+      "tolerance": "±0.15 м (±6 in — заявленная точность чертежей ACAP)",
+      "source": "boeing_acap_ng_revc",
+      "confidence": "documented",
+      "note": "Максимальный поперечный габарит гондолы (наибольший диаметр по горизонтали), вид спереди, §2.2.5"
+    },
+    "max_width_measured": {
+      "value": 2.50,
+      "unit": "m",
+      "tolerance": "±0.05 м (погрешность обмера) + ±0.15 м (точность чертежа)",
+      "source": "derived_measurement",
+      "confidence": "derived",
+      "note": "Обмер контура на виде спереди: левая гондола 22.8 pt, правая 22.6 pt при масштабе 0.1107 м/pt. Согласуется с выноской 2.44 м в пределах допуска чертежа"
+    },
+    "max_height": {
+      "value": 2.40,
+      "unit": "m",
+      "tolerance": "±0.2 м",
+      "source": "derived_measurement",
+      "confidence": "derived_low",
+      "note": "Вертикальный габарит на виде спереди; верх гондолы частично перекрыт контуром крыла и пилона, поэтому оценка снизу"
+    },
+    "flat_bottom_width": {
+      "value": 1.2,
+      "unit": "m",
+      "tolerance": "±0.2 м",
+      "source": "derived_measurement",
+      "confidence": "derived_low",
+      "note": "Ширина уплощённого («hamster pouch») участка нижней образующей на виде спереди"
+    },
+    "length_lip_to_fan_nozzle_exit": {
+      "value": 3.18,
+      "unit": "m",
+      "tolerance": "±0.15 м",
+      "source": "derived_measurement",
+      "confidence": "derived",
+      "note": "От передней кромки воздухозаборника до среза сопла наружного контура (конец реверса) — вид сбоку, излом нижнего обвода на x=289.4 pt"
+    },
+    "length_lip_to_core_nozzle_exit": {
+      "value": 4.05,
+      "unit": "m",
+      "tolerance": "±0.15 м",
+      "source": "derived_measurement",
+      "confidence": "derived",
+      "note": "От кромки воздухозаборника до среза сопла внутреннего контура — второй излом обвода на x=297.3 pt"
+    },
+    "length_lip_to_plug_tip": {
+      "value": 5.0,
+      "unit": "m",
+      "tolerance": "±0.3 м",
+      "source": "derived_measurement",
+      "confidence": "derived_low",
+      "note": "Полная длина силовой установки с центральным телом (коком сопла)"
+    },
+    "inlet_opening_diameter_as_drawn": {
+      "value": 1.44,
+      "unit": "m",
+      "tolerance": "±0.15 м",
+      "source": "derived_measurement",
+      "confidence": "derived_low",
+      "note": "Внутренняя окружность воздухозаборника на виде спереди. Для сравнения: диаметр вентилятора 1.549 м; чертёж ACAP схематичен в мелких деталях"
+    },
+    "fineness_ratio": {
+      "value": 1.66,
+      "unit": "—",
+      "source": "derived_measurement",
+      "confidence": "derived",
+      "note": "Отношение длины (до среза сопла внутреннего контура, 4.05 м) к максимальной ширине (2.44 м)"
+    },
+    "not_published": [
+      "Точный диаметр по кромке воздухозаборника (highlight diameter)",
+      "Диаметр горла воздухозаборника (throat)",
+      "Длины отдельных агрегатов гондолы (воздухозаборник / капоты / реверс) в спецификациях",
+      "Массы элементов гондолы — в открытых источниках Boeing/CFM не публикуются"
+    ]
+  },
+
+  "installation": {
+    "ground_clearance": {
+      "comment": "Расстояние от земли до нижней точки гондолы (строка «D ENGINE» в таблицах Ground Clearances). ±3 дюйма на разброс загрузки, давления в стойках и шинах.",
+      "b737_800_900_max_at_oew": { "value": 0.64, "unit": "m", "original": "2 FT 1 IN", "source": "boeing_acap_ng_revc", "confidence": "documented" },
+      "b737_800_900_min_at_mtw": { "value": 0.48, "unit": "m", "original": "1 FT 7 IN", "source": "boeing_acap_ng_revc", "confidence": "documented" },
+      "b737_600_700_max_at_oew": { "value": 0.61, "unit": "m", "original": "2 FT 0 IN", "source": "boeing_acap_classic", "confidence": "documented" },
+      "b737_600_700_min_at_mtw": { "value": 0.46, "unit": "m", "original": "1 FT 6 IN", "source": "boeing_acap_classic", "confidence": "documented" },
+      "tolerance_note": "CLEARANCES SHOWN ARE NOMINAL. ADD PLUS OR MINUS 3 INCHES (±0.076 м)"
+    },
+    "engine_tilt": {
+      "value": 5,
+      "unit": "deg",
+      "direction": "носом вверх",
+      "source": "b737org_powerplant",
+      "confidence": "documented",
+      "note": "Двигатели вынесены вперёд и подняты до уровня верхней поверхности крыла; наклон улучшает клиренс, отклоняет струю вниз и снижает нагрев пилона"
+    },
+    "engine_centreline_spacing": {
+      "value": 9.49,
+      "unit": "m",
+      "tolerance": "±0.3 м",
+      "source": "derived_measurement",
+      "confidence": "derived",
+      "note": "Между осями левого и правого двигателей, обмер вида спереди"
+    },
+    "engine_centreline_from_aircraft_axis": {
+      "value": 4.75,
+      "unit": "m",
+      "tolerance": "±0.15 м",
+      "source": "derived_measurement",
+      "confidence": "derived"
+    },
+    "main_gear_track_reference": {
+      "value": 5.72,
+      "unit": "m",
+      "original": "18 FT 9 IN",
+      "source": "boeing_acap_ng_revc",
+      "confidence": "documented",
+      "note": "Использован как эталон масштаба при обмере чертежа"
+    },
+    "flat_bottom_rationale": {
+      "value": "Крыло 737 низко над землёй. Чтобы установить двигатель большой двухконтурности, низ гондолы и губу воздухозаборника уплощили, а коробку приводов и агрегаты вынесли на бока двигателя — отсюда характерный силуэт «hamster pouch»",
+      "source": "b737org_powerplant",
+      "confidence": "documented"
+    },
+    "nacelle_asymmetry": {
+      "value": "Гондолы 737NG имеют асимметричный капот вентилятора и плоское днище под требования CFM56-7B",
+      "source": "ntsb_aar_19_03",
+      "confidence": "documented",
+      "quote": "Boeing 737NG-series airplanes have an asymmetric fan cowl and a flat-bottom nacelle to accommodate the requirements of the CFM56-7B engine"
+    }
+  },
+
+  "components": {
+    "inlet_cowl": {
+      "ata": "71-11",
+      "part_numbers": {
+        "value": ["314-2100-2", "314-2100-3", "314-2100-4"],
+        "manufacturer_code": "Rohr Inc. / Boeing",
+        "nsn_example": "1680-01-659-6899 (для 314-2100-4)",
+        "source": "parts_catalogs",
+        "confidence": "documented"
+      },
+      "structure": {
+        "value": "Кромка воздухозаборника (inlet lip), внутренняя и наружная обечайки (inner/outer barrel), передняя и задняя перегородки (forward/aft bulkhead), стыковочное кольцо (attach ring)",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "d_duct_assembly": {
+        "value": "Кромка воздухозаборника вместе с передней перегородкой образует D-образный контур (D-duct) — полость противообледенительной системы",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "inner_barrel": {
+        "value": "Акустический сотовый заполнитель, перфорированная обшивка и задняя обшивка; две болтовые накладки-стыка на 3 и 9 часах",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "containment_shield": {
+        "value": 0.279,
+        "unit": "m",
+        "original": "about the aft 11 inches of the inner barrel",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented",
+        "note": "Алюминиевый противоосколочный экран, приклеенный по задним ~11 дюймам внутренней обечайки"
+      },
+      "inner_barrel_back_skin_thickness": {
+        "value": 0.51,
+        "unit": "mm",
+        "original": "0.02-inch-thick",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "outer_barrel": {
+        "value": "Три панели с двумя силовыми шпангоутами",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "attachment": {
+        "value": "Стыковочное кольцо в задней части воздухозаборника крепится к фланцу A1 корпуса вентилятора двигателя; этот стык критичен для стойкости к обрыву лопатки (FBO)",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "reference_distance_a1_flange": {
+        "value": 0.432,
+        "unit": "m",
+        "original": "about 17 inches forward of the fan case A1 flange",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented",
+        "note": "Место разрушения внутренней обечайки в событии SWA1380 — косвенный размерный ориентир по глубине воздухозаборника"
+      }
+    },
+
+    "fan_cowl": {
+      "ata": "71-13",
+      "function": {
+        "value": "Аэродинамический обтекатель корпуса вентилятора и агрегатов двигателя; идёт от задней кромки воздухозаборника до передней кромки реверса",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "halves": { "value": 2, "unit": "шт", "note": "Внутренняя (inboard) и наружная (outboard) створки, конструкция асимметричная", "source": "ntsb_aar_19_03", "confidence": "documented" },
+      "hinges_per_half": { "value": 3, "unit": "шт", "note": "Навешены сверху на балку крепления капотов пилона (fan cowl support beam)", "source": "ntsb_aar_19_03", "confidence": "documented" },
+      "latches": { "value": 3, "unit": "шт", "note": "Замки снизу примерно на 6 часах (крюк + ответная часть)", "source": "ntsb_aar_19_03", "confidence": "documented" },
+      "forward_locators": { "value": 4, "unit": "шт", "note": "Осевые фиксаторы передней кромки, сопрягаются с задней перегородкой воздухозаборника", "source": "ntsb_aar_19_03", "confidence": "documented" },
+      "radial_restraint": {
+        "value": "Радиальный фиксатор внизу капота входит в кронштейн на корпусе вентилятора — держит форму капота (следствие плоского днища гондолы и асимметрии капота)",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      }
+    },
+
+    "thrust_reverser": {
+      "ata": "78",
+      "type": {
+        "value": "Решётчатый (каскадный) реверс наружного контура с подвижной обечайкой (translating sleeve) и створками-блокираторами",
+        "source": "b737org_powerplant",
+        "confidence": "documented"
+      },
+      "mounting": {
+        "value": "Половины реверса, как и капоты вентилятора, навешены на пилон",
+        "source": "b737org_powerplant",
+        "confidence": "documented"
+      },
+      "role_in_nacelle": {
+        "value": "Реверс конструктивно входит в состав гондолы и образует её хвостовую часть (наружный контур)",
+        "source": "ntsb_aar_19_03",
+        "confidence": "documented"
+      },
+      "design_note": {
+        "value": "Удлинённая гондола 737NG улучшила крейсерские характеристики: лучше организован внутренний поток, снижено сопротивление на крейсере",
+        "source": "b737org_powerplant",
+        "confidence": "documented"
+      }
+    },
+
+    "core_cowl_and_exhaust": {
+      "core_nozzle_exit_station": {
+        "value": 4.05,
+        "unit": "m",
+        "from": "передняя кромка воздухозаборника",
+        "source": "derived_measurement",
+        "confidence": "derived"
+      },
+      "plug": {
+        "value": "Центральное тело (кок сопла) конической формы, выступает за срез сопла внутреннего контура примерно на 0.9–1.0 м",
+        "source": "derived_measurement",
+        "confidence": "derived_low"
+      },
+      "exhaust_note": {
+        "value": "Контуры не смешиваются: наружный контур истекает коаксиально, смеситель отсутствует (в отличие от JT8D)",
+        "source": "b737org_powerplant",
+        "confidence": "documented"
+      }
+    },
+
+    "pylon": {
+      "value": "Пилон (strut) несёт двигатель под крылом; на нём же — балка крепления капотов вентилятора и узлы навески реверса. В пилоне размещён датчик модели самолёта, по которому EEC ограничивает максимальную сертифицированную тягу",
+      "source": "b737org_powerplant",
+      "confidence": "documented"
+    }
+  },
+
+  "engine_reference_data": {
+    "comment": "Данные самого двигателя — контекст для габаритов гондолы",
+    "fan_diameter": { "value": 1.549, "unit": "m", "original": "61 in", "source": "b737org_powerplant", "confidence": "documented", "note": "Цельнотитановый широкохордный вентилятор" },
+    "fan_blades": { "value": 24, "unit": "шт", "source": "ntsb_aar_19_03", "confidence": "documented" },
+    "fan_blade_chord_max": { "value": 0.279, "unit": "m", "original": "about 11 inches", "source": "ntsb_aar_19_03", "confidence": "documented" },
+    "bare_engine_overall_length": { "value": 2.508, "unit": "m", "original": "2508 mm", "source": "easa_tcds_e004", "confidence": "documented" },
+    "bare_engine_width": { "value": 2.118, "unit": "m", "original": "2118 mm", "source": "easa_tcds_e004", "confidence": "documented" },
+    "bare_engine_height": { "value": 1.829, "unit": "m", "original": "1829 mm", "source": "easa_tcds_e004", "confidence": "documented" },
+    "dry_weight": { "value": 2386, "unit": "kg", "source": "easa_tcds_e004", "confidence": "documented", "note": "CFM56-7B «SAC», модели -7B18…-7B27/B3" },
+    "bypass_ratio": { "value": 5.1, "unit": "—", "source": "b737org_powerplant", "confidence": "documented" },
+    "certified_thrust_by_model": {
+      "737-600": { "engine": "CFM56-7B22", "thrust_lbf": 22700, "thrust_kN": 101.0, "source": "b737org_powerplant", "confidence": "documented" },
+      "737-700": { "engine": "CFM56-7B24", "thrust_lbf": 24200, "thrust_kN": 107.6, "source": "b737org_powerplant", "confidence": "documented" },
+      "737-800": { "engine": "CFM56-7B27", "thrust_lbf": 27300, "thrust_kN": 121.4, "source": "b737org_powerplant", "confidence": "documented" },
+      "737-900": { "engine": "CFM56-7B27", "thrust_lbf": 27300, "thrust_kN": 121.4, "source": "b737org_powerplant", "confidence": "documented" }
+    },
+    "limits": {
+      "max_n1_percent": { "value": 104, "source": "b737org_powerplant", "confidence": "documented" },
+      "max_n2_percent": { "value": 105, "source": "b737org_powerplant", "confidence": "documented" },
+      "max_egt_takeoff_c": { "value": 950, "source": "b737org_powerplant", "confidence": "documented" },
+      "max_egt_continuous_c": { "value": 925, "source": "b737org_powerplant", "confidence": "documented" }
+    },
+    "spinner": {
+      "value": "Кок конэллиптического профиля — компромисс между сбросом льда и малой зоной торможения потока (в отличие от конического кока ранних 737-300/400)",
+      "source": "b737org_powerplant",
+      "confidence": "documented"
+    }
+  },
+
+  "airworthiness": {
+    "faa_ad_2025_nacelle": {
+      "date": "2025-03-03",
+      "compliance_deadline": "2028-07-31",
+      "affected_fleet": "около 2000 самолётов 737NG регистрации США (-600/-700/-800/-900)",
+      "required_changes": [
+        "Новые проставки (crushable spacers) крепления воздухозаборника к корпусу вентилятора с увеличенной несущей способностью крепежа",
+        "Доработка узла радиального фиксатора (radial restraint) капота вентилятора и вентиляции капота",
+        "Усиление болтов балки крепления капотов (fan cowl support beam)",
+        "Усиление конструкции в зоне крепления выходного сопла"
+      ],
+      "cause": "Незакапотированное разрушение лопатки вентилятора CFM56-7B, Southwest Airlines рейс 1380, 17 апреля 2018 г.",
+      "source": ["federal_register_2025", "aviation_week_nacelle_redesign"],
+      "confidence": "documented"
+    }
+  },
+
+  "measurement_method": {
+    "why": "Boeing и CFM не публикуют габариты гондолы в спецификациях. Единственное опубликованное значение — выноска на чертеже ACAP; остальные размеры получены обмером того же масштабного чертежа.",
+    "source_drawing": "Boeing D6-58325-7 Rev C (октябрь 2025), §2.2.5 «General Dimensions: Model 737-800» — вид сверху, сбоку и спереди",
+    "procedure": [
+      "Страница чертежа отрендерена в растр с разрешением 576 dpi (масштаб 8× от 72 dpi)",
+      "Контур самолёта выделен по цвету (синие линии чертежа отделены от чёрных выносок и размерных линий)",
+      "Масштаб определён по трём независимым эталонам самого чертежа: колея основных опор 5.72 м, база шасси 15.60 м, размах крыла 34.32 м",
+      "Полученные масштабы совпали в пределах 1.3 %; принят средний: 0.013836 м/пиксель (0.1107 м на пункт PDF)",
+      "Габариты гондолы сняты как экстремумы контура: ширина и высота — на виде спереди, длины и изломы обвода (срезы сопел) — на виде сбоку"
+    ],
+    "validation": "Выносные линии размера «APPROX 8 FT (2.44 M)» совпали с наружными обводами гондолы с точностью лучше 0.05 м — это подтверждает, что данная выноска относится именно к ширине гондолы. Обмеренная ширина 2.50 м согласуется с ней в пределах допуска чертежа.",
+    "accuracy_statement": {
+      "value": "±0.15 m",
+      "original": "THESE DRAWINGS ARE USED FOR AIRPORT PLANNING... ACCURATE WITHIN +/- 6 INCHES",
+      "source": "boeing_acap_max_revk",
+      "note": "Официальная оговорка Boeing о точности чертежей ACAP; распространяется на все значения с confidence = derived"
+    }
+  },
+
+  "sources": {
+    "boeing_acap_ng_revc": {
+      "title": "Next-Generation 737 Airplane Characteristics for Airport Planning, D6-58325-7 Rev C",
+      "publisher": "Boeing Commercial Airplanes",
+      "date": "2025-10",
+      "url": "https://www.boeing.com/content/dam/boeing/v2/airports/acaps/737NG_REV_C.pdf",
+      "used_for": ["выноска ширины гондолы 2.44 м", "клиренсы", "колея шасси", "масштабный чертёж для обмера"]
+    },
+    "boeing_acap_classic": {
+      "title": "737 Airplane Characteristics for Airport Planning, D6-58325-6",
+      "publisher": "Boeing Commercial Airplanes",
+      "date": "2013-09",
+      "url": "https://www.boeing.com/content/dam/boeing/boeingdotcom/commercial/airports/acaps/737.pdf",
+      "used_for": ["клиренсы 737-600/-700"]
+    },
+    "boeing_acap_max_revk": {
+      "title": "737 MAX Airplane Characteristics for Airport Planning, D6-38A004 Rev K",
+      "publisher": "Boeing Commercial Airplanes",
+      "date": "2025-07",
+      "url": "https://www.boeing.com/content/dam/boeing/v2/airports/acaps/737MAX_RevK.pdf",
+      "used_for": ["официальная формулировка точности чертежей ±6 дюймов"]
+    },
+    "easa_tcds_e004": {
+      "title": "EASA Type Certificate Data Sheet E.004 — CFM International CFM56-7B series engines, Issue 07",
+      "publisher": "European Union Aviation Safety Agency",
+      "date": "2023-01-09",
+      "url": "https://www.easa.europa.eu/en/downloads/7795/en",
+      "used_for": ["габариты и сухая масса двигателя"]
+    },
+    "ntsb_aar_19_03": {
+      "title": "NTSB/AAR-19/03 — Left Engine Failure and Subsequent Depressurization, Southwest Airlines Flight 1380, Boeing 737-7H4, 17 April 2018",
+      "publisher": "National Transportation Safety Board",
+      "date": "2019-11-19",
+      "url": "https://libraryonline.erau.edu/online-full-text/ntsb/aircraft-accident-reports/AAR19-03.pdf",
+      "used_for": ["конструкция воздухозаборника и капотов", "производитель гондолы", "число лопаток вентилятора", "толщины и размеры элементов"]
+    },
+    "b737org_powerplant": {
+      "title": "The Boeing 737 Powerplant (Boeing 737 Technical Site)",
+      "author": "Chris Brady",
+      "url": "https://www.b737.org.uk/powerplant.htm",
+      "used_for": ["диаметр вентилятора", "наклон двигателя 5°", "причина плоского днища", "тяги по моделям", "пределы N1/N2/EGT", "тип реверса"]
+    },
+    "federal_register_2025": {
+      "title": "Airworthiness Directives; The Boeing Company Airplanes (737NG nacelle)",
+      "publisher": "FAA / Federal Register",
+      "date": "2025-03-04",
+      "url": "https://www.federalregister.gov/documents/2025/03/04/2025-03401/airworthiness-directives-the-boeing-company-airplanes",
+      "used_for": ["требования директивы лётной годности к гондоле"]
+    },
+    "aviation_week_nacelle_redesign": {
+      "title": "Boeing Details CFM56-7 Nacelle Inlet And Cowl Redesign Effort",
+      "publisher": "Aviation Week",
+      "url": "https://aviationweek.com/air-transport/safety-ops-regulation/boeing-details-cfm56-7-nacelle-inlet-cowl-redesign-effort",
+      "used_for": ["состав доработок гондолы"]
+    },
+    "parts_catalogs": {
+      "title": "Каталоги авиационных компонентов (PartsBase, AeroBase Group, Boeing Shop, HEICO Repair Group)",
+      "urls": [
+        "https://www.partsbase.com/parts/314-2100-2.html",
+        "https://aerobasegroup.com/part-number/314-2100-4_01-659-6899",
+        "https://shop.boeing.com/cpd/bdi_314-2100-4=ih"
+      ],
+      "used_for": ["номера воздухозаборника (inlet cowl assembly) и ATA-код"]
+    },
+    "derived_measurement": {
+      "title": "Обмер масштабного чертежа Boeing ACAP (см. measurement_method)",
+      "used_for": ["все значения с confidence = derived"]
+    }
+  }
+}
