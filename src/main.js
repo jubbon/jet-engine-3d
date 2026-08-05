@@ -9,6 +9,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { buildEngine, getShellMaterials, MATS } from './engine.js';
 import { createAirflow } from './airflow.js';
+import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
 
@@ -120,6 +121,9 @@ function setXray(on) {
 /* =============================== постобработка ======================= */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+// тепловое искажение струи - до свечения, чтобы ореолы «поплыли» вместе с кадром
+const haze = createHeatHaze(camera, innerWidth, innerHeight);
+composer.addPass(haze.pass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.2, 0.4, 1.0);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
@@ -133,6 +137,7 @@ const state = {
   xray: false,
   spin: true,
   orbit: false,
+  haze: true,
   explode: 0,
   cutHalf: 100,
   cutRot: 90,
@@ -202,6 +207,9 @@ const VIEWS = [
   { name: 'Камера сгорания', pos: [-1.0, 2.0, 4.2], target: [0.15, 0, 0], cut: true },
   { name: 'Турбина', pos: [2.6, 2.2, 4.8], target: [1.7, 0, 0], cut: true },
   { name: 'Сопло и струя', pos: [8.2, 2.8, 7.0], target: [3.4, 0, 0] },
+  // камера стоит вплотную к границе конуса струи: сама струя идёт на зрителя,
+  // но двигатель не тонет в ней целиком, как это было бы на оси
+  { name: 'Сзади, в потоке газов', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
 ];
 
 const camTargetPos = camera.position.clone();
@@ -228,6 +236,7 @@ function toggleFlow(on) {
   state.flow = on;
   btnFlow.classList.toggle('on', on);
   airflow.setVisible(on);
+  haze.setFlowMode(on);
   legend.classList.toggle('hidden', !on);
   // чтобы потоки было видно внутри — делаем корпуса прозрачными
   if (on && !state.cutaway && !state.xray) {
@@ -303,6 +312,10 @@ $('chk-labels').onchange = (e) => {
   labelObjects.forEach((o) => (o.visible = e.target.checked));
 };
 $('chk-lines').onchange = (e) => airflow.setLines(e.target.checked);
+$('chk-haze').onchange = (e) => {
+  state.haze = e.target.checked;
+  haze.setEnabled(state.haze);
+};
 $('chk-spin').onchange = (e) => (state.spin = e.target.checked);
 $('chk-orbit').onchange = (e) => (state.orbit = e.target.checked);
 $('info-close').onclick = () => info.classList.add('hidden');
@@ -321,7 +334,11 @@ addEventListener('keydown', (e) => {
     $('chk-xray').checked = !state.xray;
     state.xray = !state.xray;
     setXray(state.xray);
-  } else if (e.key >= '1' && e.key <= '8') {
+  } else if (e.key === 'h' || e.key === 'H' || e.key === 'р' || e.key === 'Р') {
+    $('chk-haze').checked = !state.haze;
+    state.haze = !state.haze;
+    haze.setEnabled(state.haze);
+  } else if (e.key >= '1' && e.key <= '9') {
     goView(VIEWS[+e.key - 1]);
   }
 });
@@ -445,6 +462,7 @@ function animate() {
   bloom.strength = 0.12 + glow * 0.2;
 
   airflow.update(dt, eng.n1, burn);
+  haze.update(dt, burn, eng.n1);
 
   // звук: панорама и громкость следуют за положением камеры
   if (state.sound) {
@@ -474,6 +492,7 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  haze.setSize(innerWidth, innerHeight);
   labelRenderer.setSize(innerWidth, innerHeight);
 });
 

@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/engine-state.test.mjs"
+    "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs"
   },
   "keywords": [],
   "author": "",
