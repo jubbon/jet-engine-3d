@@ -155,6 +155,102 @@ function lathe(points, material, segments = 96) {
   return m;
 }
 
+/* ------------------- плоский низ мотогондолы ------------------------ *
+ *  У 737 гондола не круглая: низ и губа воздухозаборника сплющены -
+ *  «hamster pouch». Причина не стилистическая. Крыло 737 низко над
+ *  землёй, и чтобы посадить на него CFM56, вентилятор обрезали в
+ *  диаметре, а коробку приводов с агрегатами перенесли из-под двигателя
+ *  на бок (с 6 часов на 9). Освободившийся низ и сплющили.
+ *
+ *  Тела вращения здесь строит lathe(), поэтому форму даём деформацией
+ *  вершин: низ сечения подрезаем до заданного уровня плавным минимумом,
+ *  чтобы вместо острого угла получился скруглённый переход в борта.
+ * -------------------------------------------------------------------- */
+
+// на сколько условных единиц срезан низ гондолы
+const BELLY = 0.2;
+
+// Снаружи гондола плоская от губы через капоты вентилятора и круглеет к соплу.
+const outerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -1.6, 1.0));
+
+// А внутри воздухозаборник обязан прийти к кругу уже к плоскости вентилятора:
+// зазор до концов лопаток здесь меньше десятой доли единицы, и сплющенный
+// тракт просто срезал бы их.
+const innerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -4.95, -4.1));
+
+// Угол, на который коробка приводов с агрегатами уведена от низа двигателя
+// на бок. Он же задаёт направление разнесения узла и место подписи.
+const AGB_TILT = THREE.MathUtils.degToRad(62);
+const AGB_AXIS = new THREE.Vector3(1, 0, 0);
+const AGB_EXPLODE = new THREE.Vector3(0, -3.4, 0).applyAxisAngle(AGB_AXIS, AGB_TILT);
+
+// плавный минимум: скругляет стык плоского низа с бортами
+function smoothMin(a, b, k) {
+  const h = THREE.MathUtils.clamp(0.5 + (0.5 * (b - a)) / k, 0, 1);
+  return b * (1 - h) + a * h - k * h * (1 - h);
+}
+
+/* computeVertexNormals() оставляет шов там, где lathe дублирует вершины на
+   стыке 0 и 2π: у копий разные соседние треугольники, а значит и разные
+   нормали. Усредняем нормали совпадающих вершин - шов пропадает. Рёбра
+   профиля при этом остаются острыми: у них координаты различаются. */
+function weldNormals(geo) {
+  geo.computeVertexNormals();
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  const same = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${pos.getX(i).toFixed(4)}|${pos.getY(i).toFixed(4)}|${pos.getZ(i).toFixed(4)}`;
+    const bucket = same.get(key);
+    if (bucket) bucket.push(i);
+    else same.set(key, [i]);
+  }
+  same.forEach((ids) => {
+    if (ids.length < 2) return;
+    let nx = 0;
+    let ny = 0;
+    let nz = 0;
+    ids.forEach((i) => {
+      nx += nor.getX(i);
+      ny += nor.getY(i);
+      nz += nor.getZ(i);
+    });
+    const len = Math.hypot(nx, ny, nz) || 1;
+    ids.forEach((i) => nor.setXYZ(i, nx / len, ny / len, nz / len));
+  });
+  nor.needsUpdate = true;
+}
+
+/**
+ * Сплющивает низ тела вращения, построенного lathe().
+ * @param {THREE.Mesh} mesh
+ * @param {(x: number) => number} depth сколько срезать снизу на станции x
+ */
+function flattenBelly(mesh, depth) {
+  const geo = mesh.geometry;
+  geo.rotateZ(-Math.PI / 2); // из осей LatheGeometry в оси двигателя
+  mesh.rotation.z = 0;
+
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    if (y >= 0) continue; // сплющивается только низ
+    const d = depth(pos.getX(i));
+    if (d <= 1e-4) continue;
+    // радиус на кольце постоянный, поэтому уровень среза общий для всего кольца
+    const r = Math.hypot(y, pos.getZ(i));
+    if (r < 1e-4) continue;
+    // Скругление стыка держим тугим: с мягким переходом сплющивание
+    // расползается по бортам и вход читается овалом, а не кругом со
+    // срезанным низом.
+    pos.setY(i, -smoothMin(-y, Math.max(r * 0.4, r - d), r * 0.09));
+  }
+  pos.needsUpdate = true;
+  weldNormals(geo);
+  geo.computeBoundingSphere();
+  return mesh;
+}
+
 // Кольцевой диск/барабан ротора
 function drum(x0, x1, r0, r1, material, seg = 64) {
   return lathe(
@@ -222,8 +318,11 @@ export function buildEngine() {
     new THREE.Vector3(0, 3.4, 0)
   );
 
-  // замкнутый профиль капота: наружная обшивка назад, затем внутренняя вперёд
-  const nacProfile = [
+  // Профиль капота разбит на две половины: наружная обшивка идёт назад,
+  // внутренняя возвращается вперёд. Вместе они дают ту же замкнутую
+  // оболочку, что и раньше, но сплющиваются по-разному - снаружи гондола
+  // плоская почти по всей длине, внутри только у губы (см. flattenBelly).
+  const nacOuter = [
     [1.62, ST.lip],
     [1.86, -4.85],
     [1.97, -4.3],
@@ -232,6 +331,9 @@ export function buildEngine() {
     [1.94, 0.2],
     [1.82, 1.0],
     [1.6, ST.bypassExit],
+    [1.52, ST.bypassExit],
+  ];
+  const nacInner = [
     [1.52, ST.bypassExit],
     [1.66, 1.0],
     [1.74, 0.2],
@@ -244,21 +346,27 @@ export function buildEngine() {
     [1.53, -5.0],
     [1.62, ST.lip],
   ];
-  mNac.add(lathe(nacProfile, MATS.nacelle, 120));
-  // блестящая кромка воздухозаборника
+  mNac.add(flattenBelly(lathe(nacOuter, MATS.nacelle, 120), outerBelly));
+  mNac.add(flattenBelly(lathe(nacInner, MATS.nacelle, 120), innerBelly));
+  // блестящая кромка воздухозаборника: целиком в зоне полного сплющивания,
+  // поэтому и снаружи, и изнутри режется одинаково
   mNac.add(
-    lathe(
-      [
-        [1.62, ST.lip],
-        [1.78, -4.98],
-        [1.83, -4.9],
-        [1.68, ST.lip + 0.02],
-        [1.57, -4.98],
-        [1.53, -5.03],
-        [1.62, ST.lip],
-      ],
-      MATS.nacelleLip,
-      120
+    flattenBelly(
+      lathe(
+        [
+          [1.62, ST.lip], // нос кромки
+          [1.8, -5.06],
+          [1.9, -4.7], // наружная часть, чуть проступает над капотом
+          [1.86, -4.66], // задний торец кольца, спрятан внутри обшивки
+          [1.548, -4.66],
+          [1.532, -4.85], // внутренняя часть идёт обратно к носу, чуть
+          [1.518, -5.02], // утоплена в тракт, чтобы не спорить с обечайкой
+          [1.62, ST.lip],
+        ],
+        MATS.nacelleLip,
+        120
+      ),
+      outerBelly
     )
   );
 
@@ -926,23 +1034,29 @@ export function buildEngine() {
   const mAcc = module(
     'accessory',
     'Коробка приводов и агрегаты',
-    'Через угловую передачу от вала ВД приводятся топливный и масляный насосы, генераторы и стартер. Здесь же трубопроводы отбора воздуха и агрегаты FADEC.',
-    new THREE.Vector3(0, -3.4, 0)
+    'Через угловую передачу от вала ВД приводятся топливный и масляный насосы, генераторы и стартер. Здесь же трубопроводы отбора воздуха и агрегаты FADEC. На 737 коробка вынесена с низа двигателя на бок - это и позволило сплющить низ мотогондолы.',
+    AGB_EXPLODE
   );
+  // Всё навесное собрано так, будто висит снизу, и целиком повёрнуто на бок:
+  // так низ двигателя остаётся свободным под плоскую гондолу.
+  const accSide = new THREE.Group();
+  accSide.rotation.x = AGB_TILT;
+  mAcc.add(accSide);
+
   const gearbox = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.42, 0.9), MATS.accessory);
   gearbox.position.set(-1.3, -1.12, 0);
   gearbox.rotation.z = 0.06;
-  mAcc.add(gearbox);
+  accSide.add(gearbox);
   [[-1.95, 0.26], [-1.35, 0.3], [-0.75, 0.24]].forEach(([x, r], i) => {
     const acc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.5, 16), MATS.accessory);
     acc.rotation.x = Math.PI / 2;
     acc.position.set(x, -1.32 - i * 0.02, 0.5);
-    mAcc.add(acc);
+    accSide.add(acc);
   });
   const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.95, 12), MATS.steel);
   tower.position.set(-1.55, -0.62, 0);
   tower.rotation.z = 0.28;
-  mAcc.add(tower);
+  accSide.add(tower);
   // магистрали
   [0.35, -0.35].forEach((z) => {
     const c = new THREE.CatmullRomCurve3([
@@ -951,7 +1065,7 @@ export function buildEngine() {
       new THREE.Vector3(0.6, -1.1, z * 0.9),
       new THREE.Vector3(1.6, -0.85, z * 0.5),
     ]);
-    mAcc.add(new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.045, 8), MATS.steel));
+    accSide.add(new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.045, 8), MATS.steel));
   });
 
   /* ===================== метки узлов ================================= */
@@ -965,7 +1079,12 @@ export function buildEngine() {
     { module: mLpt, text: 'ТНД', pos: new THREE.Vector3(2.1, 1.2, 0) },
     { module: mExh, text: 'Сопло', pos: new THREE.Vector3(3.6, 0.8, 0) },
     { module: mShaft, text: 'Валы НД / ВД', pos: new THREE.Vector3(-0.2, -0.42, 0) },
-    { module: mAcc, text: 'Коробка приводов', pos: new THREE.Vector3(-1.3, -1.45, 0) },
+    {
+      module: mAcc,
+      text: 'Коробка приводов',
+      // подпись едет на бок вместе с самой коробкой
+      pos: new THREE.Vector3(-1.3, -1.45, 0).applyAxisAngle(AGB_AXIS, AGB_TILT),
+    },
   ];
 
   modules.forEach((m) => m.userData.base.copy(m.position));
@@ -998,7 +1117,7 @@ export function buildEngine() {
   {
     const box = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 1.4), pickMat);
     box.position.set(-1.3, -1.16, 0);
-    mAcc.add(box);
+    accSide.add(box); // прокси уезжает на бок вместе с агрегатами
     pickables.push(box);
   }
 
