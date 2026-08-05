@@ -136,6 +136,7 @@ const state = {
   explode: 0,
   cutHalf: 100,
   cutRot: 90,
+  timeScale: 1, // ускорение процессов двигателя, ×1 или ×4
 };
 
 let n1Angle = 0;
@@ -272,6 +273,16 @@ btnCut.onclick = () => toggleCut(!state.cutaway);
 $('btn-power').onclick = () => {
   setMode(eng.mode === 'run' || eng.mode === 'start' ? 'stop' : 'start');
 };
+
+// скорость времени: запуск занимает около 40 с, выбег - 35 с, как у настоящего
+// двигателя; ускорение позволяет не ждать их целиком
+function setTimeScale(k) {
+  state.timeScale = k;
+  $('ts-1').classList.toggle('on', k === 1);
+  $('ts-4').classList.toggle('on', k === 4);
+}
+$('ts-1').onclick = () => setTimeScale(1);
+$('ts-4').onclick = () => setTimeScale(4);
 
 $('thr').oninput = (e) => {
   state.throttle = e.target.value / 100;
@@ -415,7 +426,9 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
 
-  const keff = eng.update(dt, state.throttle);
+  // ускорение времени влияет только на процессы в двигателе: запуск и выбег
+  // идут в натуральном темпе (десятки секунд), и ждать их не всегда уместно
+  const keff = eng.update(dt * state.timeScale, state.throttle);
   if (eng.mode !== shownMode) refreshModeUI();
   updateGauges(keff);
 
