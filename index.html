@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Турбовентиляторный двигатель — интерактивная 3D-модель</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b0e13' stroke='%234fc3ff' stroke-width='2'/%3E%3Cg stroke='%234fc3ff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M16 5v7M16 20v7M5 16h7M20 16h7M8.2 8.2l5 5M18.8 18.8l5 5M23.8 8.2l-5 5M13.2 18.8l-5 5'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='3.2' fill='%23ff7a2f'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="labels"></div>
+
+      <!-- ------------------------- панель управления ------------------------- -->
+      <aside id="panel">
+        <header>
+          <h1>Турбовентиляторный двигатель</h1>
+          <p class="sub">ТРДД большой степени двухконтурности · интерактивная модель</p>
+        </header>
+
+        <section class="block">
+          <button id="btn-flow" class="big">
+            <span class="ic">≋</span>
+            <span>
+              <b>Потоки воздуха</b>
+              <small>холодный контур и горячая струя</small>
+            </span>
+          </button>
+          <button id="btn-cut" class="big">
+            <span class="ic">◐</span>
+            <span>
+              <b>Заглянуть внутрь</b>
+              <small>вырез корпуса, вид на ротор</small>
+            </span>
+          </button>
+          <button id="btn-sound" class="big">
+            <span class="ic">♪</span>
+            <span>
+              <b>Звук двигателя</b>
+              <small>синтез по оборотам N1 и N2</small>
+            </span>
+          </button>
+          <div id="vol-row" class="collapsed">
+            <label class="row"><span>Громкость</span><b id="val-vol">50 %</b></label>
+            <input id="vol" type="range" min="0" max="100" value="50" />
+          </div>
+        </section>
+
+        <section class="block">
+          <button id="btn-power" class="big danger">
+            <span class="ic">⏻</span>
+            <span>
+              <b id="power-label">Останов двигателя</b>
+              <small id="power-hint">стоп-кран, выбег роторов</small>
+            </span>
+          </button>
+          <div class="statusbar" id="mode-bar">
+            <span>Состояние</span>
+            <b id="val-mode">РАБОТА</b>
+          </div>
+          <div id="thr-wrap">
+            <label class="row">
+              <span>Режим двигателя (РУД)</span>
+              <b id="val-thr">85 %</b>
+            </label>
+            <input id="thr" type="range" min="0" max="100" value="85" />
+          </div>
+          <div class="gauges">
+            <div><i>N1</i><b id="val-n1">—</b><small>вентилятор</small></div>
+            <div><i>N2</i><b id="val-n2">—</b><small>ротор ВД</small></div>
+            <div><i>T4</i><b id="val-t4">—</b><small>перед ТВД</small></div>
+            <div><i>Тяга</i><b id="val-thrust">—</b><small>расчётная</small></div>
+          </div>
+        </section>
+
+        <section class="block" id="cut-opts">
+          <label class="row"><span>Угол выреза</span><b id="val-cut">100°</b></label>
+          <input id="cut" type="range" min="0" max="175" value="100" />
+          <label class="row"><span>Поворот выреза</span><b id="val-cutrot">90°</b></label>
+          <input id="cutrot" type="range" min="0" max="360" value="90" />
+        </section>
+
+        <section class="block">
+          <label class="row"><span>Разнести узлы</span><b id="val-exp">0 %</b></label>
+          <input id="exp" type="range" min="0" max="100" value="0" />
+        </section>
+
+        <section class="block toggles">
+          <label><input type="checkbox" id="chk-xray" /><span>Прозрачные корпуса</span></label>
+          <label><input type="checkbox" id="chk-nac" checked /><span>Мотогондола</span></label>
+          <label><input type="checkbox" id="chk-labels" checked /><span>Подписи узлов</span></label>
+          <label><input type="checkbox" id="chk-lines" checked /><span>Линии тока</span></label>
+          <label><input type="checkbox" id="chk-spin" checked /><span>Вращение ротора</span></label>
+          <label><input type="checkbox" id="chk-orbit" /><span>Облёт камерой</span></label>
+        </section>
+
+        <section class="block">
+          <div class="views" id="views"></div>
+        </section>
+
+        <footer>
+          <span>ЛКМ — поворот · колесо — зум · ПКМ — сдвиг</span>
+          <span class="keys">Пробел — потоки · C — разрез · X — рентген · S — звук</span>
+          <span class="keys">E — запуск/останов · 1…8 — виды</span>
+        </footer>
+      </aside>
+
+      <!-- ---------------------------- легенда ---------------------------- -->
+      <div id="legend" class="hidden">
+        <h3>Потоки</h3>
+        <div class="lg"><i style="background: linear-gradient(90deg,#2f6bff,#39b7ff)"></i>
+          <span><b>Наружный контур</b> — холодный воздух, ~15…50 °C. До 80 % тяги.</span></div>
+        <div class="lg"><i style="background: linear-gradient(90deg,#39b7ff,#63efe2,#ffe066)"></i>
+          <span><b>Сжатие</b> — воздух в компрессоре греется до 600 °C.</span></div>
+        <div class="lg"><i style="background: linear-gradient(90deg,#fff4d2,#ff9b3d)"></i>
+          <span><b>Горение</b> — 1800…2000 °C в жаровой трубе.</span></div>
+        <div class="lg"><i style="background: linear-gradient(90deg,#ff9b3d,#ff4f1a)"></i>
+          <span><b>Горячая струя</b> — расширение на турбине и в сопле, 550 °C.</span></div>
+        <table id="stations"></table>
+      </div>
+
+      <!-- --------------------------- карточка узла --------------------------- -->
+      <div id="info" class="hidden">
+        <button id="info-close">×</button>
+        <h2></h2>
+        <p></p>
+      </div>
+
+      <div id="tip"></div>
+      <div id="loading">Сборка двигателя…</div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
