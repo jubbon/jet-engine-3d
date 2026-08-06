@@ -879,8 +879,8 @@ What to do:
   README should state the origin of the recordings and their licence — they were
   used to tune the sound, and it is honest to say so.
 
-What to check after publishing: the transfer size (the 658 kB bundle compresses
-to about 174 kB, which is acceptable, though BL-15 would improve it), behaviour
+What to check after publishing: the transfer size (the 667 kB bundle compresses
+to about 177 kB, which is acceptable, though BL-15 would improve it), behaviour
 on a phone — almost certainly surfacing what BL-11 describes — and that the
 sound does not try to start before the screen is touched.
 
@@ -1015,7 +1015,7 @@ the description loader from BL-23. To be documented in
 
 ### BL-15. Bundle splitting and LOD for blade rows
 
-The build is 658 kB (174 kB gzip), almost all of it Three.js; the cure is
+The build is 667 kB (177 kB gzip), almost all of it Three.js; the cure is
 `manualChunks`. Separately: rows with small blades are built at maximum detail
 regardless of distance — levels of detail would take some of the load off weaker
 machines. Both parts are needed if BL-11 is taken on.

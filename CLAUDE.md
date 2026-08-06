@@ -179,7 +179,7 @@ lines.
 
 The yardstick as of today (recount it, do not copy it): 758 thousand triangles,
 123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 150
-checks across seven test files. The build is 664 kB of JS, 176 kB gzipped.
+checks across seven test files. The build is 667 kB of JS, 177 kB gzipped.
 
 It has accumulated before: `01` and `08` promised ~850 thousand triangles and
 ~50 draw calls for a long time, and the draw calls were off by a factor of three

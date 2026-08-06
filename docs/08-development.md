@@ -25,7 +25,7 @@ port is better closed.
 ```
 dist/index.html                 9.2 kB  (2.5 kB gzip)
 dist/assets/index-*.css         7.9 kB  (2.4 kB gzip)
-dist/assets/index-*.js        664 kB  (176 kB gzip)
+dist/assets/index-*.js        667 kB  (177 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
