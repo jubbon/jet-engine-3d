@@ -1,17 +1,25 @@
 {
   "name": "jet-engine-3d",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "An interactive 3D model of a CFM56-7B turbofan in a Boeing 737NG nacelle, built entirely in code on Three.js",
+  "private": true,
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs && node test/spiral-blur.test.mjs && node test/atmosphere.test.mjs && node test/contrail.test.mjs && node test/geometry.test.mjs && node test/clearance.test.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "three.js",
+    "webgl",
+    "3d-model",
+    "turbofan",
+    "jet-engine",
+    "cfm56",
+    "visualisation"
+  ],
+  "author": "Dmitry Kulikov",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "three": "^0.185.1"
