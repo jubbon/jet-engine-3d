@@ -84,6 +84,28 @@
           </div>
         </section>
 
+        <!-- ambient conditions: the model itself stays on the ground, but the
+             air around it can be moved up to the cruise levels -->
+        <section class="block" id="amb">
+          <div class="statusbar">
+            <span>Ambient conditions</span>
+            <span class="seg">
+              <button id="alt-0" class="on" type="button">0 km</button>
+              <button id="alt-3" type="button">3 km</button>
+              <button id="alt-11" type="button">11 km</button>
+            </span>
+          </div>
+          <label class="row"><span>Altitude</span><b id="val-alt">0.0 km</b></label>
+          <input id="alt" type="range" min="0" max="120" value="0" />
+          <label class="row"><span>Deviation from standard</span><b id="val-isa">0 °C</b></label>
+          <input id="isa" type="range" min="-30" max="30" value="0" />
+          <div class="gauges" id="amb-out">
+            <div><i>T</i><b id="val-amb-t">—</b><small>outside air</small></div>
+            <div><i>P</i><b id="val-amb-p">—</b><small>bar</small></div>
+            <div><i>ρ</i><b id="val-amb-rho">—</b><small>kg/m³</small></div>
+          </div>
+        </section>
+
         <section class="block" id="cut-opts">
           <label class="row"><span>Cut-away angle</span><b id="val-cut">100°</b></label>
           <input id="cut" type="range" min="0" max="175" value="100" />
@@ -121,7 +143,7 @@
       <div id="legend" class="hidden">
         <h3>Flows</h3>
         <div class="lg"><i style="background: linear-gradient(90deg,#2f6bff,#39b7ff)"></i>
-          <span><b>Bypass duct</b> — cold air, ~15…50 °C. Up to 80 % of the thrust.</span></div>
+          <span><b>Bypass duct</b> — cold air, ~15…50 °C at sea level. Up to 80 % of the thrust.</span></div>
         <div class="lg"><i style="background: linear-gradient(90deg,#39b7ff,#63efe2,#ffe066)"></i>
           <span><b>Compression</b> — air is heated to 600 °C in the compressor.</span></div>
         <div class="lg"><i style="background: linear-gradient(90deg,#fff4d2,#ff9b3d)"></i>

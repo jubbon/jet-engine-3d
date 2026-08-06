@@ -54,12 +54,12 @@ If the scene needs lightening:
 A note on headless browsers: one renders this scene on a software rasteriser
 (SwiftShader) at about one frame per second. That says nothing about real
 hardware, but it does make checking long processes through a browser impossible
-— hence the extracted modules `engineState.js` and `sound.js`, which are checked
-directly.
+— hence the extracted modules `engineState.js`, `atmosphere.js` and `sound.js`,
+which are checked directly.
 
 ## Tests
 
-Five files, 75 checks. There is no framework: each test is a plain Node script
+Six files, 102 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -81,6 +81,13 @@ is sharp, by take-off power its opacity falls below 3 %, during rundown it
 returns. Separately it checks that the copies of the spiral never spread further
 apart than its angular thickness — otherwise a fan of stripes would appear
 instead of an even ring.
+
+`test/atmosphere.test.mjs` — 27 checks of the ambient conditions against the ISA
+table: temperature, pressure and density at 0, 1, 5, 11 and 12 km, the join of
+the two branches at the tropopause, and a real day — a deviation from standard
+must move the density while leaving the pressure alone. This is one of the few
+places in the model with a published answer, so the comparison is against the
+table rather than against the model itself.
 
 `test/geometry.test.mjs` — 24 checks of the dimensions against the
 [prototype reference data](engines/cfm56-7b-nacelle.json). The test reads the
@@ -113,8 +120,9 @@ streamlines must not drown in white gas.
 The model is illustrative. The full list of what is deliberately simplified or
 not modelled at all is in
 ["Physics of the model", section 9](03-physics.md#9-what-the-model-does-not-have).
-In short: no gas-dynamic computation, no cycle calculation, no
-altitude/airspeed characteristics, no engine limits or protections; the absolute
+In short: no gas-dynamic computation, no cycle calculation, no recomputation of
+the engine for altitude (the ambient air is there, the characteristics are not),
+no engine limits or protections; the absolute
 speeds and flow velocities are deliberately reduced for the sake of a legible
 picture.
 

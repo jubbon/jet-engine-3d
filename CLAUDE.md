@@ -20,7 +20,7 @@ npm install
 npm run dev      # Vite on port 5188, listening on 0.0.0.0
 npm run build    # build into dist/
 npm run preview
-npm test         # all five test files in sequence
+npm test         # all six test files in sequence
 ```
 
 A single test runs directly, with no runner and no flags:
@@ -78,9 +78,10 @@ Dependencies run one way, and `main.js` is the only orchestrator:
 ```
 index.html → main.js → engine.js → blade.js
                      → airflow.js  heathaze.js  sound.js  engineState.js
+                     → atmosphere.js
 ```
 
-**`engineState.js` and `sound.js` deliberately know nothing about Three.js or
+**`engineState.js`, `atmosphere.js` and `sound.js` deliberately know nothing about Three.js or
 the DOM.** This is not abstraction for its own sake: a headless browser renders
 this scene on a software rasteriser at about 1 fps, so a forty-second engine
 start simply cannot be checked through a browser. The regime state machine is
@@ -132,6 +133,7 @@ failure. Write new ones in the same style.
 | `engine-state.test.mjs` | The regime state machine: full shutdown, realistic start duration, delayed light-off, throttle response. Prints a trace — also handy for tuning the time constants |
 | `heat-haze.test.mjs` | The pure function `hazePower()` driven through the real state machine; the shader itself does not run under Node |
 | `spiral-blur.test.mjs` | The spinner spiral smear and that its copies do not spread further apart than the angular thickness |
+| `atmosphere.test.mjs` | The standard atmosphere against the published ISA table: T, P, ρ at the round levels, the join at the tropopause, a real day |
 | `geometry.test.mjs` | Dimensions against the reference, stage counts, intake depth, station ordering |
 | `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin |
 
@@ -175,8 +177,8 @@ rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
 The yardstick as of today (recount it, do not copy it): 758 thousand triangles,
-123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 75 checks
-across five test files. The build is 657 kB of JS, 174 kB gzipped.
+123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 102
+checks across six test files. The build is 657 kB of JS, 174 kB gzipped.
 
 It has accumulated before: `01` and `08` promised ~850 thousand triangles and
 ~50 draw calls for a long time, and the draw calls were off by a factor of three

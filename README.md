@@ -71,6 +71,7 @@ to tip), and wrapped around the circumference — as real blades are
 | **Engine sound** | button or `S`, volume by slider |
 | **Exhaust gas** (visible jet and heat haze) | checkbox or `H` |
 | Engine power (throttle) | slider (changes N1/N2, flame brightness, flow speed, instruments and sound) |
+| **Ambient conditions** | altitude and deviation from standard by sliders, or the buttons 0 / 3 / 11 km |
 | Views | buttons `1…9` (`9` — the rear view, inside the gas stream) |
 | Module information | hover for a tooltip, click for a card with the description |
 | Camera | LMB — orbit, wheel — zoom, RMB — pan |
@@ -108,7 +109,10 @@ Each particle keeps its own lane in the duct, its phase and its current
 coordinate; radius, velocity, swirl and colour are taken from the tables by the
 X coordinate. In addition, streamlines are drawn (12 tubes with a temperature
 gradient) along with the exhaust plume behind the nozzle. Bottom right is a
-table of temperatures and pressures by station, recomputed by regime.
+table of temperatures and pressures by station, recomputed by regime — and by
+the air outside: the altitude slider in the panel lifts the engine to the cruise
+levels, where the same throttle position gives 383 °C and 6.3 bar behind the
+compressor instead of the 600 °C and 28 bar of sea level.
 
 Separately from this schematic visualisation, the **exhaust gas** works: a
 screen-space pass traces a ray for every pixel through the cone of hot gas. The
@@ -210,7 +214,8 @@ src/airflow.js    particles, streamlines, plume
 src/heathaze.js   exhaust gas aft of the nozzle (screen-space pass)
 src/sound.js      procedural engine sound
 src/engineState.js  state machine: start, running, shutdown, rundown
-test/             state machine, exhaust, spiral smear, dimensions, clearances
+src/atmosphere.js   standard atmosphere: ambient temperature, pressure, density
+test/             state machine, exhaust, spiral smear, atmosphere, dimensions, clearances
 docs/             documentation
 docs/engines/     machine-readable reference data on prototypes (JSON)
 ```

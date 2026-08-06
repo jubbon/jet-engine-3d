@@ -24,7 +24,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-18 | Journey of an air particle from intake to nozzle | Flows | P1 | L |
 | BL-21 | Contrail behind the engine | Flows | P2 | L |
 | BL-05 | Thrust reverser | Geometry and flows | P2 | L |
-| BL-06 | The engine at altitude: ambient conditions and characteristics | Physics | P2 | L |
+| BL-06 | The engine at altitude: characteristics (ambient conditions done) | Physics | P2 | M |
 | BL-23 | Engine selection: CFM56, LEAP, geared, three-spool | Geometry and sound | P1 | L |
 | BL-19 | Real dimensions: dimension lines and a figure for scale | Geometry | P1 | S |
 | BL-20 | Nacelle: what is left after the flat bottom | Geometry | P2 | M |
@@ -401,13 +401,15 @@ crossed with bands one day and clear the next, and it is worth showing
 explicitly — by switching between "no trail forms", "short-lived" and
 "persistent".
 
-**A dependency.** There is an awkward detail here: there are no contrails near
-the ground, and the model works at exactly one point — parked. So the task rests
-on BL-06 (altitude and airspeed characteristics) — or on a trimmed version of
-it: sliders for altitude, ambient temperature and humidity with pressure
-recomputed by the standard atmosphere, without a full recomputation of engine
-characteristics. Otherwise the trail would have to be switched on by a button
-and all the physics in it would be lost, leaving a white band.
+**A dependency, now largely satisfied.** There are no contrails near the ground,
+so the task needed the model to be able to leave the parking apron at all. The
+ambient part of BL-06 is done: `src/atmosphere.js` gives temperature, pressure
+and density for an altitude and a deviation from standard, and `P` enters the
+Schmidt — Appleman slope directly. What is still missing is humidity — it was
+deliberately not added while it had no consumer, and this task is that consumer:
+a relative-humidity slider next to the two existing ones, and from it the
+ambient vapour pressure. The engine characteristics themselves are still not
+recomputed for altitude, but the criterion does not need them.
 
 **How to draw it.** The flow computation domain currently ends at 8.6 units —
 about four metres behind the exit. The trail needs a different scale: it has to
@@ -438,7 +440,8 @@ Three.js or the DOM — as was done with `src/engineState.js` — so that the
 criterion is checked under Node against tabulated points rather than by eye
 against a picture.
 
-Related: BL-06 is a mandatory foundation; without altitude the task degenerates.
+Related: BL-06 was the mandatory foundation; its ambient half is in place and
+only the humidity slider is left to add here.
 BL-18 (the journey of a particle) — the trail naturally continues the particle's
 route beyond the nozzle exit and gives it a finale.
 
@@ -452,20 +455,32 @@ carries on aft. A heavy task — it needs both new geometry with animation
 ### BL-06. The engine at altitude: ambient conditions and characteristics
 
 The model works at a single point — on the ground, on a standard day, parked.
-Everything the model shows is computed for that point. Meanwhile an aircraft
-spends almost all of its flight at ten or eleven kilometres, where the air is
-three times thinner and seventy degrees colder, and the engine behaves
-differently there. Several tasks do not work without this — first and foremost
-the contrail (BL-21), which does not occur near the ground at all.
+Meanwhile an aircraft spends almost all of its flight at ten or eleven
+kilometres, where the air is three times thinner and seventy degrees colder, and
+the engine behaves differently there. Several tasks do not work without this —
+first and foremost the contrail (BL-21), which does not occur near the ground at
+all.
 
-**Ambient conditions.** The basis is the standard atmosphere: up to 11 km the
-temperature falls by 6.5 °C per kilometre from +15 °C at sea level, above that
-it holds at about −56.5 °C; pressure and density follow from the same. A
-correction for a real day is needed separately — the deviation from standard,
-the familiar "standard plus fifteen" of a hot day and "minus twenty" of a winter
-one: this shows why an engine loses thrust in the heat and the take-off distance
-grows. Sliders: altitude, temperature deviation from standard, humidity (needed
-for BL-21), Mach number.
+**Ambient conditions — done.** `src/atmosphere.js` computes the standard
+atmosphere: up to 11 km the temperature falls by 6.5 °C per kilometre from
++15 °C at sea level, above that it holds at −56.5 °C; pressure follows from the
+barometric formula and density from the equation of state. The panel has an
+altitude slider, a deviation of the day from standard and the buttons 0 / 3 /
+11 km; the station table is counted off from the result, with the temperature
+rises scaled by `θ = T/288.15`, since the work of a compressor stage is
+proportional to the inlet temperature. The details are in
+[physics](03-physics.md#ambient-conditions), the module is checked against the
+ISA table by `test/atmosphere.test.mjs`.
+
+The deviation from standard moves the temperature and the density but not the
+pressure — the altitude here is the pressure altitude — so the slider shows
+directly why an engine loses thrust in the heat: 15 °C above standard makes the
+air 4.9 % thinner at the same pressure.
+
+Two controls named in the original plan were deliberately left out. **Humidity**
+has no consumer until BL-21 and would be a dead slider; **Mach number** belongs
+with ram compression below, which is not done. What remains of the task is
+everything to do with the engine itself.
 
 **Ram compression.** At speed the air is decelerated in the intake, and the gas
 arriving at the fan has raised pressure and temperature:
@@ -500,27 +515,26 @@ qualitatively right: at cruise the speeds are higher, the thrust is about a
 third of the sea-level value, and the temperature behind the compressor is
 lower.
 
-**What to show.** A line of ambient conditions on the panel (altitude, T, P, M),
+**What to show.** The Mach number alongside the existing ambient conditions,
 regimes on a single button — parked, take-off, climb, cruise — and, if possible,
 a second row in the station table for "sea level / altitude" comparison. That
 also gives meaning to the station table, which at present is always about one
 regime.
 
-**A trimmed version.** If a full recomputation of the characteristics is
-postponed, it makes sense to do only the ambient conditions first: altitude and
-temperature set T, P and density, which are shown on the panel and handed to
-consumers — above all to the contrail computation. That is size M instead of L
-and removes the dependency for BL-21 without touching the internal physics of
-the engine.
+The point where it will show most plainly is the thrust gauge: today it reads
+121 kN at take-off power whether the engine is parked or at eleven kilometres,
+which is the one place where the panel currently lies. That is the first thing
+to fix when this task is picked up.
 
-Touches: a new atmosphere module (with no dependency on Three.js or the DOM, so
-that it is checked under Node), `src/engineState.js` (corrected speeds),
-`src/main.js` (`STATIONS`, conditions panel), `index.html`. To be documented in
-[Physics of the model](03-physics.md), where altitude and airspeed
-characteristics currently stand as the first item in the section on what the
-model does not have.
+Touches: `src/engineState.js` (corrected speeds), `src/main.js` (thrust, the
+`STATIONS` regime), `src/atmosphere.js` (ram compression from the Mach number —
+the relative quantities `θ`, `δ`, `σ` it already returns are exactly what the
+similarity relations need), `index.html`. To be documented in
+[Physics of the model](03-physics.md#9-what-the-model-does-not-have), where the
+absence of the recomputation is now stated explicitly.
 
-Related: BL-21 (contrail) is a direct consumer. BL-02 (limits) — at altitude the
+Related: BL-21 (contrail) needed only the ambient part, which is done; what it
+still lacks is a humidity slider. BL-02 (limits) — at altitude the
 corrected-speed limit becomes the governing one. BL-03 (surge) — the stability
 margin depends on the corrected parameters.
 

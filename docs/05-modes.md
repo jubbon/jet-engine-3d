@@ -40,6 +40,12 @@ From there the engine reaches zero on its own, without the user.
 | Mode changes to `off` | ~35.2 s | Both rotors have reached zero |
 | Gas path cools | tens of seconds | T4 → 15 °C with a time constant of 7 s |
 
+The 15 °C the gas path cools to is a fixed number, not the ambient temperature
+from the panel: `engineState.js` is deliberately kept free of any dependency,
+and altitude was added without touching it. Shut the engine down at eleven
+kilometres and the instrument will settle at 15 °C while the intake in the
+station table reads −56.5.
+
 What can be seen and heard while this happens:
 
 * the turbine keeps glowing after the flame has died — the incandescence is tied

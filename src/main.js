@@ -12,6 +12,7 @@ import { createAirflow } from './airflow.js';
 import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
+import { atmosphere } from './atmosphere.js';
 
 /* =============================== scene =============================== */
 
@@ -142,7 +143,12 @@ const state = {
   cutHalf: 100,
   cutRot: 90,
   timeScale: 1, // speed-up of the engine processes, ×1 or ×4
+  altitude: 0, // m
+  deltaISA: 0, // deviation of the day from standard, K
 };
+
+// ambient conditions; recomputed only when the sliders move
+let amb = atmosphere(state.altitude, state.deltaISA);
 
 let n1Angle = 0;
 let n2Angle = 0;
@@ -362,16 +368,30 @@ addEventListener('keydown', (e) => {
  *  comp - HP compressor compression, driven by N2
  *  t4   - actual gas temperature ahead of the turbine
  * -------------------------------------------------------------------- */
+/*
+ * The gas path is counted off from the ambient air, not from a fixed
+ * standard day: pressures are the pressure ratios multiplied by the ambient
+ * pressure, and the temperature rises are multiplied by theta = T/288.15.
+ *
+ * The scaling matters. The work of a compressor stage - and hence the heating
+ * - is proportional to the inlet temperature, so the same rotor speed in the
+ * cold air of eleven kilometres gives a quarter less heating: 585 K of rise at
+ * sea level become 440. Adding the sea-level rise to a cold intake would give
+ * an honest-looking but wrong 528 °C behind the compressor instead of 383.
+ *
+ * The temperatures behind the turbines stay fractions of T4: T4 is set by
+ * combustion, and the model does not recompute the engine for altitude.
+ */
 const STATIONS = [
-  ['Intake', () => 15, () => 1.0],
-  ['Bypass duct', ({ fan }) => 15 + 34 * fan, ({ fan }) => 1 + 0.68 * fan],
-  ['After booster', ({ fan }) => 15 + 105 * fan, ({ fan }) => 1 + 1.7 * fan],
+  ['Intake', ({ t }) => t, ({ p }) => p],
+  ['Bypass duct', ({ t, theta, fan }) => t + theta * 34 * fan, ({ p, fan }) => p * (1 + 0.68 * fan)],
+  ['After booster', ({ t, theta, fan }) => t + theta * 105 * fan, ({ p, fan }) => p * (1 + 1.7 * fan)],
   // The overall pressure ratio of the prototype is about 28 (fan 1.7, booster
   // 1.5, HPC 11), not 40-50 as on next-generation engines.
-  ['After HPC', ({ comp }) => 15 + 585 * comp, ({ comp }) => 1 + 27 * comp],
-  ['Combustor', ({ t4 }) => t4, ({ comp }) => 1 + 26 * comp],
-  ['After HPT', ({ t4 }) => t4 * 0.494, ({ comp }) => 1 + 6 * comp],
-  ['Nozzle exit', ({ t4 }) => t4 * 0.293, ({ fan }) => 1 + 0.65 * fan],
+  ['After HPC', ({ t, theta, comp }) => t + theta * 585 * comp, ({ p, comp }) => p * (1 + 27 * comp)],
+  ['Combustor', ({ t4 }) => t4, ({ p, comp }) => p * (1 + 26 * comp)],
+  ['After HPT', ({ t4 }) => t4 * 0.494, ({ p, comp }) => p * (1 + 6 * comp)],
+  ['Nozzle exit', ({ t4 }) => t4 * 0.293, ({ p, fan }) => p * (1 + 0.65 * fan)],
 ];
 
 const stationsEl = $('stations');
@@ -381,7 +401,9 @@ stationsEl.innerHTML =
 
 let gaugeShown = -1;
 function updateGauges(keff) {
-  // hash of the state, so the DOM is not touched every frame without need
+  // hash of the state, so the DOM is not touched every frame without need.
+  // The ambient conditions are not in the hash: they change only when a slider
+  // is moved, and that invalidates the hash directly.
   const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001;
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
@@ -393,14 +415,64 @@ function updateGauges(keff) {
   $('val-t4').textContent = `${eng.t4.toFixed(0)} °C`;
   $('val-thrust').textContent = `${thrust.toFixed(0)} kN`;
 
-  const v = { fan: eng.n1 * eng.n1, comp: Math.pow(eng.n2, 2.5), t4: eng.t4 };
+  const v = {
+    fan: eng.n1 * eng.n1,
+    comp: Math.pow(eng.n2, 2.5),
+    t4: eng.t4,
+    t: amb.t,
+    p: amb.p / 1e5, // bar
+    theta: amb.theta,
+  };
   const rows = stationsEl.querySelectorAll('tr');
   STATIONS.forEach(([, tf, pf], i) => {
     const row = rows[i + 1];
+    const p = pf(v);
     row.querySelector('.t').textContent = tf(v).toFixed(0);
-    row.querySelector('.p').textContent = pf(v).toFixed(1);
+    // at altitude the whole column shrinks by a factor of four, and a single
+    // decimal would turn the intake into a flat "0.2"
+    row.querySelector('.p').textContent = p < 10 ? p.toFixed(2) : p.toFixed(1);
   });
 }
+
+/* ------------------------ ambient conditions ------------------------- *
+ *  The engine stays parked, but the air around it can be lifted to the
+ *  cruise levels. Nothing inside the engine is recomputed - the speeds,
+ *  T4 and thrust are the same as on the ground; what changes is the air
+ *  the gas path is counted off from.
+ *
+ *  The wiring lives here, next to the station table, because that table
+ *  is its only consumer so far.
+ * --------------------------------------------------------------------- */
+const ALT_PRESETS = [
+  ['alt-0', 0], // parked
+  ['alt-3', 3000], // climb
+  ['alt-11', 11000], // cruise, right at the tropopause
+];
+
+function setAmbient(altitude, deltaISA) {
+  state.altitude = altitude;
+  state.deltaISA = deltaISA;
+  amb = atmosphere(altitude, deltaISA);
+
+  // the sliders are also driven by the preset buttons, hence the write back
+  $('alt').value = altitude / 100;
+  $('isa').value = deltaISA;
+  $('val-alt').textContent = `${(altitude / 1000).toFixed(1)} km`;
+  $('val-isa').textContent = `${deltaISA > 0 ? '+' : ''}${deltaISA} °C`;
+  $('val-amb-t').textContent = `${amb.t.toFixed(1)} °C`;
+  $('val-amb-p').textContent = (amb.p / 1e5).toFixed(3);
+  $('val-amb-rho').textContent = amb.rho.toFixed(3);
+  ALT_PRESETS.forEach(([id, h]) => $(id).classList.toggle('on', h === altitude));
+
+  gaugeShown = -1; // the station table has to be redrawn, the engine has not moved
+}
+
+ALT_PRESETS.forEach(([id, h]) => {
+  $(id).onclick = () => setAmbient(h, state.deltaISA);
+});
+$('alt').oninput = (e) => setAmbient(+e.target.value * 100, state.deltaISA);
+$('isa').oninput = (e) => setAmbient(state.altitude, +e.target.value);
+setAmbient(state.altitude, state.deltaISA);
 
 /* -------------------------- module picking --------------------------- */
 const ray = new THREE.Raycaster();

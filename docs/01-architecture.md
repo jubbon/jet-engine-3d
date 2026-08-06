@@ -11,25 +11,31 @@ graph TD
   M --> H[heathaze.js<br/>exhaust gas:<br/>distortion and visible jet]
   M --> S[sound.js<br/>sound synthesis]
   M --> ST[engineState.js<br/>regime state machine]
+  M --> AT[atmosphere.js<br/>ambient conditions]
   E --> B[blade.js<br/>blade generator]
   ST -.checked by.-> T[test/engine-state.test.mjs]
   ST -.checked by.-> T2[test/heat-haze.test.mjs]
   E -.checked by.-> T3[test/spiral-blur.test.mjs]
   E -.checked by.-> T4["test/geometry.test.mjs<br/>test/clearance.test.mjs"]
+  AT -.checked by.-> T5[test/atmosphere.test.mjs]
   J[["docs/engines/*.json<br/>prototype reference data"]] -.the yardstick.-> T4
   H -.checked by.-> T2
   style ST fill:#1c3a4d,stroke:#4fc3ff
+  style AT fill:#1c3a4d,stroke:#4fc3ff
   style T fill:#1c3a4d,stroke:#4fc3ff
   style T2 fill:#1c3a4d,stroke:#4fc3ff
   style T3 fill:#1c3a4d,stroke:#4fc3ff
   style T4 fill:#1c3a4d,stroke:#4fc3ff
+  style T5 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Dependencies run one way. Two modules deliberately know nothing about either
+Dependencies run one way. Three modules deliberately know nothing about either
 Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
   checked numerically (`npm test`);
+* **`atmosphere.js`** — the standard atmosphere, checked against the published
+  table for the same reason;
 * **`sound.js`** — accepts a substitute audio context, so the graph can be
   rendered in an `OfflineAudioContext` and measured.
 
@@ -39,14 +45,15 @@ check the rotor rundown other than watching the screen.
 | File | Lines | Responsibility |
 |---|---:|---|
 | `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 536 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/main.js` | 608 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
-| `src/style.css` | 324 | Panel styling |
+| `src/style.css` | 327 | Panel styling |
+| `index.html` | 168 | Markup of the panel, the legend and the module card |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
-| `index.html` | 146 | Markup of the panel, the legend and the module card |
+| `src/atmosphere.js` | 81 | Standard atmosphere: ambient temperature, pressure, density |
 
 ## Data flow within a frame
 
@@ -58,8 +65,12 @@ flowchart LR
   ES --> AF[airflow.update<br/>particle speed and colour]
   ES --> SND[sound.update<br/>frequencies and levels]
   ES --> UI[Instruments, station table,<br/>status line]
+  AMB[Altitude, deviation<br/>from standard] --> AT[atmosphere<br/>T, P, ρ] --> UI
   CAM[Camera] --> SND
 ```
+
+The ambient conditions enter the picture from the side and only reach the
+station table: nothing inside the engine depends on them.
 
 The single source of truth about the engine is the `eng` object returned by
 `createEngineState()`. The slider only sets the throttle position; the actual

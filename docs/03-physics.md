@@ -207,7 +207,37 @@ the visible range grows with temperature substantially faster than linearly
 ## 5. Gas path thermodynamics
 
 The table of temperatures and pressures by station is computed from rotor
-speeds, not from the throttle.
+speeds, not from the throttle, and is counted off from the ambient air.
+
+### Ambient conditions
+
+The engine itself stays on the ground, but the air around it can be lifted to
+the cruise levels: the panel has an altitude slider (0…12 km) and a deviation of
+the day from standard (−30…+30 °C). `src/atmosphere.js` computes the standard
+atmosphere in two branches — a troposphere with a lapse rate of 6.5 °C per
+kilometre and, above 11 km, an isothermal layer at −56.5 °C:
+
+```
+h ≤ 11 km:   T = 288.15 − 0.0065·h        P = P₀·(T/T₀)^5.2559
+h > 11 km:   T = 216.65                   P = P₁₁·exp(−g·Δh/(R·T))
+```
+
+The power law rather than an exponential in the troposphere comes from
+integrating `dP/P = −g·dh/(R·T)` with a temperature that itself falls linearly;
+the exponent is `g/(L·R) = 5.2559`. The two branches meet at the tropopause not
+merely closely but by exactly the weight of the air between them — the test
+checks the step against `ρ·g·Δh`.
+
+The deviation from standard moves the **temperature and the density but not the
+pressure**: altitude here is the pressure altitude, the one an altimeter shows,
+and it is pressure that defines it. Hence the point of the slider — on a day
+15 °C hotter than standard the pressure is unchanged while the air is 4.9 %
+thinner, and that is the whole story of thrust lost in the heat.
+
+Density comes from the equation of state, `ρ = P/(R·T)`, with the actual
+temperature. Alongside the absolute values the module returns the relative ones,
+`θ = T/T₀`, `δ = P/P₀`, `σ = ρ/ρ₀`, in which the similarity relations of a full
+altitude recomputation are written; for now only `θ` is used.
 
 ### How compression depends on speed
 
@@ -238,15 +268,26 @@ also match each other better, so the overall pressure ratio grows more steeply.
 
 ### Stations
 
+`T` and `P` here are the ambient temperature and pressure from the section
+above, `θ = T/288.15`.
+
 | Station | Temperature, °C | Pressure, bar |
 |---|---|---|
-| Intake | 15 | 1.0 |
-| Bypass duct | 15 + 34·fan | 1 + 0.68·fan |
-| After booster | 15 + 105·fan | 1 + 1.7·fan |
-| After HPC | 15 + 585·comp | 1 + 27·comp |
-| Combustor | T4 (actual) | 1 + 26·comp |
-| After HPT | 0.494·T4 | 1 + 6·comp |
-| Nozzle exit | 0.293·T4 | 1 + 0.65·fan |
+| Intake | T | P |
+| Bypass duct | T + θ·34·fan | P·(1 + 0.68·fan) |
+| After booster | T + θ·105·fan | P·(1 + 1.7·fan) |
+| After HPC | T + θ·585·comp | P·(1 + 27·comp) |
+| Combustor | T4 (actual) | P·(1 + 26·comp) |
+| After HPT | 0.494·T4 | P·(1 + 6·comp) |
+| Nozzle exit | 0.293·T4 | P·(1 + 0.65·fan) |
+
+The pressures are pressure ratios multiplied by the ambient pressure, and the
+temperature rises are multiplied by `θ`. The scaling is not cosmetic: the work
+of a compressor stage, and with it the heating, is proportional to the inlet
+temperature, so the same rotor speed in the cold air of eleven kilometres gives
+a quarter less heating — 585 K of rise at sea level become 440. Simply adding
+the sea-level rise to a cold intake would give an honest-looking 528 °C behind
+the compressor where the model's own compression gives 383.
 
 The temperatures behind the turbines are taken as fractions of the actual T4,
 because the temperature drop across a turbine is set by its pressure ratio,
@@ -262,10 +303,17 @@ temperatures, so at low regimes the fractions give an underestimate. For an
 illustrative picture of the gas path cooling down this is enough; for
 calculations it is not.
 
-At take-off power (throttle 100 %) the model gives: 600 °C and 28 bar after the
-HP compressor, T4 = 1800 °C, 889 °C after the HP turbine and 527 °C at the
-nozzle exit — typical values for an engine of this class with an overall
-pressure ratio of about 28.
+At take-off power (throttle 100 %) on the ground the model gives: 600 °C and
+28.4 bar after the HP compressor, T4 = 1800 °C, 889 °C after the HP turbine and
+527 °C at the nozzle exit — typical values for an engine of this class with an
+overall pressure ratio of about 28. Lift the same engine to 11 km and the
+compressor delivers 383 °C and 6.3 bar: the pressure ratio is the same, the air
+it works on is not.
+
+What does **not** change with altitude is everything to the left of the station
+table — the speeds, T4 and the thrust. Those need corrected parameters and are
+the subject of the remaining part of BL-06; see
+[the backlog](09-backlog.md#bl-06-the-engine-at-altitude-ambient-conditions-and-characteristics).
 
 ## 6. Thrust
 
@@ -375,9 +423,13 @@ Stated explicitly, so that the model is not mistaken for a calculation tool.
   and specific fuel consumption are neither computed nor mutually consistent.
   The numbers on the instruments are plausible, but they are not the result of
   closing a cycle.
-* **No altitude or airspeed characteristics.** The model works at a single
-  point — sea-level conditions, no flight speed. Ram pressure and the variation
-  of pressure and temperature with altitude are not accounted for.
+* **No altitude or airspeed characteristics.** The ambient air is there —
+  altitude and the deviation from standard set the temperature, pressure and
+  density, and the station table is counted off from them. The engine itself is
+  not recomputed: at eleven kilometres the same throttle position gives the same
+  speeds, the same T4 and the same thrust as on the ground, whereas a real
+  engine would run at higher corrected speeds and about a third of the
+  sea-level thrust. Ram compression and flight speed are absent altogether.
 * **No limits or protections.** Compressor surge, flame-out, temperature
   exceedance, T4 and speed limiting and the action of the FADEC governor are not
   modelled. The engine cannot be broken by any throttle position.
@@ -417,6 +469,12 @@ propositions checked are physically meaningful ones:
   light-off the gas path stays cold;
 * the start to idle takes a realistic time (39.7 s);
 * the acceleration from idle to take-off fits within a sensible time (11.5 s).
+
+The standard atmosphere is checked against a published table rather than against
+itself (27 checks): temperature, pressure and density at 0, 1, 5, 11 and 12 km
+to within 0.2 %, the smoothness of the join at the tropopause, and the behaviour
+of a real day — the pressure stays put while the density falls by 4.9 % for
+every 15 °C above standard.
 
 The sound is verified by rendering the graph into an `OfflineAudioContext`: the
 level grows monotonically with regime, there is no clipping, and the fan tone
