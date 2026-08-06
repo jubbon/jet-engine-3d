@@ -43,7 +43,7 @@ const OCCLUDERS = [
 // what gives a jet away is the way it bends the view, not its own whiteness.
 // A dense white cone also competed with the contrail, which is the one thing
 // aft of the nozzle that really is a cloud.
-const LOOK = { amp: 13.0, blur: 5.5, gas: 0.2 };
+const LOOK = { amp: 5.5, blur: 2.4, gas: 0.015 };
 
 // The "Air flows" mode is a diagram: there the particles, streamlines and the
 // temperature colouring of the jet matter, and the exhaust simply paints over
@@ -302,7 +302,7 @@ export function createHeatHaze(camera, width, height) {
       uAmp: { value: LOOK.amp },
       uBlur: { value: LOOK.blur },
       uGas: { value: LOOK.gas },
-      uGasMax: { value: 0.22 }, // the jet never becomes opaque, only tinted
+      uGasMax: { value: 0.02 }, // the jet never becomes opaque, only tinted
       // Values are linear, before tone mapping: ACES at exposure 0.82 pulls
       // 1.0 down to roughly 0.8, so "white" here is greater than 1.
       uGasNear: { value: new THREE.Color(1.55, 1.45, 1.3) },
