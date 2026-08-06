@@ -22,7 +22,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-04 | Bleed air aft of the HP compressor | Flows | P2 | M |
 | BL-17 | Fuel supply visualisation | Flows | P1 | M |
 | BL-18 | Journey of an air particle from intake to nozzle | Flows | P1 | L |
-| BL-21 | Contrail behind the engine | Flows | P2 | L |
+| BL-21 | Contrail behind the engine (done) | Flows | P2 | — |
 | BL-05 | Thrust reverser | Geometry and flows | P2 | L |
 | BL-06 | The engine at altitude: characteristics (ambient conditions done) | Physics | P2 | M |
 | BL-23 | Engine selection: CFM56, LEAP, geared, three-spool | Geometry and sound | P1 | L |
@@ -357,96 +357,44 @@ air) — the journey naturally shows where part of the flow leaves to cool the
 turbine. With BL-17 (fuel supply) — in the combustor the particle meets the
 spray from the fuel nozzles.
 
-### BL-21. Contrail behind the engine
+### BL-21. Contrail behind the engine — done
 
-The exhaust jet currently ends in a cone with a noise shader at the nozzle exit.
-A real engine at altitude drags a white band behind it for kilometres, and the
-physics of its appearance is a rewarding subject: the trail does not always
-form, and what that depends on follows directly from parameters the model
-already computes.
+Built. `src/contrail.js` computes the Schmidt — Appleman criterion, the panel
+shows the verdict, and `src/contrailView.js` draws the trail; the physics is
+written up in [Physics of the model](03-physics.md#9-the-contrail) and the
+drawing in [Airflow](04-airflow.md#contrail).
 
-**What to compute.** First, the gas parameters at the exit. The engine has two
-streams of differing temperature and velocity, and the trail comes from their
-mixture: the bypass duct is cold and carries nine times the flow, the core is
-hot. The mixing is computed as a flow-weighted average through the bypass ratio,
-the temperatures come from the existing station table (`STATIONS` in
-`src/main.js`, formulas in [Physics](03-physics.md#stations)), and the
-velocities from the `CORE_V`/`BYPASS_V` profiles in `src/airflow.js`.
+**What it does.** The slope of the mixing line `G = EI·c_p·P / (ε·Q·(1 − η))`,
+the threshold temperature from it, and two independent verdicts: whether a trail
+forms (the engine matters, through the slope) and whether it lasts (the engine
+does not matter at all — only whether the ambient air is supersaturated over
+ice). At eleven kilometres on a standard day at 60 % humidity the model gives a
+threshold of −49.5 °C against −56.5 °C ambient and a persistent trail; from the
+ground the trail would start at 9.6 km. The panel says how far the conditions
+are from the threshold and what would have to change.
 
-Then the criterion for trail formation. The exhaust carries water vapour
-(burning kerosene gives about 1.24 kg of water per kilogram of fuel) and heat;
-mixing with the ambient air, the jet cools, and the question is whether the
-mixture becomes saturated with respect to water **before** the warming
-dissipates. This is the Schmidt — Appleman criterion: the slope of the mixing
-line in "temperature — vapour pressure" coordinates
+**What was decided along the way.**
 
-```
-G = EI_H₂O · c_p · P / (ε · Q · (1 − η))
-```
+* **The efficiency became a slider**, not a computed value. Computing it needs
+  the fuel flow and the flight speed, and the model has neither. As an input it
+  is honest, and it is the control that shows the counter-intuitive part: a more
+  efficient engine leaves a trail *more* readily, because less of the fuel's
+  energy stays in the jet as heat.
+* **The velocity of the mixture is not shown**, though the task asked for it.
+  The absolute velocities in the model are deliberately reduced about 150 times,
+  so a figure in metres per second would be an invention. The mixture
+  temperature is shown, and the criterion does not need the velocity.
+* **The threshold is not taken on trust.** It comes from a published fit, and
+  the test checks the property the fit approximates — that the saturation curve
+  has exactly the slope of the mixing line there — rather than the fit against
+  itself.
 
-where `EI_H₂O ≈ 1.24`, `c_p ≈ 1004 J/(kg·K)`, `ε = 0.622`, `Q ≈ 43 MJ/kg` is the
-heat of combustion, `P` is ambient pressure and `η` is the propulsive efficiency
-(the fraction of fuel energy that went into thrust rather than heat). From `G` a
-threshold temperature follows: colder than that and there will be a trail,
-warmer and there will not. From the same relation comes something non-obvious:
-**the more efficient the engine, the more readily it leaves a trail** — with a
-higher `η` less heat goes into the jet, the mixture cools faster and saturation
-is reached more easily.
-
-The fate of the trail is decided separately: if the ambient air is supersaturated
-with respect to ice, the trail lives for hours and spreads into cirrus cloud; if
-not, the crystals evaporate within seconds and the band breaks off not far
-behind the aircraft. That is exactly the difference that makes the sky criss-
-crossed with bands one day and clear the next, and it is worth showing
-explicitly — by switching between "no trail forms", "short-lived" and
-"persistent".
-
-**The dependency is satisfied.** There are no contrails near the ground, so the
-task needed the model to be able to leave the parking apron at all. The ambient
-part of BL-06 is done: `src/atmosphere.js` gives temperature, pressure and
-density for an altitude and a deviation from standard — `P` enters the
-Schmidt — Appleman slope directly — and `humidity()` gives the ambient vapour
-pressure, the dew point and the saturation over ice, which is exactly the
-quantity the fate of the trail turns on. The panel already shows that the air at
-eleven kilometres and 60 % relative humidity is at 102 % over ice, that is,
-ice-supersaturated: a trail formed there would spread rather than evaporate.
-What is left for this task is the jet side — the mixture at the nozzle exit, the
-criterion itself, the verdict and the drawing. The engine characteristics are
-still not recomputed for altitude, but the criterion does not need them.
-
-**How to draw it.** The flow computation domain currently ends at 8.6 units —
-about four metres behind the exit. The trail needs a different scale: it has to
-run off towards the horizon, so it is a separate object rather than a
-continuation of the particles. A ribbon or a chain of sprites along the axis
-with a noise shader, widening with distance and slowly fading, is the sensible
-approach; density and length come from the computation rather than being chosen
-by eye.
-
-Two details that give it recognisability: the trail begins **not right at the
-nozzle** but some ten metres behind, where the jet has had time to mix and cool,
-so there must be a visible gap behind the engine; and instead of a single band
-two ropes wound up by the wingtip vortices would be more correct — but that
-already requires an aircraft in the frame, and there is none in the model, so a
-single trail along the axis is enough for a first version.
-
-**What to show in the interface.** A line of conditions (altitude, ambient
-temperature, humidity), the result of the computation — temperature and velocity
-of the mixture at the exit, the threshold formation temperature, the verdict on
-the trail — and a hint as to how much the altitude or the regime needs to change
-for a trail to appear or disappear. Playing with those sliders is the main value
-of the task.
-
-Touches: a new module computing the formation conditions, `src/airflow.js` or a
-separate module for drawing the trail, `src/main.js` (conditions, panel),
-`index.html`. The computational part should be extracted with no dependency on
-Three.js or the DOM — as was done with `src/engineState.js` — so that the
-criterion is checked under Node against tabulated points rather than by eye
-against a picture.
-
-Related: BL-06 was the mandatory foundation; its ambient half is in place and
-only the humidity slider is left to add here.
-BL-18 (the journey of a particle) — the trail naturally continues the particle's
-route beyond the nozzle exit and gives it a finale.
+**What is left, and why.** One trail along the axis rather than the two ropes
+wound up by the wingtip vortices: that needs an aircraft in the frame, and there
+is none in the model. The trail runs 45 m and fades at the edge of the scene
+rather than to the horizon — a real one is kilometres long, hundreds of times
+past the far plane. The ice crystals are not modelled as such, only the verdict
+on their fate.
 
 ### BL-05. Thrust reverser
 
@@ -534,7 +482,7 @@ Touches: `src/engineState.js` (corrected speeds), `src/main.js` (thrust, the
 `STATIONS` regime), `src/atmosphere.js` (ram compression from the Mach number —
 the relative quantities `θ`, `δ`, `σ` it already returns are exactly what the
 similarity relations need), `index.html`. To be documented in
-[Physics of the model](03-physics.md#9-what-the-model-does-not-have), where the
+[Physics of the model](03-physics.md#10-what-the-model-does-not-have), where the
 absence of the recomputation is now stated explicitly.
 
 Related: BL-21 (contrail) needed only the ambient part, and that part is now
@@ -833,8 +781,10 @@ That is precisely what distinguishes interactive material from text.
 * **How a turbofan works at all** — compress, burn, expand; almost all the
   thrust comes from the fan, and the core exists to turn it. The base
   explanation the others hang off.
-* **The contrail** (BL-21) — from "the vapour freezes" to the formation
-  criterion and the difference between a vanishing and a persistent trail.
+* **The contrail** (BL-21, built) — from "the vapour freezes" to the formation
+  criterion and the difference between a vanishing and a persistent trail. The
+  physics is in place and the panel states the verdict; what the teaching layer
+  would add is the explanation of why.
 * **Surge** (BL-03) — from "the compressor choked and the air went backwards"
   through flow separation on the blades to the stability boundary and the
   compressor map.
@@ -868,7 +818,8 @@ Touches: a new module with the texts and their bindings, `src/main.js`
 `src/style.css`. To be documented in [User interface](07-ui.md).
 
 Related: BL-21 and BL-03 are the first candidates for treatment, and both are
-conceived so that there is something to explain. BL-18 (the journey of a
+conceived so that there is something to explain — the contrail already computes
+and states more than it explains. BL-18 (the journey of a
 particle) is a natural carrier of explanations: the card travelling with the
 particle is already a first level. BL-09 (tour of the gas path) — a shared
 mechanism for highlighting and guiding through a scenario. BL-12 (localisation)
@@ -1094,4 +1045,4 @@ mechanics and heat transfer. The model is illustrative: it shows the
 architecture and the qualitative behaviour of an engine. All of the above would
 turn it into a calculation tool — that is a different project. More on the
 boundary in
-["Physics of the model", section 9](03-physics.md#9-what-the-model-does-not-have).
+["Physics of the model", section 10](03-physics.md#10-what-the-model-does-not-have).

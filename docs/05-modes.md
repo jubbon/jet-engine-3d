@@ -116,7 +116,7 @@ idle reached: 39.7 s
 ```
 
 The propositions being checked are listed in the
-[physics document](03-physics.md#10-what-has-been-verified-numerically).
+[physics document](03-physics.md#11-what-has-been-verified-numerically).
 
 The tests are not there for show: a headless browser renders this scene on a
 software rasteriser at about one frame per second, so watching a fifteen-second

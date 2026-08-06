@@ -184,6 +184,45 @@ seeing the particles, the streamlines and the temperature colouring of the jet,
 and a dense white gas simply paints over them. In diagram mode only a faint
 shimmer remains.
 
+## Contrail
+
+`src/contrailView.js`, and it is a separate object rather than a continuation of
+the particles, because the scale is different: the duct computation ends at 8.6
+units, about four metres behind the nozzle, and the trail has to run off towards
+the horizon. Whether it is drawn at all is decided by the criterion in
+[physics](03-physics.md#9-the-contrail); the drawing receives two numbers from
+it — how dense the trail is and how far along it survives.
+
+**One strip along the axis**, turned to face the camera in the vertex shader by
+extruding each point along `cross(axis, toCamera)`. A flat ribbon would collapse
+into a line seen from directly behind — which is exactly where view `0` and the
+rear view look from. The fragment shader is the same kind of value noise as the
+plume, three octaves of it, drifting slowly backwards: the trail is *left
+behind*, it does not stream like the jet.
+
+Three things carry the meaning rather than the looks:
+
+* **The gap.** The trail begins 20 units — ten metres — behind the nozzle, where
+  the jet has had time to mix and cool. That gap is the most recognisable thing
+  about a contrail after its colour, and it is the reason the strip does not
+  start at the nozzle.
+* **The length.** A persistent trail runs the full 90 units (45 m) to the edge
+  of the scene and fades there; a short-lived one breaks off at about a third of
+  that. A real trail is kilometres long, hundreds of times past the far plane —
+  the model shows the near end of it and lets the fog take the rest.
+* **The spreading.** The half-width grows from 0.6 to 9 units along the strip,
+  and the density falls as it goes: a persistent trail opens out, a short-lived
+  one barely does.
+
+The material ignores the scene fog and fades on its own — with the camera pulled
+back far enough to take the trail in, the fog would otherwise swallow it whole.
+For the same reason the fog's far edge follows the camera distance, so that
+pulling back does not drown the engine either.
+
+The trail is switched off by the checkbox or the `T` key, and it dies with the
+flame: no fuel, no water, no trail. The easing of the density has a time
+constant of 0.9 s, so crossing the threshold with a slider does not pop.
+
 ## Station table
 
 Below the legend, temperature and pressure at seven stations are displayed. The

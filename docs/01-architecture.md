@@ -12,12 +12,16 @@ graph TD
   M --> S[sound.js<br/>sound synthesis]
   M --> ST[engineState.js<br/>regime state machine]
   M --> AT[atmosphere.js<br/>ambient conditions]
+  M --> CT[contrail.js<br/>Schmidt — Appleman criterion]
+  M --> CV[contrailView.js<br/>the trail itself]
   E --> B[blade.js<br/>blade generator]
   ST -.checked by.-> T[test/engine-state.test.mjs]
   ST -.checked by.-> T2[test/heat-haze.test.mjs]
   E -.checked by.-> T3[test/spiral-blur.test.mjs]
   E -.checked by.-> T4["test/geometry.test.mjs<br/>test/clearance.test.mjs"]
   AT -.checked by.-> T5[test/atmosphere.test.mjs]
+  CT -.checked by.-> T6[test/contrail.test.mjs]
+  AT --> CT --> CV
   J[["docs/engines/*.json<br/>prototype reference data"]] -.the yardstick.-> T4
   H -.checked by.-> T2
   style ST fill:#1c3a4d,stroke:#4fc3ff
@@ -27,15 +31,19 @@ graph TD
   style T3 fill:#1c3a4d,stroke:#4fc3ff
   style T4 fill:#1c3a4d,stroke:#4fc3ff
   style T5 fill:#1c3a4d,stroke:#4fc3ff
+  style CT fill:#1c3a4d,stroke:#4fc3ff
+  style T6 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Dependencies run one way. Three modules deliberately know nothing about either
+Dependencies run one way. Four modules deliberately know nothing about either
 Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
   checked numerically (`npm test`);
 * **`atmosphere.js`** — the standard atmosphere and water vapour, checked
   against the published tables for the same reason;
+* **`contrail.js`** — the formation criterion, separated from the drawing in
+  `contrailView.js` for the same reason;
 * **`sound.js`** — accepts a substitute audio context, so the graph can be
   rendered in an `OfflineAudioContext` and measured.
 
@@ -45,13 +53,15 @@ check the rotor rundown other than watching the screen.
 | File | Lines | Responsibility |
 |---|---:|---|
 | `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 627 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/main.js` | 726 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
+| `src/style.css` | 334 | Panel styling |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
-| `src/style.css` | 327 | Panel styling |
-| `index.html` | 173 | Markup of the panel, the legend and the module card |
+| `index.html` | 192 | Markup of the panel, the legend and the module card |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
+| `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
+| `src/contrailView.js` | 158 | The trail itself: a camera-facing strip along the axis |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
 
@@ -66,11 +76,17 @@ flowchart LR
   ES --> SND[sound.update<br/>frequencies and levels]
   ES --> UI[Instruments, station table,<br/>status line]
   AMB[Altitude, deviation<br/>from standard, humidity] --> AT[atmosphere, humidity<br/>T, P, ρ, dew point] --> UI
+  AT --> CT[contrail<br/>slope, threshold, verdict] --> UI
+  ETA[Efficiency] --> CT
+  CT --> TR[contrailView<br/>density and length]
+  ES --> TR
   CAM[Camera] --> SND
 ```
 
-The ambient conditions enter the picture from the side and only reach the
-station table: nothing inside the engine depends on them.
+The ambient conditions enter the picture from the side and reach the station
+table and the contrail: nothing inside the engine depends on them. The traffic
+in the other direction is one number - the combustion, without which there is no
+water in the exhaust and no trail.
 
 The single source of truth about the engine is the `eng` object returned by
 `createEngineState()`. The slider only sets the throttle position; the actual

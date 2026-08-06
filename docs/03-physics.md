@@ -263,8 +263,8 @@ Below zero the second curve starts to matter, because the two diverge: at −40 
 ice saturates at 0.677 of the water value. Air that a hygrometer would call far
 from saturated is then already supersaturated over ice — at eleven kilometres
 60 % over water is 102 % over ice — and that is the state in which a contrail
-spreads into cirrus instead of evaporating. It is the one quantity in the block
-computed for a task not yet done ([BL-21](09-backlog.md#bl-21-contrail-behind-the-engine)).
+spreads into cirrus instead of evaporating. It is what
+decides the fate of the trail in [the contrail section](#9-the-contrail).
 
 Above freezing the ice ratio is not reported at all. The formula continues to
 give numbers there — and runs *above* the water curve, so saturated air at
@@ -449,7 +449,86 @@ combustion and flow, tone to rotor speed. That is why, when the fuel is cut, the
 roar disappears at once while the fan whine keeps falling in pitch until the
 rotors stop.
 
-## 9. What the model does not have
+## 9. The contrail
+
+The trail behind an aircraft is not always there, and what it depends on
+follows from quantities the model already computes. `src/contrail.js` computes
+it; the drawing is in [Airflow](04-airflow.md#contrail).
+
+### Why a trail appears at all
+
+The exhaust carries water — burning a kilogram of kerosene gives about 1.24 kg
+of it — and heat. Mixing with the ambient air, the jet cools along a straight
+line in "temperature — vapour pressure" coordinates, and the whole question is
+whether that line touches the saturation curve before the jet has cooled to the
+ambient temperature. The slope of the line is the Schmidt — Appleman parameter:
+
+```
+G = EI_H₂O · c_p · P / (ε · Q · (1 − η))
+```
+
+with `EI_H₂O = 1.24`, `c_p = 1004 J/(kg·K)`, `ε = 0.622`, `Q = 43 MJ/kg`, `P`
+the ambient pressure and `η` the propulsive efficiency. At eleven kilometres
+and `η = 0.3` this gives 1.50 Pa/K, in the middle of the published range for
+airliners.
+
+The `1 − η` in the denominator carries the counter-intuitive part: the more of
+the fuel's energy leaves as thrust, the less of it stays in the jet as heat, the
+steeper the line — and **the more readily an efficient engine leaves a trail**.
+That is why the efficiency is a slider rather than a constant: moving it from
+0.15 to 0.45 shifts the threshold by more than 4 K.
+
+### The threshold temperature
+
+The temperature at which the line just touches the saturation curve is taken
+from Schumann's (1996) approximation:
+
+```
+T_LC = −46.46 + 9.43·ln(G − 0.053) + 0.720·ln²(G − 0.053)    °C
+```
+
+That is a fit, and the test does not check it against itself: at `T_LC` the
+saturation curve must have exactly the slope `G`, and the curve is the Magnus
+formula already checked against tables. The fit holds tangency to within 0.5 %
+over the whole range of slopes the panel can produce.
+
+Below saturation the line has further to travel, so the air must be colder
+still. The threshold `T_LM` is where the line drawn from the tangency point
+meets the curve scaled by the relative humidity; there is no closed form and it
+is bisected.
+
+### Whether it lasts
+
+Two independent questions, decided separately. **Whether a trail forms** depends
+on the engine, through the slope. **Whether it lasts** does not depend on the
+engine at all: if the ambient air is supersaturated with respect to ice, the
+crystals go on growing on the ambient vapour and the trail spreads into cirrus;
+if it is not, they evaporate within seconds and the band breaks off not far
+behind. That is the difference between a sky criss-crossed with bands and a
+clear one, and it comes straight from `rhIce` in
+[the vapour section](#water-vapour).
+
+At eleven kilometres on a standard day at 60 % humidity the model gives a
+threshold of −49.5 °C against an ambient −56.5 °C — a trail forms with 7 K to
+spare — and the air is at 102 % over ice, so it persists. At 30 % humidity the
+same air still forms a trail, but a short-lived one. From the ground, the
+altitude at which the trail would appear is 9.6 km; the panel searches for that
+altitude on the criterion itself rather than converting a temperature margin
+through the lapse rate, because pressure moves the threshold as well.
+
+### What is assumed
+
+* **The efficiency is an input.** Computing it would need the fuel flow and the
+  flight speed, and the model has neither — see the section below.
+* **The velocity of the mixture is not shown**, though the mixture temperature
+  is (flow-weighted through the bypass ratio, 46 °C at cruise power at
+  altitude). The absolute velocities in the model are deliberately reduced by
+  about 150 times, so a figure in metres per second would be an invention. The
+  criterion does not need it.
+* **One trail along the axis**, not the two ropes wound up by the wingtip
+  vortices: that would need an aircraft in the frame, and there is none.
+
+## 10. What the model does not have
 
 Stated explicitly, so that the model is not mistaken for a calculation tool.
 
@@ -489,7 +568,7 @@ Stated explicitly, so that the model is not mistaken for a calculation tool.
   25 times, flow by about 150 times) — otherwise the picture turns into a
   strobe. All *relative* proportions between regimes are preserved.
 
-## 10. What has been verified numerically
+## 11. What has been verified numerically
 
 The regime state machine is covered by tests (`npm test`, 20 checks). Among the
 propositions checked are physically meaningful ones:
@@ -512,6 +591,14 @@ itself (27 checks): temperature, pressure and density at 0, 1, 5, 11 and 12 km
 to within 0.2 %, the smoothness of the join at the tropopause, and the behaviour
 of a real day — the pressure stays put while the density falls by 4.9 % for
 every 15 °C above standard.
+
+The contrail criterion is verified through the property its fit approximates
+(27 checks): at the threshold temperature the saturation curve must have exactly
+the slope of the mixing line, and it does to within 0.5 % over the whole range of
+slopes the panel can produce. Along with it the behaviour - a steeper line means
+a warmer threshold, drier air has to be colder, a more efficient engine leaves a
+trail more readily - and the drawing's own decisions, down to a shut-down engine
+leaving nothing whatever the air outside.
 
 The sound is verified by rendering the graph into an `OfflineAudioContext`: the
 level grows monotonically with regime, there is no clipping, and the fan tone

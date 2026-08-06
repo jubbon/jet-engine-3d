@@ -13,6 +13,8 @@ import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
 import { atmosphere, humidity } from './atmosphere.js';
+import { contrail, flipAltitude } from './contrail.js';
+import { createContrail } from './contrailView.js';
 
 /* =============================== scene =============================== */
 
@@ -35,7 +37,8 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 1.5;
-controls.maxDistance = 40;
+// far enough to take in the contrail, which runs 45 m aft of the nozzle
+controls.maxDistance = 120;
 controls.target.set(-0.3, 0, 0);
 
 const labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
@@ -71,6 +74,11 @@ scene.add(engine.root);
 
 const airflow = createAirflow();
 scene.add(airflow.group);
+
+// the trail lives outside the flow visualisation: it runs off to the edge of
+// the scene, far past the 4 m of duct the particles know about
+const trail = createContrail();
+scene.add(trail.group);
 
 /* ------------------------------ labels ------------------------------- */
 const labelObjects = [];
@@ -146,11 +154,17 @@ const state = {
   altitude: 0, // m
   deltaISA: 0, // deviation of the day from standard, K
   rh: 0.6, // relative humidity over water, 0..1
+  eta: 0.3, // propulsive efficiency, an input: the model cannot compute it
+  trail: true,
+  labels: true,
 };
 
-// ambient conditions; recomputed only when the sliders move
+// ambient conditions and the contrail verdict; recomputed only when the
+// sliders move - none of it depends on the engine except through the
+// efficiency, which is a slider of its own
 let amb = atmosphere(state.altitude, state.deltaISA);
 let hum = humidity(amb.t, state.rh);
+let verdict = contrail(amb, hum, state.eta);
 
 let n1Angle = 0;
 let n2Angle = 0;
@@ -221,7 +235,13 @@ const VIEWS = [
   // the viewer, but the engine is not entirely drowned in it as it would be
   // directly on the axis
   { name: 'From behind, in the gas stream', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
+  // far enough back for the trail to have somewhere to run: the engine is
+  // small in the frame, which is the point
+  { name: 'Contrail', pos: [-38, 19, 72], target: [10, 0, 0] },
 ];
+
+// the tenth view is reached by the zero key, the other nine by their own digit
+const VIEW_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 const camTargetPos = camera.position.clone();
 const camTargetLook = controls.target.clone();
@@ -237,7 +257,7 @@ function goView(v) {
 const viewsEl = $('views');
 VIEWS.forEach((v, i) => {
   const b = document.createElement('button');
-  b.textContent = `${i + 1}. ${v.name}`;
+  b.textContent = `${VIEW_KEYS[i]}. ${v.name}`;
   b.onclick = () => goView(v);
   viewsEl.appendChild(b);
 });
@@ -330,12 +350,16 @@ $('chk-nac').onchange = (e) => {
   engine.parts.mNac.visible = e.target.checked;
 };
 $('chk-labels').onchange = (e) => {
-  labelObjects.forEach((o) => (o.visible = e.target.checked));
+  state.labels = e.target.checked;
 };
 $('chk-lines').onchange = (e) => airflow.setLines(e.target.checked);
 $('chk-haze').onchange = (e) => {
   state.haze = e.target.checked;
   haze.setEnabled(state.haze);
+};
+$('chk-trail').onchange = (e) => {
+  state.trail = e.target.checked;
+  trail.setEnabled(state.trail);
 };
 $('chk-spin').onchange = (e) => (state.spin = e.target.checked);
 $('chk-orbit').onchange = (e) => (state.orbit = e.target.checked);
@@ -360,8 +384,14 @@ addEventListener('keydown', (e) => {
     $('chk-haze').checked = !state.haze;
     state.haze = !state.haze;
     haze.setEnabled(state.haze);
+  } else if (e.key === 't' || e.key === 'T' || e.key === 'е' || e.key === 'Е') {
+    $('chk-trail').checked = !state.trail;
+    state.trail = !state.trail;
+    trail.setEnabled(state.trail);
   } else if (e.key >= '1' && e.key <= '9') {
     goView(VIEWS[+e.key - 1]);
+  } else if (e.key === '0') {
+    goView(VIEWS[9]); // the contrail view is the tenth, hence the zero
   }
 });
 
@@ -396,6 +426,13 @@ const STATIONS = [
   ['Nozzle exit', ({ t4 }) => t4 * 0.293, ({ p, fan }) => p * (1 + 0.65 * fan)],
 ];
 
+// The contrail is fed by the two streams mixed, not by the hot one alone: the
+// bypass duct is cold and carries five times the flow of the prototype.
+const BPR = 5.1;
+const ST_BYPASS = 1;
+const ST_NOZZLE = 6;
+const mixedExhaustT = (v) => (BPR * STATIONS[ST_BYPASS][1](v) + STATIONS[ST_NOZZLE][1](v)) / (BPR + 1);
+
 const stationsEl = $('stations');
 stationsEl.innerHTML =
   '<tr><td style="color:#5f6b7c">station</td><td style="color:#5f6b7c">T, °C</td><td style="color:#5f6b7c">P, bar</td></tr>' +
@@ -425,6 +462,8 @@ function updateGauges(keff) {
     p: amb.p / 1e5, // bar
     theta: amb.theta,
   };
+  $('val-tmix').textContent = `${mixedExhaustT(v).toFixed(0)} °C`;
+
   const rows = stationsEl.querySelectorAll('tr');
   STATIONS.forEach(([, tf, pf], i) => {
     const row = rows[i + 1];
@@ -482,6 +521,7 @@ function setAmbient(altitude, deltaISA, rh) {
   $('val-amb-rhi').style.color = hum.rhIce > 1 ? 'var(--acc)' : '#7a8494';
   ALT_PRESETS.forEach(([id, h]) => $(id).classList.toggle('on', h === altitude));
 
+  refreshContrail();
   gaugeShown = -1; // the station table has to be redrawn, the engine has not moved
 }
 
@@ -491,6 +531,52 @@ ALT_PRESETS.forEach(([id, h]) => {
 $('alt').oninput = (e) => setAmbient(+e.target.value * 100, state.deltaISA, state.rh);
 $('isa').oninput = (e) => setAmbient(state.altitude, +e.target.value, state.rh);
 $('rh').oninput = (e) => setAmbient(state.altitude, state.deltaISA, e.target.value / 100);
+
+/* ---------------------------- contrail ------------------------------- *
+ *  The verdict is about the air, not about the engine: the same three
+ *  conditions plus one number from the engine, the efficiency. It is
+ *  recomputed with the sliders rather than every frame - only the drawing
+ *  follows the combustion.
+ * --------------------------------------------------------------------- */
+const VERDICT_TEXT = {
+  none: ['NO TRAIL', 'off'],
+  'short-lived': ['SHORT-LIVED', 'busy'],
+  persistent: ['PERSISTENT', ''],
+};
+
+function refreshContrail() {
+  verdict = contrail(amb, hum, state.eta);
+
+  const [text, cls] = VERDICT_TEXT[verdict.verdict];
+  $('trail-bar').className = `statusbar ${cls}`;
+  $('val-trail').textContent = text;
+  $('val-eta').textContent = state.eta.toFixed(2);
+  $('val-g').textContent = verdict.G.toFixed(2);
+  $('val-tform').textContent = `${verdict.tForm.toFixed(1)} °C`;
+
+  // how much would have to change for the verdict to flip: the altitude is
+  // searched for on the real criterion, since pressure moves the threshold
+  // too, and it is a more telling answer than a temperature margin alone
+  const flip = flipAltitude(state.altitude, state.deltaISA, state.rh, state.eta);
+  const dKm = flip === null ? null : (flip - state.altitude) / 1000;
+  const where =
+    dKm === null
+      ? 'nowhere between the ground and 12 km would this air behave differently'
+      : `${Math.abs(dKm).toFixed(1)} km ${dKm > 0 ? 'higher' : 'lower'} it would ${verdict.forms ? 'stop' : 'start'}`;
+
+  $('trail-hint').textContent = verdict.forms
+    ? `The air is ${verdict.margin.toFixed(1)} °C below the threshold, so a trail forms; ` +
+      (verdict.persistent
+        ? `it is supersaturated over ice, so the trail spreads instead of evaporating. ${where}.`
+        : `over ice it is not saturated, so the crystals evaporate within seconds. ${where}.`)
+    : `The air is ${(-verdict.margin).toFixed(1)} °C above the threshold — no trail. ${where}.`;
+}
+
+$('eta').oninput = (e) => {
+  state.eta = e.target.value / 100;
+  refreshContrail();
+};
+
 setAmbient(state.altitude, state.deltaISA, state.rh);
 
 /* -------------------------- module picking --------------------------- */
@@ -584,6 +670,9 @@ function animate() {
 
   airflow.update(dt, eng.n1, burn);
   haze.update(dt, burn, eng.n1);
+  // the verdict is about the air, but the water is the engine's: fuel cut, and
+  // the trail dies with the flame
+  trail.update(dt, verdict, burn);
 
   // sound: panning and loudness follow the camera position
   if (state.sound) {
@@ -602,6 +691,16 @@ function animate() {
   controls.autoRotate = state.orbit;
   controls.autoRotateSpeed = 0.55;
   controls.update();
+
+  // The fog gives the close-up views their depth, but the contrail runs off to
+  // 45 m and pulling the camera back that far would drown the engine in it.
+  // The far edge follows the camera distance and leaves the near view alone.
+  const camDist = camera.position.distanceTo(controls.target);
+  scene.fog.far = Math.max(60, camDist * 2.2);
+  // From the contrail view the engine is small in the frame and the labels
+  // collapse into a heap of boxes over it. Below 45 units - everything the
+  // camera could reach before the trail arrived - nothing changes.
+  labelObjects.forEach((o) => (o.visible = state.labels && camDist < 45));
 
   composer.render();
   labelRenderer.render(scene, camera);

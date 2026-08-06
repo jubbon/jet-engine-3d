@@ -15,8 +15,8 @@ and any divergence is caught by a test — see
 npm install
 npm run dev      # http://localhost:5188, listens on 0.0.0.0
 npm run build    # build into dist/
-npm test         # state machine, exhaust gas, spiral smear,
-                 # dimensions against the reference, layout clearances
+npm test         # state machine, exhaust gas, spiral smear, atmosphere,
+                 # contrail, dimensions against the reference, clearances
 ```
 
 A single test runs directly: `node test/geometry.test.mjs`.
@@ -72,7 +72,8 @@ to tip), and wrapped around the circumference — as real blades are
 | **Exhaust gas** (visible jet and heat haze) | checkbox or `H` |
 | Engine power (throttle) | slider (changes N1/N2, flame brightness, flow speed, instruments and sound) |
 | **Ambient conditions** | altitude, deviation from standard and humidity by sliders, or the buttons 0 / 3 / 11 km |
-| Views | buttons `1…9` (`9` — the rear view, inside the gas stream) |
+| **Contrail** | forms itself from the conditions; drawing toggled by checkbox or `T`, efficiency by slider |
+| Views | buttons `1…9` and `0` (`9` — the rear view inside the gas stream, `0` — the contrail) |
 | Module information | hover for a tooltip, click for a card with the description |
 | Camera | LMB — orbit, wheel — zoom, RMB — pan |
 
@@ -124,11 +125,23 @@ nacelle blocking the exhaust. When the air flows are switched on the exhaust is
 damped down so as not to paint over the diagram. Details are in the
 [airflow document](docs/04-airflow.md#exhaust-gas).
 
+Behind all this, at altitude, the engine leaves a **contrail** — or does not.
+The Schmidt — Appleman criterion is computed from the ambient pressure, the
+humidity and one number from the engine, its propulsive efficiency; the panel
+states the verdict — no trail, short-lived, persistent — and says how much
+higher or lower it would change. Two counter-intuitive things come out of it: a
+*more* efficient engine leaves a trail more readily, because less of the fuel's
+energy stays in the jet as heat; and whether the trail lasts has nothing to do
+with the engine at all, only with whether the surrounding air is supersaturated
+over ice. The trail itself is drawn from view `0`, starting ten metres behind
+the nozzle as a real one does. Details are in
+[Physics of the model](docs/03-physics.md#9-the-contrail).
+
 The values on the instruments and in the table start from the prototype —
 take-off thrust 121.4 kN (CFM56-7B27), overall pressure ratio about 28 — but
 remain illustrative: they are not the result of computing a specific cycle. What
 exactly is simplified is listed in
-[Physics of the model](docs/03-physics.md#9-what-the-model-does-not-have).
+[Physics of the model](docs/03-physics.md#10-what-the-model-does-not-have).
 
 ## Start and shutdown (`src/engineState.js`)
 
@@ -214,8 +227,11 @@ src/airflow.js    particles, streamlines, plume
 src/heathaze.js   exhaust gas aft of the nozzle (screen-space pass)
 src/sound.js      procedural engine sound
 src/engineState.js  state machine: start, running, shutdown, rundown
-src/atmosphere.js   standard atmosphere: ambient temperature, pressure, density
-test/             state machine, exhaust, spiral smear, atmosphere, dimensions, clearances
+src/atmosphere.js   standard atmosphere and water vapour: the air of the day
+src/contrail.js     contrail: does a trail form, and does it last
+src/contrailView.js the trail behind the engine
+test/             state machine, exhaust, spiral smear, atmosphere, contrail,
+                  dimensions, clearances
 docs/             documentation
 docs/engines/     machine-readable reference data on prototypes (JSON)
 ```

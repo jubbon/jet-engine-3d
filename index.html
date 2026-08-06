@@ -111,6 +111,23 @@
           </div>
         </section>
 
+        <!-- contrail: the criterion is computed from the ambient air, the
+             engine enters it only through the efficiency -->
+        <section class="block" id="trail">
+          <div class="statusbar off" id="trail-bar">
+            <span>Contrail</span>
+            <b id="val-trail">—</b>
+          </div>
+          <label class="row"><span>Propulsive efficiency</span><b id="val-eta">0.30</b></label>
+          <input id="eta" type="range" min="0" max="50" value="30" />
+          <div class="gauges" id="trail-out">
+            <div><i>G</i><b id="val-g">—</b><small>Pa/K</small></div>
+            <div><i>T thr</i><b id="val-tform">—</b><small>forms below</small></div>
+            <div><i>T mix</i><b id="val-tmix">—</b><small>at the nozzle</small></div>
+          </div>
+          <p class="hint" id="trail-hint"></p>
+        </section>
+
         <section class="block" id="cut-opts">
           <label class="row"><span>Cut-away angle</span><b id="val-cut">100°</b></label>
           <input id="cut" type="range" min="0" max="175" value="100" />
@@ -129,6 +146,7 @@
           <label><input type="checkbox" id="chk-labels" checked /><span>Module labels</span></label>
           <label><input type="checkbox" id="chk-lines" checked /><span>Streamlines</span></label>
           <label><input type="checkbox" id="chk-haze" checked /><span>Exhaust gas</span></label>
+          <label><input type="checkbox" id="chk-trail" checked /><span>Contrail</span></label>
           <label><input type="checkbox" id="chk-spin" checked /><span>Rotor rotation</span></label>
           <label><input type="checkbox" id="chk-orbit" /><span>Camera orbit</span></label>
         </section>
@@ -140,7 +158,8 @@
         <footer>
           <span>LMB — orbit · wheel — zoom · RMB — pan</span>
           <span class="keys">Space — flows · C — cutaway · X — x-ray · S — sound</span>
-          <span class="keys">E — start/shutdown · H — exhaust · 1…9 — views</span>
+          <span class="keys">E — start/shutdown · H — exhaust · T — contrail</span>
+          <span class="keys">1…9, 0 — views</span>
         </footer>
       </aside>
 

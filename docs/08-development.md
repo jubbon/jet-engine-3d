@@ -7,8 +7,8 @@ npm install
 npm run dev      # http://localhost:5188, listens on 0.0.0.0
 npm run build    # build into dist/
 npm run preview  # preview the built version
-npm test         # state machine, exhaust gas, spiral smear,
-                 # dimensions against the reference, layout clearances
+npm test         # state machine, exhaust gas, spiral smear, atmosphere,
+                 # contrail, dimensions against the reference, clearances
 ```
 
 Dependencies: `three` (runtime) and `vite` (build). There are no external assets
@@ -23,9 +23,9 @@ port is better closed.
 ## Build size
 
 ```
-dist/index.html                 8.2 kB  (2.3 kB gzip)
-dist/assets/index-*.css         7.8 kB  (2.3 kB gzip)
-dist/assets/index-*.js        658 kB  (174 kB gzip)
+dist/index.html                 9.2 kB  (2.5 kB gzip)
+dist/assets/index-*.css         7.9 kB  (2.4 kB gzip)
+dist/assets/index-*.js        664 kB  (176 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
@@ -54,12 +54,12 @@ If the scene needs lightening:
 A note on headless browsers: one renders this scene on a software rasteriser
 (SwiftShader) at about one frame per second. That says nothing about real
 hardware, but it does make checking long processes through a browser impossible
-— hence the extracted modules `engineState.js`, `atmosphere.js` and `sound.js`,
-which are checked directly.
+— hence the extracted modules `engineState.js`, `atmosphere.js`, `contrail.js`
+and `sound.js`, which are checked directly.
 
 ## Tests
 
-Six files, 123 checks. There is no framework: each test is a plain Node script
+Seven files, 150 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -92,6 +92,19 @@ to report saturation over ice above freezing. This is one of the few places in
 the model with a published answer, so the comparison is against the table rather
 than against the model itself.
 
+`test/contrail.test.mjs` — 27 checks of the Schmidt — Appleman criterion. The
+threshold temperature comes from a published fit, and checking a fit against
+itself proves nothing, so the check is against the property it approximates: at
+the threshold the saturation curve must have exactly the slope of the mixing
+line. It holds to 0.5 % over the whole range of slopes the panel can produce.
+The rest are the behaviour of the criterion — a steeper line means a warmer
+threshold, drier air has to be colder, a more efficient engine leaves a trail
+more readily — and the altitude at which the verdict flips, checked to be a real
+boundary. The last seven check the drawing's own decisions - a persistent trail
+runs the whole length, a short-lived one breaks off at a third of it, and a
+shut-down engine leaves nothing whatever the air outside. The strip needs no
+renderer to answer those, only the shader does.
+
 `test/geometry.test.mjs` — 24 checks of the dimensions against the
 [prototype reference data](engines/cfm56-7b-nacelle.json). The test reads the
 values straight from the JSON, and the tolerances are the ones the reference
@@ -122,7 +135,7 @@ streamlines must not drown in white gas.
 
 The model is illustrative. The full list of what is deliberately simplified or
 not modelled at all is in
-["Physics of the model", section 9](03-physics.md#9-what-the-model-does-not-have).
+["Physics of the model", section 10](03-physics.md#10-what-the-model-does-not-have).
 In short: no gas-dynamic computation, no cycle calculation, no recomputation of
 the engine for altitude (the ambient air is there, the characteristics are not),
 no engine limits or protections; the absolute
@@ -155,10 +168,13 @@ src/blade.js            procedural generator of blades and rows
 src/airflow.js          flow ducts, particles, streamlines, plume
 src/heathaze.js         exhaust gas aft of the nozzle (screen-space pass)
 src/engineState.js      regime state machine: start, running, shutdown, rundown
+src/atmosphere.js       standard atmosphere and water vapour
+src/contrail.js         contrail formation criterion
+src/contrailView.js     the trail behind the engine
 src/sound.js            sound synthesis on Web Audio
 src/style.css           panel styling
-test/                   state machine, exhaust gas, spiral smear,
-                        dimensions and layout clearances
+test/                   state machine, exhaust gas, spiral smear, atmosphere,
+                        contrail, dimensions and layout clearances
 docs/                   this documentation
 docs/engines/           machine-readable reference data on prototypes (JSON)
 ```
