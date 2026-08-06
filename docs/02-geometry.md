@@ -1,321 +1,334 @@
-# 02. Геометрия двигателя
+# 02. Engine geometry
 
-## Система координат и масштаб
+## Coordinate system and scale
 
-Ось двигателя — **X**, поток идёт в направлении **+X**. Радиальное направление
-лопатки при построении — **+Y**, окружная координата отсчитывается в плоскости
-YZ.
+The engine axis is **X**, the flow goes towards **+X**. The radial direction of
+a blade as it is built is **+Y**, and the circumferential coordinate is measured
+in the YZ plane.
 
-1 условная единица = **0.50 м**. Из-за этого множителя радиус в условных
-единицах численно равен диаметру в метрах — `fanTip = 1.549` это вентилятор
-Ø 1.549 м, `nacelleR = 2.44` это гондола Ø 2.44 м. Совпадение удобное:
-справочные диаметры переносятся в код без пересчёта.
+1 model unit = **0.50 m**. Because of that factor, a radius in model units is
+numerically equal to a diameter in metres — `fanTip = 1.549` is a fan of
+Ø 1.549 m, `nacelleR = 2.44` is a nacelle of Ø 2.44 m. The coincidence is
+convenient: reference diameters go into the code without conversion.
 
-Продольные станции отсчитываются от передней кромки воздухозаборника; она
-стоит в `x = −5.2`, поэтому станция в метрах от кромки равна `(x + 5.2) / 2`.
-Полная длина модели от кромки до конца центрального тела — 10.0 у.е. = 5.0 м.
+Longitudinal stations are measured from the intake leading edge; it sits at
+`x = −5.2`, so a station in metres from the lip equals `(x + 5.2) / 2`. The
+overall length of the model from the lip to the plug tip is 10.0 units = 5.0 m.
 
-Все габариты взяты из справочника
-[`engines/cfm56-7b-nacelle.json`](engines/cfm56-7b-nacelle.json) — см.
-[«Габариты по источникам»](#габариты-по-источникам) ниже.
+All dimensions come from the reference file
+[`engines/cfm56-7b-nacelle.json`](engines/cfm56-7b-nacelle.json) — see
+[Dimensions from sources](#dimensions-from-sources) below.
 
-Тела вращения строятся через `LatheGeometry` по профилю `[радиус, координата X]`
-и разворачиваются `rotation.z = -π/2`, чтобы ось вращения совпала с осью X.
-Замкнутый профиль (наружная обшивка назад, внутренняя вперёд) даёт оболочку
-с толщиной за одну операцию — так сделаны мотогондола, корпуса и капоты.
+Surfaces of revolution are built through `LatheGeometry` from a profile of
+`[radius, X coordinate]` and rotated by `rotation.z = -π/2` so that the axis of
+revolution coincides with X. A closed profile (outer skin running aft, inner one
+running forward) gives a shell with thickness in a single operation — that is
+how the nacelle, the casings and the cowls are made.
 
-## Станции газовоздушного тракта
+## Gas path stations
 
-Константы объявлены в `ST` (`src/engine.js`):
+The constants are declared in `ST` (`src/engine.js`):
 
 ```mermaid
 flowchart LR
-  A["Кромка<br/>−5.20 · 0 м"] --> A1["Фланец A1<br/>−3.54 · 0.83 м"]
-  A1 --> B["Вентилятор<br/>−3.22 · 0.99 м"]
-  B --> C["Разделитель<br/>−2.86"]
-  C --> D["КНД, 3 ст.<br/>−2.74…−2.38"]
-  D --> E["КВД, 9 ст.<br/>−2.18…−1.04"]
-  E --> F["Камера сгорания<br/>−0.84…−0.28"]
-  F --> G["ТВД, 1 ст.<br/>−0.18…0.12"]
-  G --> H["ТНД, 4 ст.<br/>0.36…1.11"]
-  H --> I["Задняя опора<br/>1.48 · 3.34 м"]
-  I --> J["Срез сопла<br/>2.90 · 4.05 м"]
-  C --> K["Наружный контур"] --> L["Сопло I контура<br/>1.16 · 3.18 м"]
+  A["Lip<br/>−5.20 · 0 m"] --> A1["Flange A1<br/>−3.54 · 0.83 m"]
+  A1 --> B["Fan<br/>−3.22 · 0.99 m"]
+  B --> C["Splitter<br/>−2.86"]
+  C --> D["Booster, 3 st.<br/>−2.74…−2.38"]
+  D --> E["HPC, 9 st.<br/>−2.18…−1.04"]
+  E --> F["Combustor<br/>−0.84…−0.28"]
+  F --> G["HPT, 1 st.<br/>−0.18…0.12"]
+  G --> H["LPT, 4 st.<br/>0.36…1.11"]
+  H --> I["Rear frame<br/>1.48 · 3.34 m"]
+  I --> J["Core nozzle exit<br/>2.90 · 4.05 m"]
+  C --> K["Bypass duct"] --> L["Fan nozzle exit<br/>1.16 · 3.18 m"]
 ```
 
-| Станция | X, у.е. | м от кромки | Что там |
+| Station | X, units | m from the lip | What is there |
 |---|---:|---:|---|
-| `lip` | −5.20 | 0 | Передняя кромка (highlight), Ø 1.70 м |
-| `throat` | −4.94 | 0.13 | Горло воздухозаборника, Ø 1.52 м |
-| `a1` | −3.54 | 0.83 | Фланец A1: стык с корпусом вентилятора |
-| `fan` | −3.22 | 0.99 | Плоскость вентилятора, радиус конца лопатки 1.549 |
-| `splitter` | −2.86 | 1.17 | Разделитель контуров |
-| `boosterIn…Out` | −2.74…−2.38 | 1.23…1.41 | Подпорные ступени, 3 |
-| `hpcIn…Out` | −2.18…−1.04 | 1.51…2.08 | Компрессор высокого давления, 9 |
-| `combIn…Out` | −0.84…−0.28 | 2.18…2.46 | Кольцевая камера сгорания |
-| `hptIn…Out` | −0.18…0.12 | 2.51…2.66 | Турбина высокого давления, 1 |
-| `lptIn…Out` | 0.36…1.11 | 2.78…3.16 | Турбина низкого давления, 4 |
-| `frame` | 1.48 | 3.34 | Задняя опора, она же задний фланец двигателя |
-| `bypassExit` | 1.16 | 3.18 | Срез сопла наружного контура |
-| `coreExit` | 2.90 | 4.05 | Срез сопла внутреннего контура |
-| `plugTip` | 4.80 | 5.00 | Конец центрального тела |
+| `lip` | −5.20 | 0 | Leading edge (highlight), Ø 1.70 m |
+| `throat` | −4.94 | 0.13 | Intake throat, Ø 1.52 m |
+| `a1` | −3.54 | 0.83 | Flange A1: joint with the fan case |
+| `fan` | −3.22 | 0.99 | Fan plane, blade tip radius 1.549 |
+| `splitter` | −2.86 | 1.17 | Flow splitter |
+| `boosterIn…Out` | −2.74…−2.38 | 1.23…1.41 | Booster stages, 3 |
+| `hpcIn…Out` | −2.18…−1.04 | 1.51…2.08 | High-pressure compressor, 9 |
+| `combIn…Out` | −0.84…−0.28 | 2.18…2.46 | Annular combustor |
+| `hptIn…Out` | −0.18…0.12 | 2.51…2.66 | High-pressure turbine, 1 |
+| `lptIn…Out` | 0.36…1.11 | 2.78…3.16 | Low-pressure turbine, 4 |
+| `frame` | 1.48 | 3.34 | Rear frame, also the engine rear flange |
+| `bypassExit` | 1.16 | 3.18 | Fan nozzle exit |
+| `coreExit` | 2.90 | 4.05 | Core nozzle exit |
+| `plugTip` | 4.80 | 5.00 | Plug tip |
 
-Между фланцами A1 и задней опоры укладывается 2.51 м — паспортная длина
-«голого» CFM56-7B. Всё, что перед A1, — воздухозаборник (0.83 м); всё, что
-за задней опорой, — сопло и центральное тело.
+Between flange A1 and the rear frame there are 2.51 m — the published length of
+a bare CFM56-7B. Everything ahead of A1 is the intake (0.83 m); everything aft
+of the rear frame is the nozzle and the plug.
 
-## Габариты по источникам
+## Dimensions from sources
 
-Раньше габариты были подобраны по пропорции. Теперь каждый из них взят из
-[справочника по прототипу](engines/cfm56-7b-nacelle.json), а расхождение
-проверяется тестом `test/geometry.test.mjs` — значения он читает прямо из
-JSON, поэтому правка справочника ломает тест, а не молча модель.
+The dimensions used to be chosen by proportion. Now each of them is taken from
+the [prototype reference data](engines/cfm56-7b-nacelle.json), and any
+divergence is caught by `test/geometry.test.mjs` — the test reads the values
+straight from the JSON, so editing the reference breaks the test rather than
+silently breaking the model.
 
-| Размер | Справочник | В модели | Откуда |
+| Dimension | Reference | In the model | Source |
 |---|---:|---:|---|
-| Наибольший габарит гондолы | 2.44 м | `nacelleR` = 2.44 | Boeing ACAP, выноска «APPROX 8 FT» |
-| Высота гондолы | 2.40 ± 0.2 м | 2.28 м по обшивке | обмер чертежа, верх перекрыт крылом |
-| Ширина плоского низа | 1.2 ± 0.2 м | 1.21 м | обмер чертежа |
-| Кромка → срез сопла I контура | 3.18 м | `bypassExit` | обмер чертежа |
-| Кромка → срез сопла II контура | 4.05 м | `coreExit` | обмер чертежа |
-| Кромка → конец центрального тела | 5.00 м | `plugTip` | обмер чертежа |
-| Удлинение гондолы | 1.66 | 1.66 | 4.05 / 2.44 |
-| Диаметр вентилятора | 1.549 м | `fanTip` = 1.549 | b737.org.uk |
-| Наибольшая хорда лопатки вентилятора | 0.279 м | `tipChord` = 0.558 | NTSB AAR-19/03 |
-| Лопаток вентилятора | 24 | 24 | NTSB AAR-19/03 |
-| Длина двигателя по фланцам | 2.508 м | `frame − a1` = 2.51 м | EASA TCDS E.004 |
-| Высота двигателя | 1.829 м | `caseR` = 1.829 | EASA TCDS E.004 |
-| Ширина двигателя | 2.118 м | `accR` = 2.118 | EASA TCDS E.004 |
-| Наклон двигателя | 5° носом вверх | клин пилона | b737.org.uk |
-| Длина входа / диаметр вентилятора | ≈ 0.50 | 0.498 | патенты на короткий воздухозаборник |
-| Ступеней КНД / КВД / ТВД / ТНД | 3 / 9 / 1 / 4 | 3 / 9 / 1 / 4 | компоновка CFM56-7B |
+| Largest nacelle dimension | 2.44 m | `nacelleR` = 2.44 | Boeing ACAP, callout "APPROX 8 FT" |
+| Nacelle height | 2.40 ± 0.2 m | 2.28 m over the skin | drawing measurement, top obscured by the wing |
+| Width of the flat bottom | 1.2 ± 0.2 m | 1.21 m | drawing measurement |
+| Lip → fan nozzle exit | 3.18 m | `bypassExit` | drawing measurement |
+| Lip → core nozzle exit | 4.05 m | `coreExit` | drawing measurement |
+| Lip → plug tip | 5.00 m | `plugTip` | drawing measurement |
+| Nacelle fineness ratio | 1.66 | 1.66 | 4.05 / 2.44 |
+| Fan diameter | 1.549 m | `fanTip` = 1.549 | b737.org.uk |
+| Largest fan blade chord | 0.279 m | `tipChord` = 0.558 | NTSB AAR-19/03 |
+| Fan blades | 24 | 24 | NTSB AAR-19/03 |
+| Engine length between flanges | 2.508 m | `frame − a1` = 2.51 m | EASA TCDS E.004 |
+| Engine height | 1.829 m | `caseR` = 1.829 | EASA TCDS E.004 |
+| Engine width | 2.118 m | `accR` = 2.118 | EASA TCDS E.004 |
+| Engine tilt | 5° nose up | pylon wedge | b737.org.uk |
+| Intake length / fan diameter | ≈ 0.50 | 0.498 | short-intake patents |
+| Stages booster / HPC / HPT / LPT | 3 / 9 / 1 / 4 | 3 / 9 / 1 / 4 | CFM56-7B layout |
 
-Три следствия оказались неочевидными.
+Three consequences turned out to be non-obvious.
 
-**Гондола полнее, чем кажется по вентилятору.** Отношение наибольшего
-габарита к диаметру вентилятора у 737NG — 1.57, тогда как у A320 с тем же
-семейством CFM56 около 1.37. Причина в том же плоском низе: коробка приводов
-и агрегаты вынесены с шести часов на бок, и габаритная ширина «голого»
-двигателя из-за них 2.118 м при высоте 1.829 м. От агрегатов до обшивки
-остаётся 0.16 м — гондола обтягивает именно их, а не вентилятор. В модели это
-проверяется прямо: `test/clearance.test.mjs` считает наибольший радиус вершин
-узла агрегатов и требует, чтобы он совпал с 2.118 и остался под обшивкой.
+**The nacelle is fuller than the fan suggests.** The ratio of the largest
+dimension to fan diameter on the 737NG is 1.57, whereas on the A320 with the
+same CFM56 family it is about 1.37. The cause is that same flat bottom: the
+accessory gearbox and the accessories were moved from six o'clock round to the
+side, and because of them the overall width of the bare engine is 2.118 m
+against a height of 1.829 m. From the accessories to the skin there are 0.16 m
+left — the nacelle wraps around them, not around the fan. In the model this is
+checked directly: `test/clearance.test.mjs` computes the largest vertex radius
+of the accessory module and requires it to match 2.118 and stay under the skin.
 
-**Глубину входа нельзя вывести из габаритов — только проверить отдельно.**
-Кромка, оба среза сопел и длина «голого» двигателя заданы справочником.
-А вот сколько из длины гондолы достанется воздухозаборнику, а сколько —
-выходному соплу, справочник не говорит: сумма сойдётся при любом делении.
-Дважды подобранное «на глаз» деление давало слишком глубокий вход, и оба раза
-это было видно только на картинке — вход читался тоннелем, вентилятор
-проваливался вглубь канала, а все проверки габаритов проходили.
+**Intake depth cannot be derived from the dimensions — only checked
+separately.** The lip, both nozzle exits and the bare engine length are all
+given by the reference. But how much of the nacelle length goes to the intake
+and how much to the exhaust nozzle it does not say: the sum adds up for any
+split. Twice a split was chosen by eye and twice it gave too deep an intake, and
+both times it showed only in the picture — the intake read as a tunnel, the fan
+sank into the duct, and every dimensional check passed.
 
-Поэтому глубина привязана к отдельному показателю: **отношению длины входа к
-диаметру вентилятора**. Длина здесь меряется от самой передней точки гондолы
-до передней кромки конца лопатки — ровно то, что видит глаз, если смотреть
-двигателю в лицо. У классической гондолы это отношение около 0.5; патенты на
-«короткий воздухозаборник» задают 0.20…0.45 и называют 0.5 как исходную
-величину, от которой уходят.
+The depth is therefore tied to a separate figure: the **ratio of intake length
+to fan diameter**. The length here is measured from the foremost point of the
+nacelle to the leading edge of the blade tip — exactly what the eye sees when
+looking the engine in the face. On a classic nacelle that ratio is about 0.5;
+patents on "short intakes" specify 0.20…0.45 and cite 0.5 as the baseline they
+depart from.
 
-| Попытка | Вход | Длина входа / Ø вентилятора |
+| Attempt | Intake | Intake length / fan Ø |
 |---|---:|---:|
-| первая | 1.36 м | 0.88 |
-| вторая | 1.04 м | 0.63 |
-| **принято** | **0.83 м** | **0.498** |
+| first | 1.36 m | 0.88 |
+| second | 1.04 m | 0.63 |
+| **adopted** | **0.83 m** | **0.498** |
 
-Остаток длины уходит в выходное сопло — 0.71 м за задним фланцем. Проверяет
-это `test/geometry.test.mjs`: он находит переднюю кромку конца лопатки прямо в
-построенной геометрии и требует 0.50 ± 0.06. Мораль общая: размер, который
-получается вычитанием, нужно проверять чем-то независимым от того же вычитания.
+The remaining length goes into the exhaust nozzle — 0.71 m aft of the rear
+flange. `test/geometry.test.mjs` guards this: it finds the leading edge of the
+blade tip directly in the built geometry and requires 0.50 ± 0.06. The general
+moral: a dimension obtained by subtraction has to be checked by something
+independent of that same subtraction.
 
-**Хорды лопаток определяются длиной двигателя.** Паспортные 2.508 м между
-фланцами делятся на 3 подпорные ступени, 9 ступеней КВД, камеру сгорания,
-1 ступень ТВД и 4 ступени ТНД — это компоновка CFM56-7B. Отсюда шаг ступени:
-90 мм в КНД, 71 мм в КВД, 125 мм в ТНД. Венец занимает по оси
-`хорда × cos(угол установки)`, и на этот шаг должны уместиться рабочее колесо
-и аппарат вместе. Поэтому хорды выставлены натурные — подпорная ступень 50 мм,
-ступень КВД от 39 до 24 мм, лопатка ТВД 60 мм, ТНД 70 мм. Это не косметика:
-тест `clearance` ловит любое перекрытие венцов, у которых пересекаются и
-осевые, и радиальные габариты, а число ступеней проверяет `geometry`.
+**Blade chords are determined by the engine length.** The published 2.508 m
+between flanges is divided among 3 booster stages, 9 HPC stages, the combustor,
+1 HPT stage and 4 LPT stages — the CFM56-7B layout. From that comes the stage
+pitch: 90 mm in the booster, 71 mm in the HPC, 125 mm in the LPT. A row occupies
+`chord × cos(stagger)` along the axis, and the rotor and the vanes together have
+to fit into that pitch. The chords are therefore set to life-size values —
+booster stage 50 mm, HPC stage from 39 down to 24 mm, HPT blade 60 mm, LPT
+70 mm. This is not cosmetic: the `clearance` test catches any overlap of rows
+whose axial and radial extents both intersect, and `geometry` checks the stage
+counts.
 
-## Состав узлов
+## Module composition
 
-| Узел | Что смоделировано |
+| Module | What is modelled |
 |---|---|
-| Мотогондола | Обечайка воздухозаборника со сплющенным низом, полированная кромка, капоты, пилон крепления к крылу |
-| Вентилятор | 24 широкохордные лопатки со стреловидностью и наклоном, кок со спиралью, диск, корпус вентилятора |
-| Спрямляющий аппарат | 44 лопатки в наружном контуре |
-| КНД | 3 ступени ротора (34/40/46 лопаток) + направляющие аппараты, разделитель контуров, корпус |
-| КВД | 9 ступеней ротора (40…88 лопаток, растёт от ступени к ступени) + 9 направляющих аппаратов, барабан ротора, корпус |
-| Камера сгорания | Диффузор, наружная и внутренняя стенки жаровой трубы, купол, 20 форсунок с завихрителями, объёмное пламя на шейдере |
-| ТВД | 1 ступень (62 лопатки) + сопловой аппарат (44), диск |
-| ТНД | 4 ступени (82…100 лопаток) + сопловые аппараты (68…80), диски |
-| Задняя опора и сопло | 10 силовых стоек, сужающееся сопло, центральное тело |
-| Валы | Вал НД внутри полого вала ВД, фланцы, 4 подшипниковые опоры |
-| Агрегаты | Коробка приводов с агрегатами, вынесенная с низа двигателя на бок, вертикальная передача, трубопроводы |
+| Nacelle | Intake barrel with a flattened bottom, polished lip, cowls, wing attachment pylon |
+| Fan | 24 wide-chord blades with sweep and lean, spinner with spiral, disc, fan case |
+| Outlet guide vanes | 44 vanes in the bypass duct |
+| Booster | 3 rotor stages (34/40/46 blades) + stator vanes, flow splitter, casing |
+| HP compressor | 9 rotor stages (40…88 blades, growing from stage to stage) + 9 stator rows, rotor drum, casing |
+| Combustor | Diffuser, outer and inner walls of the flame tube, dome, 20 fuel nozzles with swirlers, volumetric flame on a shader |
+| HP turbine | 1 stage (62 blades) + nozzle guide vanes (44), disc |
+| LP turbine | 4 stages (82…100 blades) + nozzle guide vanes (68…80), discs |
+| Rear frame and nozzle | 10 struts, converging nozzle, plug |
+| Shafts | LP shaft inside the hollow HP shaft, flanges, 4 bearing supports |
+| Accessories | Accessory gearbox with accessories, moved from the bottom of the engine to the side, radial drive shaft, pipework |
 
-Число лопаток растёт по тракту (в компрессоре от ступени к ступени, в турбине от
-ТВД к ТНД) — так же, как в реальных двигателях: при уменьшении высоты
-проточной части сохраняется густота решётки.
+The blade count grows along the gas path (in the compressor from stage to stage,
+in the turbine from HPT to LPT) — just as in real engines: as the annulus height
+falls, the cascade solidity is preserved.
 
-Число лопаток вентилятора — 24, как у CFM56-7B. Это не косметика: от него
-напрямую зависит частота следования лопаток, на которой строится тональная
-часть звука (см. [документ о звуке](06-sound.md)).
+The fan blade count is 24, as on the CFM56-7B. This is not cosmetic: the blade
+passing frequency, on which the tonal part of the sound is built, depends
+directly on it (see the [sound document](06-sound.md)).
 
-## Плоский низ мотогондолы
+## Flat bottom of the nacelle
 
-Гондола 737 не круглая: низ и губа воздухозаборника сплющены — тот самый
-«hamster pouch». Причина не стилистическая. Крыло 737 низко над землёй, и
-чтобы посадить на него CFM56, диаметр вентилятора обрезали, а коробку приводов
-с агрегатами перенесли из-под двигателя на бок — с 6 часов на 9. Освободившийся
-низ и сплющили. Поэтому в модели одно без другого не имеет смысла: агрегаты
-собраны в группу и повёрнуты вокруг оси на 62°, и только после этого плоский
-низ перестаёт противоречить компоновке.
+The 737 nacelle is not round: the bottom and the intake lip are flattened — the
+famous "hamster pouch". The reason is not stylistic. The 737 wing sits low above
+the ground, and to fit a CFM56 under it the fan diameter was cut down and the
+accessory gearbox was moved from underneath the engine to the side — from 6
+o'clock to 9. The bottom thus freed up is what got flattened. In the model,
+therefore, one makes no sense without the other: the accessories are collected
+into a group and rotated 62° about the axis, and only then does the flat bottom
+stop contradicting the layout.
 
-Глубина среза больше не подбирается на глаз. Её задаёт ширина плоского
-участка из справочника: при наружном радиусе 2.44 у.е. хорда шириной 1.2 м
-отсекается на глубине 0.16 м, отсюда `BELLY` = 0.32 у.е. Высота гондолы
-получается 2.44 − 0.16 = 2.28 м — в пределах допуска обмеренных 2.40 ± 0.2 м.
-Недостающее до 2.40 добирает обтекатель пилона: на виде спереди он как раз и
-мешал обмерить верх, о чём справочник и предупреждает (`derived_low`,
-«оценка снизу»).
+The depth of the cut is no longer chosen by eye. It is set by the width of the
+flat from the reference: at an outer radius of 2.44 units a chord 1.2 m wide is
+cut off at a depth of 0.16 m, hence `BELLY` = 0.32 units. That gives a nacelle
+height of 2.44 − 0.16 = 2.28 m — within the tolerance of the measured
+2.40 ± 0.2 m. The shortfall to 2.40 is made up by the pylon fairing: head-on it
+is exactly what obscured the top, which is what the reference warns about
+(`derived_low`, "a lower-bound estimate").
 
-Тела вращения строит `lathe()`, поэтому форма даётся деформацией вершин:
-низ сечения подрезается до уровня `r − d` плавным минимумом.
+Surfaces of revolution are built by `lathe()`, so the shape is produced by
+deforming vertices: the bottom of each section is trimmed to the level `r − d`
+with a smooth minimum.
 
 ```js
 y' = −smoothMin(−y, max(0.4·r, r − d), 0.09·r)
 ```
 
-Три решения, без которых форма получается неправильной:
+Three decisions without which the shape comes out wrong:
 
-**Профиль капота разделён на наружную обшивку и внутренний тракт.** Раньше это
-была одна замкнутая образующая. Разделение нужно потому, что сплющиваются они
-по-разному: снаружи гондола плоская от губы до капотов вентилятора и круглеет
-к соплу, а внутри воздухозаборник обязан прийти к кругу уже к плоскости
-вентилятора. Зазор между обечайкой и концами лопаток здесь меньше 0.1 условной
-единицы, и сплющенный тракт просто срезал бы их.
+**The cowl profile is split into an outer skin and an inner gas path.** It used
+to be a single closed generatrix. The split is needed because the two are
+flattened differently: outside, the nacelle is flat from the lip to the fan
+cowls and becomes round towards the nozzle, while inside the intake must be
+round by the time it reaches the fan plane. The clearance between the barrel and
+the blade tips there is under 0.1 model units, and a flattened duct would simply
+shave them off.
 
-**Уровень среза считается от радиуса каждой вершины, а не от абсолютной высоты.**
-На кольце `lathe` радиус постоянен, поэтому уровень общий для всего кольца, а
-наружная и внутренняя поверхности сохраняют зазор между собой. При абсолютном
-срезе они сошлись бы и стали спорить за глубину.
+**The cut level is computed from the radius of each vertex, not from an absolute
+height.** On a `lathe` ring the radius is constant, so the level is shared by the
+whole ring, and the outer and inner surfaces keep their gap. With an absolute cut
+they would meet and fight over the depth.
 
-**Скругление стыка держится тугим (0.09·r).** С мягким переходом сплющивание
-расползается по бортам, и вход читается овалом, а не кругом со срезанным низом.
+**The fillet at the joint is kept tight (0.09·r).** With a soft transition the
+flattening spreads out along the sides and the intake reads as an oval rather
+than a circle with its bottom cut off.
 
-Нормали пересчитываются, иначе плоский низ затеняется как круглый и форма не
-читается. `computeVertexNormals()` при этом оставляет шов там, где `lathe`
-дублирует вершины на стыке 0 и 2π, — нормали совпадающих вершин усредняются
-отдельным проходом.
+The normals are recomputed, otherwise the flat bottom is shaded like a round one
+and the shape does not read. `computeVertexNormals()` meanwhile leaves a seam
+where `lathe` duplicates vertices at the 0 / 2π joint — the normals of
+coincident vertices are averaged in a separate pass.
 
-Известное упрощение: газовоздушный тракт в визуализации потоков остался
-осесимметричным (он задан таблицами радиусов), поэтому у самой губы снизу
-частицы наружного контура немного выходят за обечайку.
+A known simplification: the gas path in the flow visualisation has remained
+axisymmetric (it is given by tables of radii), so right at the lip the bypass
+particles poke slightly outside the barrel underneath.
 
-## Наклон двигателя 5°
+## The 5° engine tilt
 
-Двигатель на 737 установлен с наклоном 5° носом вверх относительно самолёта:
-так лучше клиренс, струя отклоняется вниз, а пилон меньше греется. Наклон
-отдан **клину пилона**, а не всей модели: пилон снизу лежит на гондоле (то
-есть на оси двигателя), а сверху уходит по хорде крыла, и вперёд эти линии
-сходятся — спереди пилон тоньше на те же 5°. Развернуть вместо этого всю
-модель нельзя без потерь: визуализация потоков и экранное марево
-(`src/airflow.js`, `src/heathaze.js`) живут в мировых осях, и их пришлось бы
-разворачивать следом.
+The engine on the 737 is installed with 5° of nose-up tilt relative to the
+aircraft: this improves ground clearance, deflects the jet downwards and keeps
+the pylon cooler. The tilt is given to the **pylon wedge** rather than to the
+whole model: underneath, the pylon lies on the nacelle (that is, on the engine
+axis), on top it follows the wing chord, and forward those lines converge — at
+the front the pylon is thinner by the same 5°. Rotating the whole model instead
+cannot be done without cost: the flow visualisation and the screen-space heat
+haze (`src/airflow.js`, `src/heathaze.js`) live in world axes and would have to
+be rotated after it.
 
-## Спираль на коке
+## The spinner spiral
 
-Спираль существует, чтобы её было видно: на стоянке и малых оборотах она
-показывает наземному персоналу, что двигатель работает. Но глаз усредняет
-картинку примерно за 1/25 с, и уже на средних оборотах спираль заметает полный
-круг — остаётся ровное кольцо, а на взлётном режиме её не видно вовсе.
+The spiral exists to be seen: at rest and at low speeds it shows ground crew
+that the engine is running. But the eye averages the image over roughly 1/25 s,
+and already at medium speeds the spiral sweeps a full circle — what is left is
+an even ring, and at take-off power it cannot be seen at all.
 
-Смаз считается накоплением. Спираль — `InstancedMesh`, и на оборотах рисуется
-несколькими копиями, разложенными по заметённому сектору. Точка кадра, закрытая
-одной копией из `n`, получает прозрачность `1/n` — ровно ту долю времени, которую
-спираль реально провела в этой точке, поэтому «краски» на коке столько же,
-сколько и было, просто размазана она по кольцу.
+The smear is treated as accumulation. The spiral is an `InstancedMesh`, and at
+speed it is drawn as several copies laid out across the swept sector. A point in
+the frame covered by one copy out of `n` gets opacity `1/n` — exactly the
+fraction of time the spiral actually spent there, so there is as much "paint" on
+the spinner as before, merely smeared around the ring.
 
 ```js
-spread = 2π · keff^1.4                      // заметённый сектор
-ghosts = ⌈1.5 · spread / ширина⌉ + 1        // копии, шагом меньше толщины спирали
+spread = 2π · keff^1.4                      // swept sector
+ghosts = ⌈1.5 · spread / width⌉ + 1         // copies, stepped closer than the spiral thickness
 opacity = 1 / ghosts
 ```
 
-Два решения, без которых смаз выглядит неправильно:
+Two decisions without which the smear looks wrong:
 
-**Шаг между копиями меньше угловой толщины самой спирали.** Иначе копии
-расходятся, и вместо ровного кольца получается веер отдельных полос. Отсюда
-запас в `1.5` и максимум в 56 копий: на взлётном режиме сектор равен полному
-кругу, и более редкая раскладка полосила бы.
+**The step between copies is smaller than the angular thickness of the spiral
+itself.** Otherwise the copies spread apart and instead of an even ring there is
+a fan of separate stripes. Hence the margin of `1.5` and the maximum of 56
+copies: at take-off power the sector is a full circle, and a sparser layout
+would produce stripes.
 
-**Заметённый угол берётся от приведённого режима `keff`, а не от экранной
-скорости вращения.** Роторы в модели намеренно замедлены ради читаемости
-(см. [физику](03-physics.md)), и по экранной скорости спираль не смазалась бы
-никогда. Полная же честность увела бы в другую крайность: настоящий вентилятор
-и на малом газе делает около 15 оборотов в секунду, спираль пропадала бы сразу
-после запуска. Привязка к `keff` — компромисс: на малом газе спираль читается,
-к взлётному режиму исчезает, на выбеге возвращается.
+**The swept angle is taken from the effective regime `keff`, not from the
+on-screen rotation rate.** The rotors in the model are deliberately slowed for
+legibility (see the [physics](03-physics.md)), and by the on-screen rate the
+spiral would never smear. Full honesty would go to the other extreme: a real fan
+does about 15 revolutions per second even at idle, and the spiral would vanish
+right after the start. Tying it to `keff` is the compromise: at idle the spiral
+reads, by take-off power it disappears, during rundown it returns.
 
-Проверяется в `test/spiral-blur.test.mjs`, в том числе на неразъезжание копий.
+Checked in `test/spiral-blur.test.mjs`, including that the copies do not spread
+apart.
 
-## Генератор лопаток (`src/blade.js`)
+## Blade generator (`src/blade.js`)
 
-Лопатка — не примитив и не набор коробок. Строится протягиванием
-аэродинамического профиля по радиусу.
+A blade is not a primitive nor a set of boxes. It is built by lofting an
+aerofoil section along the radius.
 
-**1. Профиль сечения.** NACA-подобный: распределение толщины
+**1. Section profile.** NACA-like: the thickness distribution
 
 ```
 y_t(x) = 5·T·(0.2969·√x − 0.1260·x − 0.3516·x² + 0.2843·x³ − 0.1036·x⁴)
 ```
 
-и средняя линия с максимальной кривизной `M` в точке `p`:
+and a camber line with maximum camber `M` at position `p`:
 
 ```
 x < p:   y_c = M/p²·(2px − x²)
 x ≥ p:   y_c = M/(1−p)²·(1 − 2p + 2px − x²)
 ```
 
-Верхняя и нижняя поверхности откладываются по нормали к средней линии, точки
-сгущаются к передней и задней кромкам по косинусному закону.
+The upper and lower surfaces are offset along the normal to the camber line, and
+the points are clustered towards the leading and trailing edges by a cosine law.
 
-**2. Протягивание по радиусу.** На каждом из радиальных сечений линейно
-интерполируются хорда, угол установки, толщина и кривизна. Точка профиля
-`(c, n)` переводится в осевую и окружную координаты через угол установки `θ`:
+**2. Lofting along the radius.** At each radial section the chord, stagger
+angle, thickness and camber are interpolated linearly. A profile point `(c, n)`
+is converted into axial and circumferential coordinates through the stagger
+angle `θ`:
 
 ```
 axial = x₀ + sweep·s² + (c−0.5)·chord·cos θ − n·chord·sin θ
 tang  =      lean·s²  + (c−0.5)·chord·sin θ + n·chord·cos θ
 ```
 
-**3. Обёртка по окружности.** Плоское сечение не переносится в пространство
-как есть — оно накладывается на цилиндрическую поверхность:
+**3. Wrapping around the circumference.** The flat section is not carried into
+space as it is — it is laid onto a cylindrical surface:
 
 ```
 φ = tang / r,   y = r·cos φ,   z = r·sin φ
 ```
 
-Именно так профили задаются в реальном проектировании — на цилиндрических
-поверхностях тока. Без этого широкохордная лопатка вентилятора выглядела бы
-плоской пластиной.
+This is exactly how profiles are defined in real design work — on cylindrical
+stream surfaces. Without it a wide-chord fan blade would look like a flat plate.
 
-Параметры генератора: радиусы комля и периферии, хорды, углы установки, толщины,
-кривизны, стреловидность (`sweep`), окружной наклон (`lean`), число сечений по
-радиусу и точек по хорде. Венец собирается функцией `bladeRow()` в
-`InstancedMesh` с поворотом каждой лопатки на `2πi/N`.
+Generator parameters: hub and tip radii, chords, stagger angles, thicknesses,
+cambers, sweep, circumferential lean, the number of radial sections and of
+points along the chord. A row is assembled by `bladeRow()` into an
+`InstancedMesh` with each blade rotated by `2πi/N`.
 
-Физический смысл закрутки лопатки от комля к периферии — в
-[документе о физике](03-physics.md#закрутка-лопаток).
+The physical meaning of the blade twist from root to tip is in the
+[physics document](03-physics.md#blade-twist).
 
-## Материалы
+## Materials
 
-Материалы разделены на две группы. **Оболочки** (`getShellMaterials()`) —
-мотогондола, капоты, корпуса, жаровая труба: только к ним применяются плоскости
-отсечения и прозрачность, поэтому при разрезе роторы остаются целыми.
-Остальные — лопатки, диски, валы, агрегаты — не режутся никогда.
+The materials are split into two groups. **Shells**
+(`getShellMaterials()`) — the nacelle, the cowls, the casings, the flame tube:
+only these get the clipping planes and the transparency, which is why the rotors
+stay whole in the cutaway. The rest — blades, discs, shafts, accessories — are
+never cut.
 
-Палитра: композит (тёмный, для лопаток вентилятора), титан, сталь,
-никелевый сплав и «горячий металл» с эмиссией для турбины, окрашенный металл
-для мотогондолы. Окружение — `RoomEnvironment` через `PMREMGenerator`,
-поэтому металл получает правдоподобные отражения без единого файла текстуры.
+The palette: composite (dark, for the fan blades), titanium, steel, nickel alloy
+and a "hot metal" with emission for the turbine, painted metal for the nacelle.
+The environment is `RoomEnvironment` through `PMREMGenerator`, so the metal gets
+plausible reflections without a single texture file.

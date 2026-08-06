@@ -1,405 +1,423 @@
-# 03. Физика модели
+# 03. Physics of the model
 
-Модель **иллюстративная, а не расчётная**. Она не решает уравнения газовой
-динамики: в ней нет ни сеточного расчёта, ни уравнения неразрывности, ни
-уравнений Навье — Стокса. Заложено другое — правильная *структура* зависимостей:
-что от чего зависит, в какую сторону и насколько круто. Параметры откалиброваны
-по типовым значениям двигателя класса CFM56-5B / LEAP-1A на взлётном режиме.
+The model is **illustrative, not computational**. It does not solve the
+equations of gas dynamics: there is no mesh calculation, no continuity equation
+and no Navier — Stokes. Something else is built in — the correct *structure* of
+the dependencies: what depends on what, in which direction and how steeply. The
+parameters are calibrated against typical values for a CFM56-7B at take-off
+power.
 
-Ниже — то, что действительно реализовано в коде, с формулами и обоснованием, и
-отдельным разделом о границах применимости.
+Below is what is actually implemented in the code, with formulas and
+justification, plus a separate section on the limits of validity.
 
-## 1. Кинематика роторов
+## 1. Rotor kinematics
 
-### Два каскада
+### Two spools
 
-Двигатель двухвальный. Ротор низкого давления (N1) — вентилятор, подпорные
-ступени и турбина низкого давления на общем валу; ротор высокого давления (N2) —
-компрессор и турбина высокого давления на полом валу вокруг первого. Каскады
-механически не связаны: их обороты связывает только газ, проходящий через оба.
-Отсюда важное следствие, которое модель воспроизводит: **N1 и N2 меняются
-по-разному** — на малом газе N2 = 56 %, тогда как N1 всего 18 %. Ротору высокого
-давления приходится держать высокие обороты, иначе компрессор не создаст
-давления, при котором камера сгорания вообще работает.
+The engine is a two-spool design. The low-pressure rotor (N1) is the fan, the
+booster stages and the low-pressure turbine on a common shaft; the high-pressure
+rotor (N2) is the compressor and the high-pressure turbine on a hollow shaft
+around the first. The spools are not mechanically coupled: their speeds are
+linked only by the gas passing through both. Hence an important consequence that
+the model reproduces: **N1 and N2 behave differently** — at idle N2 is 56 %
+while N1 is only 18 %. The high-pressure rotor has to hold high speed, otherwise
+the compressor will not produce the pressure at which the combustor works at
+all.
 
-### Закрутка лопаток
+### Blade twist
 
-Угол установки лопатки растёт от комля к периферии (у вентилятора — от 16° до
-61°). Причина строго физическая. Осевая скорость потока `c_a` по высоте
-примерно постоянна, а окружная скорость лопатки растёт линейно с радиусом:
+The stagger angle of a blade grows from root to tip (on the fan, from 16° to
+61°). The reason is strictly physical. The axial flow velocity `c_a` is roughly
+constant along the span, while the blade tangential speed grows linearly with
+radius:
 
 ```
 U = ω·r
 ```
 
-Значит, угол натекания потока в относительном движении
+So the relative flow angle
 
 ```
-β = arctg(U / c_a)
+β = arctan(U / c_a)
 ```
 
-растёт с радиусом. Чтобы лопатка на всех радиусах работала без срыва, её сечение
-надо развернуть на этот угол — отсюда закрутка. В генераторе лопаток это
-`rootStagger` → `tipStagger`, и подобранные значения соответствуют указанному
-соотношению.
+grows with radius. For the blade to work without stalling at every radius, its
+section has to be turned by that angle — hence the twist. In the blade generator
+this is `rootStagger` → `tipStagger`, and the chosen values follow that
+relationship.
 
-По той же причине хорда и толщина у периферии меньше, чем у комля: комель несёт
-всю центробежную нагрузку и должен быть массивнее.
+For the same reason the chord and thickness at the tip are smaller than at the
+root: the root carries the whole centrifugal load and has to be more massive.
 
-### Скорость вращения на экране
+### Rotation speed on screen
 
-Реальные обороты CFM56-7B — 5175 об/мин (N1) и 14 460 об/мин (N2), то есть
-542 и 1514 рад/с. Отрисовать их невозможно: при 60 кадрах в секунду вентилятор
-за кадр поворачивался бы на 9.0 рад, а угловой шаг между 24 лопатками — 0.26 рад.
-Получился бы стробоскопический эффект — колесо «поехало бы назад».
+The real speeds of a CFM56-7B are 5175 rpm (N1) and 14 460 rpm (N2), that is 542
+and 1514 rad/s. Rendering them is impossible: at 60 frames per second the fan
+would turn 9.0 rad per frame, while the angular pitch between 24 blades is
+0.26 rad. The result would be a stroboscopic effect — the wheel would appear to
+run backwards.
 
-Поэтому вращение замедлено, но пропорционально оборотам:
-
-```
-ω₁ = 13.7 · n1    рад/с
-ω₂ = 23.0 · n2    рад/с   (в противоположную сторону)
-```
-
-где `n1`, `n2` — доли от максимальных оборотов. Вращение замедлено примерно
-в 40 раз, а соотношение скоростей каскадов сжато (1.7 вместо реальных 2.8) —
-иначе ротор ВД снова упёрся бы в стробоскоп. Приборы показывают честные проценты
-оборотов, а **звук использует настоящие обороты**, не замедленные.
-
-## 2. Динамика выхода на режим и выбега
-
-Уравнение вращения ротора:
+The rotation is therefore slowed, but in proportion to the speeds:
 
 ```
-J · dω/dt = M_турбины − M_компрессора − M_трения
+ω₁ = 13.7 · n1    rad/s
+ω₂ = 23.0 · n2    rad/s   (in the opposite direction)
 ```
 
-Вблизи равновесия разность моментов турбины и компрессора линейна по отклонению
-оборотов, что даёт апериодическое звено первого порядка с постоянной времени
-`τ = J / (dM/dω)`. В коде используется **точное решение** этого уравнения за шаг:
+where `n1`, `n2` are fractions of maximum speed. The rotation is slowed about
+40-fold, and the ratio between the two spools is compressed (1.7 instead of the
+real 2.8) — otherwise the HP rotor would run into the strobe again. The
+instruments show honest percentages of speed, and the **sound uses the real
+speeds**, not the slowed ones.
+
+## 2. Dynamics of spool-up and rundown
+
+The rotor equation of motion:
+
+```
+J · dω/dt = M_turbine − M_compressor − M_friction
+```
+
+Near equilibrium the difference between the turbine and compressor torques is
+linear in the speed deviation, which gives a first-order lag with a time
+constant `τ = J / (dM/dω)`. The code uses the **exact solution** of that
+equation over one step:
 
 ```js
-n += (n_цель − n) · (1 − exp(−dt/τ))
+n += (n_target − n) · (1 − exp(−dt/τ))
 ```
 
-Форма с экспонентой, а не `n += (цель − n)·k·dt`, выбрана намеренно: результат
-не зависит от частоты кадров, поэтому на 30 и на 144 fps двигатель выходит на
-режим за одно и то же время.
+The exponential form, rather than `n += (target − n)·k·dt`, was chosen
+deliberately: the result does not depend on frame rate, so at 30 and at 144 fps
+the engine spools up in the same time.
 
-Постоянные времени (`src/engineState.js`):
+The time constants (`src/engineState.js`):
 
-| Режим | Ротор НД | Ротор ВД |
+| Regime | LP rotor | HP rotor |
 |---|---:|---:|
-| Раскрутка стартером | 12.0 с | 12.5 с |
-| Разгон после розжига до малого газа | 10.0 с | 7.4 с |
-| Разгон на рабочих режимах | 2.6 с | 2.0 с |
-| Сброс | 1.9 с | 1.4 с |
-| Выбег (топливо отсечено) | 9.3 с | 5.9 с |
+| Starter cranking | 12.0 s | 12.5 s |
+| Acceleration from light-off to idle | 10.0 s | 7.4 s |
+| Acceleration at operating regimes | 2.6 s | 2.0 s |
+| Deceleration | 1.9 s | 1.4 s |
+| Rundown (fuel cut) | 9.3 s | 5.9 s |
 
-Постоянные различаются по этапам не для красоты: `τ = J / (dM/dω)`, а избыток
-момента `dM` на этапах разный. Воздушный стартер даёт небольшой момент, да ещё и
-падающий с оборотами, — отсюда самая долгая раскрутка. Сразу после розжига
-турбина только начала работать, избыток момента мал, и двигатель докручивает
-себя неспешно. На рабочих режимах избыток велик — отсюда быстрая приёмистость.
-На выбеге движущего момента нет вовсе.
+The constants differ by phase not for decoration: `τ = J / (dM/dω)`, and the
+excess torque `dM` differs from phase to phase. An air starter supplies a small
+torque that also falls off with speed — hence the longest cranking. Immediately
+after light-off the turbine has only just started working, the excess torque is
+small, and the engine winds itself up unhurriedly. At operating regimes the
+excess is large — hence the brisk throttle response. During rundown there is no
+driving torque at all.
 
-Ротор НД инерционнее: вентилятор большого диаметра, длинный вал и четыре ступени
-турбины дают заметно больший полярный момент инерции, чем компактный ротор ВД
-с его единственной ступенью турбины.
-Поэтому на всех режимах, где оба ротора приводятся турбинами, его постоянные
-времени больше, и при останове он останавливается последним.
+The LP rotor has more inertia: a large-diameter fan, a long shaft and four
+turbine stages give a noticeably larger polar moment of inertia than the compact
+HP rotor with its single turbine stage. So in every regime where both rotors are
+driven by turbines its time constants are larger, and on shutdown it is the last
+to stop.
 
-Раскрутка стартером — единственное исключение: там ротор ВД отзывается медленнее
-не из-за инерции, а из-за слабого внешнего привода, тогда как ротор НД просто
-подхватывается потоком и следует за ним.
+Starter cranking is the one exception: there the HP rotor responds more slowly
+not because of inertia but because of the weak external drive, while the LP
+rotor is simply picked up by the flow and follows it.
 
-### Трение в опорах
+### Bearing friction
 
-Чистая экспонента до нуля не доходит никогда. Реальный ротор останавливается,
-потому что момент трения в подшипниках почти не зависит от оборотов (сухое и
-граничное трение), то есть даёт **постоянное угловое замедление**. В модели это
-добавочный член:
+A pure exponential never reaches zero. A real rotor stops because the friction
+torque in the bearings barely depends on speed (dry and boundary friction), that
+is, it produces a **constant angular deceleration**. In the model this is an
+additional term:
 
 ```js
 n1 = max(0, n1 − 0.0022·dt)
 n2 = max(0, n2 − 0.0035·dt)
 ```
 
-Он же убирает бесконечный «хвост» экспоненты и делает останов действительно
-полным: обороты становятся строго нулевыми, а не «почти нулевыми».
+It also removes the infinite tail of the exponential and makes the shutdown
+genuinely complete: the speeds become strictly zero rather than "almost zero".
 
-Итог: ротор ВД встаёт за ~23 с, ротор НД — за ~35 с, что укладывается в
-натурные 30–60 с. Запуск от нажатия до малого газа занимает ~40 с. Чтобы не
-ждать эти процессы целиком, в панели есть переключатель скорости времени
-×1 / ×4 — он ускоряет только автомат двигателя, не трогая ни частицы потока,
-ни движение камеры.
+The result: the HP rotor stops in about 23 s and the LP rotor in about 35 s,
+which fits within the real 30–60 s. A start from button press to idle takes
+about 40 s. To save waiting through these processes in full, the panel has a
+time scale switch ×1 / ×4 — it speeds up the engine state machine only, leaving
+the flow particles and the camera alone.
 
-## 3. Горение
+## 3. Combustion
 
-Интенсивность горения `burn` (безразмерная, пропорциональна расходу топлива)
-следует за режимом с асимметричными постоянными времени:
+The combustion intensity `burn` (dimensionless, proportional to fuel flow)
+follows the regime with asymmetric time constants:
 
-| Переход | τ | Почему |
+| Transition | τ | Why |
 |---|---:|---|
-| Разгорание | 0.7 с | Ограничено темпом подачи топлива и раскруткой ротора |
-| Затухание | 0.35 с | Пламя гаснет практически сразу после отсечки |
+| Build-up | 0.7 s | Limited by the fuel scheduling rate and rotor spool-up |
+| Decay | 0.35 s | The flame dies almost immediately after the cut |
 
-Цель по горению:
-
-```
-burn_цель = 0            если топливо отсечено
-          = 0.30         на запуске
-          = 0.1 + 0.9·k  на работе
-```
-
-где `k = (n1 − 0.18)/0.82` — приведённый режим по оборотам НД. Слагаемое 0.1
-означает, что на малом газе топливо всё равно подаётся — иначе двигатель
-погаснет.
-
-**Богатая смесь при запуске.** Отдельное значение 0.30 на запуске — не подгонка.
-При розжиге ротор ещё почти не раскручен, расход воздуха мал, а топлива подаётся
-достаточно для устойчивого горения. Смесь получается богатой, и температура газа
-резко забрасывается вверх — знакомый пик температуры при запуске, который затем
-спадает по мере роста расхода воздуха. Модель это воспроизводит: заброс до
-785 °C с последующим выходом на 495 °C малого газа.
-
-## 4. Температура газа перед турбиной
+The combustion target:
 
 ```
-T4_цель = 350 + 1450·burn    °C   (при подаче топлива)
-        = 15                 °C   (после отсечки)
+burn_target = 0            if the fuel is cut
+            = 0.30         during start
+            = 0.1 + 0.9·k  while running
 ```
 
-Постоянные времени тоже асимметричны и это принципиально:
+where `k = (n1 − 0.18)/0.82` is the effective regime derived from LP speed. The
+term 0.1 means that fuel is still supplied at idle — otherwise the engine would
+go out.
 
-| Переход | τ |
+**A rich mixture during start.** The separate value of 0.30 during start is not
+a fudge. At light-off the rotor has barely spooled up, the airflow is small, and
+enough fuel is supplied for stable combustion. The mixture comes out rich and
+the gas temperature is thrown sharply upward — the familiar start temperature
+peak, which then decays as the airflow grows. The model reproduces this: an
+overshoot to 785 °C followed by settling at the 495 °C of idle.
+
+## 4. Gas temperature ahead of the turbine
+
+```
+T4_target = 350 + 1450·burn    °C   (with fuel on)
+          = 15                 °C   (after the cut)
+```
+
+The time constants are asymmetric here too, and that matters:
+
+| Transition | τ |
 |---|---:|
-| Нагрев | 0.6 с |
-| Остывание при работающем горении | 2.2 с |
-| Остывание после отсечки топлива | 7.0 с |
+| Heating | 0.6 s |
+| Cooling with combustion running | 2.2 s |
+| Cooling after the fuel cut | 7.0 s |
 
-Газ нагревается быстрее, чем остывает, — иначе короткая вспышка розжига не дала
-бы заметного заброса температуры. А после отсечки топлива тракт остывает
-медленно: горячие детали отдают тепло газу. Именно поэтому при останове
-турбина продолжает светиться уже после того, как пламя погасло.
+The gas heats up faster than it cools — otherwise the brief flare of light-off
+would not produce a noticeable temperature overshoot. And after the fuel is cut
+the gas path cools slowly: hot parts give their heat back to the gas. That is
+exactly why, on shutdown, the turbine keeps glowing after the flame has died.
 
-### Накал металла
+### Incandescence of the metal
 
-Свечение горячей части привязано к **фактической** T4, а не к положению РУД:
+The glow of the hot section is tied to the **actual** T4, not to the throttle
+position:
 
 ```js
 glow = clamp((T4 − 250) / 1500, 0, 1)
 emissive ∝ glow²
 ```
 
-Порог 250 °C и квадратичная зависимость грубо отражают реальную картину:
-видимое свечение стали начинается примерно с 500–600 °C, а яркость в видимом
-диапазоне растёт с температурой существенно быстрее, чем линейно (закон Планка).
+The 250 °C threshold and the quadratic dependence roughly reflect the real
+picture: visible glow in steel begins at around 500–600 °C, and brightness in
+the visible range grows with temperature substantially faster than linearly
+(Planck's law).
 
-## 5. Термодинамика тракта
+## 5. Gas path thermodynamics
 
-Таблица температур и давлений по станциям считается от оборотов, а не от РУД.
+The table of temperatures and pressures by station is computed from rotor
+speeds, not from the throttle.
 
-### Зависимость сжатия от оборотов
+### How compression depends on speed
 
-Из уравнения Эйлера для турбомашины работа ступени
+From the Euler turbomachinery equation, the work of a stage is
 
 ```
 Δh₀ = U · Δc_u
 ```
 
-Так как обе величины пропорциональны окружной скорости, а та — оборотам,
-подведённая работа и, значит, подогрев в компрессоре растут **квадратично**:
+Since both quantities are proportional to the tangential speed, and that to the
+rotational speed, the work input — and hence the temperature rise in the
+compressor — grows **quadratically**:
 
 ```
 ΔT ∝ n²
 ```
 
-В модели:
+In the model:
 
 ```js
-fan  = n1^2.0     // сжатие в вентиляторе и КНД
-comp = n2^2.5     // сжатие в КВД
+fan  = n1^2.0     // compression in the fan and the booster
+comp = n2^2.5     // compression in the HP compressor
 ```
 
-Показатель 2.5 для многоступенчатого компрессора высокого давления выше
-квадрата: с ростом оборотов у него не только растёт работа ступени, но и лучше
-согласуются ступени между собой, поэтому суммарная степень сжатия растёт круче.
+The exponent of 2.5 for a multistage high-pressure compressor is above the
+square: as the speed rises, not only does the stage work grow, but the stages
+also match each other better, so the overall pressure ratio grows more steeply.
 
-### Станции
+### Stations
 
-| Станция | Температура, °C | Давление, бар |
+| Station | Temperature, °C | Pressure, bar |
 |---|---|---|
-| Вход | 15 | 1.0 |
-| Наружный контур | 15 + 34·fan | 1 + 0.68·fan |
-| За КНД | 15 + 105·fan | 1 + 1.7·fan |
-| За КВД | 15 + 620·comp | 1 + 42·comp |
-| Камера сгорания | T4 (фактическая) | 1 + 40·comp |
-| За ТВД | 0.494·T4 | 1 + 9·comp |
-| Срез сопла | 0.293·T4 | 1 + 0.65·fan |
+| Intake | 15 | 1.0 |
+| Bypass duct | 15 + 34·fan | 1 + 0.68·fan |
+| After booster | 15 + 105·fan | 1 + 1.7·fan |
+| After HPC | 15 + 585·comp | 1 + 27·comp |
+| Combustor | T4 (actual) | 1 + 26·comp |
+| After HPT | 0.494·T4 | 1 + 6·comp |
+| Nozzle exit | 0.293·T4 | 1 + 0.65·fan |
 
-Температуры за турбинами берутся долями от фактической T4, потому что перепад
-температур на турбине определяется её степенью понижения давления, которая при
-неизменной геометрии почти постоянна:
-
-```
-T_вых / T_вх = (P_вых / P_вх)^((γ−1)/γ) ≈ const
-```
-
-Оговорка: коэффициенты 0.494 и 0.293 подобраны в **градусах Цельсия** по
-типовым значениям взлётного режима. Строго это соотношение выполняется для
-абсолютных температур, так что на низких режимах доли дают заниженный результат.
-Для наглядной картины остывания тракта этого достаточно, для расчётов — нет.
-
-На взлётном режиме (РУД 100 %) модель даёт: за КВД 635 °C и 43 бар,
-T4 = 1800 °C, за ТВД 889 °C, на срезе сопла 527 °C — типовые величины для
-двигателя такого класса при суммарной степени повышения давления порядка 40.
-
-## 6. Тяга
+The temperatures behind the turbines are taken as fractions of the actual T4,
+because the temperature drop across a turbine is set by its pressure ratio,
+which for fixed geometry is nearly constant:
 
 ```
-F = 132 · k^1.45    кН
+T_out / T_in = (P_out / P_in)^((γ−1)/γ) ≈ const
 ```
 
-Тяга растёт быстрее, чем обороты, потому что растут одновременно **оба**
-сомножителя в выражении для тяги:
+A caveat: the coefficients 0.494 and 0.293 were fitted in **degrees Celsius**
+against typical take-off values. Strictly, the relation holds for absolute
+temperatures, so at low regimes the fractions give an underestimate. For an
+illustrative picture of the gas path cooling down this is enough; for
+calculations it is not.
+
+At take-off power (throttle 100 %) the model gives: 600 °C and 28 bar after the
+HP compressor, T4 = 1800 °C, 889 °C after the HP turbine and 527 °C at the
+nozzle exit — typical values for an engine of this class with an overall
+pressure ratio of about 28.
+
+## 6. Thrust
 
 ```
-F = ṁ · (V_струи − V_полёта)
+F = 121.4 · k^1.45    kN
 ```
 
-и расход воздуха, и скорость истечения увеличиваются с оборотами вентилятора.
-Показатель 1.45 — эмпирический, подобранный так, чтобы на 100 % режима получалось
-132 кН (около 30 000 фунтов — класс CFM56-5B). При отсечке топлива тяга
-обнуляется сразу, не дожидаясь остановки роторов.
+Thrust grows faster than rotor speed because **both** factors in the thrust
+expression grow at once:
 
-## 7. Аэродинамика тракта в визуализации потоков
+```
+F = ṁ · (V_jet − V_flight)
+```
 
-Подробности реализации — в [документе о потоках](04-airflow.md), здесь только
-физическая сторона.
+both the mass flow and the exhaust velocity increase with fan speed. The
+exponent 1.45 is empirical, chosen so that 100 % power gives 121.4 kN (27 300
+pounds — a CFM56-7B27). When the fuel is cut the thrust goes to zero
+immediately, without waiting for the rotors to stop.
 
-**Каналы.** Каждая частица хранит свою «дорожку» между внутренней и наружной
-границами канала и не переходит из наружного контура во внутренний. Это
-представление линиями тока: разделение потоков задано геометрией разделителя
-контуров.
+## 7. Gas path aerodynamics in the flow visualisation
 
-**Профиль осевой скорости.** Задан таблицей и воспроизводит реальную картину:
+Implementation details are in the [airflow document](04-airflow.md); only the
+physical side is covered here.
 
-* поток тормозится в компрессоре — по мере сжатия растёт плотность, а проходное
-  сечение уменьшается медленнее;
-* минимум скорости приходится на камеру сгорания: в реальном двигателе диффузор
-  специально снижает скорость примерно до 30 м/с, иначе пламя сорвёт;
-* максимум — на срезе сопла, где перепад давления разгоняет газ.
+**Ducts.** Each particle keeps its own lane between the inner and outer duct
+boundaries and never crosses from the bypass duct into the core. This is a
+streamline representation: the division of the flows is set by the geometry of
+the splitter.
 
-Отношение скоростей от камеры сгорания к срезу сопла в модели ≈ 6.8, в реальном
-двигателе ближе к 15 — диапазон сжат, чтобы частицы в компрессоре не «стояли»,
-а в сопле не исчезали за один кадр. Порядок величин и расстановка максимумов
-сохранены, абсолютные скорости — нет: они замедлены примерно в 150 раз, чтобы
-поток можно было проследить глазом.
+**Axial velocity profile.** Given as a table, it reproduces the real picture:
 
-**Закрутка потока.** Угловая скорость частицы скачком растёт на венцах ротора и
-гасится на направляющих аппаратах, спрямляющем аппарате наружного контура и
-силовых стойках задней опоры. Это прямое назначение неподвижных лопаточных
-венцов: снять закрутку, оставленную ротором, и превратить её в давление.
+* the flow is decelerated in the compressor — as it is compressed the density
+  grows while the flow area shrinks more slowly;
+* the velocity minimum falls in the combustor: in a real engine the diffuser
+  deliberately brings the speed down to about 30 m/s, otherwise the flame would
+  be blown out;
+* the maximum is at the nozzle exit, where the pressure drop accelerates the
+  gas.
 
-**Нагрев внутреннего контура** при отсутствии горения:
+The ratio of velocities from the combustor to the nozzle exit is about 6.8 in
+the model, whereas in a real engine it is closer to 15 — the range is compressed
+so that the particles neither stand still in the compressor nor vanish within a
+single frame in the nozzle. The order of magnitude and the placement of the
+maxima are preserved, the absolute velocities are not: they are slowed about
+150-fold so that the flow can be followed by eye.
+
+**Flow swirl.** The angular velocity of a particle jumps across the rotor rows
+and is removed by the stator vanes, the outlet guide vanes of the bypass duct
+and the struts of the rear frame. That is precisely what stationary blade rows
+are for: to take out the swirl left by the rotor and turn it into pressure.
+
+**Heating of the core duct** in the absence of combustion:
 
 ```js
 heat = max(0.22·n1, burn)
 ```
 
-Даже без горения воздух в компрессоре греется — от сжатия. Поэтому на выбеге
-внутренний контур не становится мгновенно синим, а остывает постепенно.
+Even without combustion the air in the compressor heats up — from compression.
+So during rundown the core duct does not turn blue instantly but cools
+gradually.
 
-## 8. Акустика
+## 8. Acoustics
 
-Подробности — в [документе о звуке](06-sound.md).
+Details are in the [sound document](06-sound.md).
 
-**Тональная составляющая.** Основной тон вентилятора — частота следования
-лопаток:
+**Tonal component.** The fundamental fan tone is the blade passing frequency:
 
 ```
-f = (об/мин × число лопаток) / 60 = (n1 · 5175 · 24) / 60
+f = (rpm × blade count) / 60 = (n1 · 5175 · 24) / 60
 ```
 
-От 373 Гц на малом газе до 2070 Гц на взлётном. Это реальный физический
-механизм: каждая лопатка, проходя мимо неподвижной точки, создаёт импульс
-давления.
+From 373 Hz at idle to 2070 Hz at take-off. This is a real physical mechanism:
+each blade, passing a fixed point, creates a pressure pulse.
 
-**Buzz-saw.** При переходе конца лопатки через скорость звука картина меняется
-качественно: от каждой лопатки вперёд по каналу уходит скачок уплотнения, а так
-как лопатки чуть отличаются друг от друга, картина повторяется не за период
-следования лопаток, а за оборот вала. В спектре появляется гребёнка тонов на
-гармониках частоты **вращения вала**. Момент появления определяется
-относительным числом Маха на конце лопатки, которое модель считает из окружной
-и осевой скоростей: гребёнка включается около 80 % N1 и выходит на полную силу
-к 92 %.
+**Buzz-saw.** When the blade tip crosses the speed of sound the picture changes
+qualitatively: each blade sends a shock wave forward along the duct, and since
+the blades differ slightly from one another, the pattern repeats not once per
+blade passing period but once per shaft revolution. A comb of tones appears in
+the spectrum at harmonics of the **shaft rotation** frequency. The onset is
+determined by the relative Mach number at the blade tip, which the model
+computes from the tangential and axial velocities: the comb switches on at
+around 80 % N1 and reaches full strength by 92 %.
 
-Обе составляющие подтверждены спектральным анализом реальной записи CFM56 —
-методика и результаты в [документе о звуке](06-sound.md).
+Both components are confirmed by spectral analysis of a real CFM56 recording —
+method and results in the [sound document](06-sound.md).
 
-**Шумовая составляющая.** Рокот, рёв струи и шипение — фильтрованный шум,
-привязанный к горению и расходу воздуха. Здесь физика упрощена сильно: реальный
-шум турбулентной струи подчиняется закону Лайтхилла, по которому акустическая
-мощность растёт как восьмая степень скорости истечения. В модели уровень
-пропорционален `burn^1.3` по амплитуде, то есть примерно `burn^2.6` по мощности —
-существенно более пологая зависимость, выбранная ради того, чтобы звук на малом
-газе оставался слышимым.
+**Noise component.** The rumble, the jet roar and the hiss are filtered noise
+tied to combustion and airflow. Here the physics is heavily simplified: real
+turbulent jet noise obeys Lighthill's law, by which the acoustic power grows as
+the eighth power of the exhaust velocity. In the model the level is proportional
+to `burn^1.3` in amplitude, i.e. roughly `burn^2.6` in power — a substantially
+gentler dependence, chosen so that the sound at idle remains audible.
 
-**Разделение источников** физически осмысленно: шум привязан к горению и расходу,
-тон — к оборотам. Поэтому при отсечке топлива рёв пропадает сразу, а вой
-вентилятора продолжает падать по частоте, пока роторы не остановятся.
+**The separation of sources** is physically meaningful: noise is tied to
+combustion and flow, tone to rotor speed. That is why, when the fuel is cut, the
+roar disappears at once while the fan whine keeps falling in pitch until the
+rotors stop.
 
-## 9. Чего в модели нет
+## 9. What the model does not have
 
-Перечислено явно, чтобы модель не приняли за расчётный инструмент.
+Stated explicitly, so that the model is not mistaken for a calculation tool.
 
-* **Нет газодинамического расчёта.** Ни уравнений Навье — Стокса, ни уравнения
-  неразрывности `ρ·A·c = const`, ни уравнения энергии. Скорости, температуры и
-  давления берутся из таблиц и алгебраических формул, а не рассчитываются.
-* **Нет расчёта цикла.** Степень сжатия, КПД узлов, расход топлива, удельный
-  расход не считаются и между собой не согласованы. Числа на приборах —
-  правдоподобные, но не результат замыкания цикла.
-* **Нет высотно-скоростных характеристик.** Модель работает в одной точке —
-  условия на уровне моря, без полётной скорости. Скоростной напор, изменение
-  давления и температуры с высотой не учитываются.
-* **Нет ограничений и защит.** Помпаж компрессора, срыв пламени, превышение
-  температуры, ограничение по T4 и оборотам, работа регулятора FADEC не
-  моделируются. Двигатель нельзя сломать никаким положением РУД.
-* **Нет теплопередачи.** Остывание задано постоянными времени, а не расчётом
-  теплоёмкости и теплоотдачи деталей.
-* **Нет механики.** Напряжения в лопатках, радиальные зазоры, тепловое
-  расширение, вибрации и критические обороты отсутствуют.
-* **Степень двухконтурности** у прототипа 5.1 (справочник), а площади каналов
-  в плоскости разделителя дают отношение 2.76 : 1 — наружный контур 1.28 м²
-  против внутреннего 0.46 м². Чтобы площади сошлись с расходом, разделитель
-  надо было бы опустить с 0.95 до 0.83 у.е., а за ним ужать подпорные ступени,
-  корпус КНД и внутренний капот. Этого не сделано намеренно: тракт
-  газогенератора и так узкий, и после такого сжатия в нём перестают читаться
-  ступени. Габариты гондолы и двигателя при этом взяты по источникам точно —
-  см. [«Габариты по источникам»](02-geometry.md#габариты-по-источникам).
-* **Звук не учитывает** эффект Доплера, поглощение в воздухе и отражения;
-  ослабление с расстоянием линейное, а не по закону обратных квадратов.
-* **Абсолютные скорости и обороты** намеренно занижены (вращение примерно в 25
-  раз, поток примерно в 150 раз) — иначе картинка превращается в стробоскоп.
-  Все *относительные* соотношения между режимами сохранены.
+* **No gas-dynamic computation.** No Navier — Stokes, no continuity equation
+  `ρ·A·c = const`, no energy equation. Velocities, temperatures and pressures
+  are taken from tables and algebraic formulas rather than computed.
+* **No cycle calculation.** Pressure ratio, component efficiencies, fuel flow
+  and specific fuel consumption are neither computed nor mutually consistent.
+  The numbers on the instruments are plausible, but they are not the result of
+  closing a cycle.
+* **No altitude or airspeed characteristics.** The model works at a single
+  point — sea-level conditions, no flight speed. Ram pressure and the variation
+  of pressure and temperature with altitude are not accounted for.
+* **No limits or protections.** Compressor surge, flame-out, temperature
+  exceedance, T4 and speed limiting and the action of the FADEC governor are not
+  modelled. The engine cannot be broken by any throttle position.
+* **No heat transfer.** Cooling is set by time constants rather than computed
+  from the heat capacity and heat transfer of the parts.
+* **No mechanics.** Blade stresses, tip clearances, thermal expansion,
+  vibrations and critical speeds are absent.
+* **The bypass ratio** of the prototype is 5.1 (per the reference), while the
+  duct areas at the splitter plane give a ratio of 2.76 : 1 — 1.28 m² for the
+  bypass duct against 0.46 m² for the core. To make the areas agree with the
+  flow, the splitter would have to be lowered from 0.95 to 0.83 units, and the
+  booster stages, the booster casing and the core cowl squeezed behind it. This
+  was deliberately not done: the core gas path is narrow as it is, and after
+  such a squeeze the stages stop reading. The nacelle and engine dimensions
+  meanwhile are taken from sources exactly — see
+  [Dimensions from sources](02-geometry.md#dimensions-from-sources).
+* **The sound ignores** the Doppler effect, absorption in air and reflections;
+  the attenuation with distance is linear rather than inverse-square.
+* **Absolute velocities and speeds** are deliberately reduced (rotation by about
+  25 times, flow by about 150 times) — otherwise the picture turns into a
+  strobe. All *relative* proportions between regimes are preserved.
 
-## 10. Что проверено численно
+## 10. What has been verified numerically
 
-Автомат режимов покрыт тестами (`npm test`, 20 проверок). Проверяются в том
-числе физически значимые утверждения:
+The regime state machine is covered by tests (`npm test`, 20 checks). Among the
+propositions checked are physically meaningful ones:
 
-* ротор ВД останавливается раньше ротора НД (22.6 с против 35.2 с);
-* оба ротора достигают строго нулевых оборотов;
-* пламя гаснет за первые секунды после отсечки (1.9 с);
-* температура возвращается к атмосферной;
-* положение РУД не может «оживить» остановленный двигатель;
-* при розжиге есть заброс температуры (785 °C против 495 °C малого газа);
-* розжиг происходит после раскрутки стартером, а не мгновенно (19.1 с);
-* пламя появляется позже подачи топлива (16.6 с против 19.1 с), а до розжига
-  тракт остаётся холодным;
-* запуск до малого газа занимает натурное время (39.7 с);
-* приёмистость с малого газа до взлётного укладывается в разумное время (11.5 с).
+* the HP rotor stops before the LP rotor (22.6 s against 35.2 s);
+* both rotors reach strictly zero speed;
+* the flame dies within the first seconds after the cut (1.9 s);
+* the temperature returns to ambient;
+* the throttle position cannot revive a shut-down engine;
+* there is a temperature overshoot at light-off (785 °C against the 495 °C of
+  idle);
+* light-off happens after the starter cranking, not instantly (19.1 s);
+* the flame appears later than the fuel (16.6 s against 19.1 s), and until
+  light-off the gas path stays cold;
+* the start to idle takes a realistic time (39.7 s);
+* the acceleration from idle to take-off fits within a sensible time (11.5 s).
 
-Звук проверен рендерингом графа в `OfflineAudioContext`: уровень растёт с
-режимом монотонно, клиппинга нет, тон вентилятора стоит на расчётной частоте
-следования лопаток.
+The sound is verified by rendering the graph into an `OfflineAudioContext`: the
+level grows monotonically with regime, there is no clipping, and the fan tone
+sits at the computed blade passing frequency.

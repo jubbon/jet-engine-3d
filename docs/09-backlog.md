@@ -1,1001 +1,1079 @@
-# 09. Бэклог
+# 09. Backlog
 
-Список того, что имеет смысл сделать дальше. Это не план работ с датами, а
-очередь идей с оценкой: зачем это нужно модели, что придётся тронуть и насколько
-это тяжело.
+A list of what is worth doing next. This is not a schedule with dates but a
+queue of ideas with an assessment: why the model needs it, what would have to be
+touched and how heavy it is.
 
-**Приоритет** — насколько задача повышает ценность модели как учебной:
-P1 — заметно расширяет то, что можно показать; P2 — полезно, но не меняет
-картину; P3 — по желанию.
+**Priority** — how much the task raises the value of the model as a teaching
+tool: P1 — noticeably widens what can be shown; P2 — useful, but does not change
+the picture; P3 — optional.
 
-**Объём** — S: правка в одном модуле, часы; M: новый узел или режим, день-два;
-L: затрагивает несколько модулей и физику, дольше.
+**Size** — S: a change in one module, hours; M: a new assembly or regime, a day
+or two; L: touches several modules and the physics, longer.
 
-## Сводка
+## Summary
 
-| # | Задача | Раздел | Приоритет | Объём |
+| # | Task | Area | Priority | Size |
 |---|---|---|---|---|
-| BL-01 | Отказы на запуске: горячий запуск, зависание оборотов | Физика и режимы | P1 | M |
-| BL-27 | Визуализация запуска: стартер, свечи, последовательность | Физика и режимы | P1 | M |
-| BL-02 | Ограничения и защиты: T4, максимальные обороты, красные зоны | Физика и режимы | P1 | M |
-| BL-03 | Визуализация помпажа компрессора | Физика и режимы | P2 | L |
-| BL-04 | Отбор воздуха за КВД | Потоки | P2 | M |
-| BL-17 | Визуализация подачи топлива | Потоки | P1 | M |
-| BL-18 | Путешествие частицы воздуха от входа до сопла | Потоки | P1 | L |
-| BL-21 | Конденсационный след за двигателем | Потоки | P2 | L |
-| BL-05 | Реверс тяги | Геометрия и потоки | P2 | L |
-| BL-06 | Работа двигателя на высоте: забортные условия и характеристики | Физика | P2 | L |
-| BL-23 | Выбор двигателя: CFM56, LEAP, редукторный, трёхвальный | Геометрия и звук | P1 | L |
-| BL-19 | Реальные габариты: размерные линии и фигура для масштаба | Геометрия | P1 | S |
-| BL-20 | Мотогондола: что осталось после плоского низа | Геометрия | P2 | M |
-| BL-07 | Разрез произвольной плоскостью | Интерфейс | P2 | M |
-| BL-08 | Подписи с учётом перекрытия | Интерфейс | P1 | S |
-| BL-09 | Пресеты камеры и экскурсия по тракту | Интерфейс | P2 | M |
-| BL-10 | Состояние модели в URL | Интерфейс | P3 | S |
-| BL-11 | Адаптив и тач-управление | Интерфейс | P2 | M |
-| BL-12 | Английская локализация | Интерфейс | P3 | M |
-| BL-22 | Обучающий слой: пояснения от простого к формулам | Обучение | P1 | L |
-| BL-13 | Поглощение звука в воздухе с расстоянием | Звук | P3 | S |
-| BL-14 | Разделение звука вентилятора и струи в пространстве | Звук | P3 | M |
-| BL-24 | Публикация на Vercel | Инфраструктура | P1 | S |
-| BL-25 | Обфускация кода в публикуемой сборке | Инфраструктура | P3 | M |
-| BL-26 | Версионирование: релизы, форматы, совместимость | Инфраструктура | P2 | M |
-| BL-15 | Разбиение бандла и LOD для венцов | Производительность | P2 | M |
-| BL-16 | Автоматический прогон теста звука | Тесты | P2 | M |
+| BL-01 | Start failures: hot start, hung start | Physics and regimes | P1 | M |
+| BL-27 | Start visualisation: starter, igniters, sequence | Physics and regimes | P1 | M |
+| BL-02 | Limits and protections: T4, maximum speeds, red zones | Physics and regimes | P1 | M |
+| BL-03 | Compressor surge visualisation | Physics and regimes | P2 | L |
+| BL-04 | Bleed air aft of the HP compressor | Flows | P2 | M |
+| BL-17 | Fuel supply visualisation | Flows | P1 | M |
+| BL-18 | Journey of an air particle from intake to nozzle | Flows | P1 | L |
+| BL-21 | Contrail behind the engine | Flows | P2 | L |
+| BL-05 | Thrust reverser | Geometry and flows | P2 | L |
+| BL-06 | The engine at altitude: ambient conditions and characteristics | Physics | P2 | L |
+| BL-23 | Engine selection: CFM56, LEAP, geared, three-spool | Geometry and sound | P1 | L |
+| BL-19 | Real dimensions: dimension lines and a figure for scale | Geometry | P1 | S |
+| BL-20 | Nacelle: what is left after the flat bottom | Geometry | P2 | M |
+| BL-07 | Section by an arbitrary plane | Interface | P2 | M |
+| BL-08 | Occlusion-aware labels | Interface | P1 | S |
+| BL-09 | Camera presets and a tour of the gas path | Interface | P2 | M |
+| BL-10 | Model state in the URL | Interface | P3 | S |
+| BL-11 | Responsive layout and touch control | Interface | P2 | M |
+| BL-12 | Russian localisation | Interface | P3 | M |
+| BL-22 | Teaching layer: explanations from simple to formulas | Teaching | P1 | L |
+| BL-13 | Sound absorption in air with distance | Sound | P3 | S |
+| BL-14 | Separating fan and jet sound in space | Sound | P3 | M |
+| BL-24 | Publishing on Vercel | Infrastructure | P1 | S |
+| BL-25 | Code obfuscation in the published build | Infrastructure | P3 | M |
+| BL-26 | Versioning: releases, formats, compatibility | Infrastructure | P2 | M |
+| BL-15 | Bundle splitting and LOD for blade rows | Performance | P2 | M |
+| BL-16 | Automated run of the sound test | Tests | P2 | M |
 
-## Физика и режимы
+## Physics and regimes
 
-### BL-01. Отказы на запуске
+### BL-01. Start failures
 
-Сейчас запуск всегда успешный: стартер раскручивает N2, на розжиге происходит
-заброс температуры, двигатель выходит на устойчивый малый газ. Реальный запуск
-умеет заканчиваться иначе, и именно эти сценарии интереснее всего показывать.
+At the moment every start succeeds: the starter spins N2 up, light-off produces
+a temperature overshoot, and the engine settles at a stable idle. A real start
+can end differently, and it is exactly those scenarios that are the most
+interesting to show.
 
-Что добавить: **горячий запуск** — T4 уходит за предел из-за раннего розжига или
-слабого стартера; **зависание оборотов** — N2 останавливается ниже малого газа,
-температура держится высокой; **несостоявшийся розжиг** — топливо подано, пламени
-нет, требуется продувка. Каждый сценарий — ветка в автомате `src/engineState.js`
-плюс индикация на панели.
+What to add: a **hot start** — T4 goes past its limit because of early light-off
+or a weak starter; a **hung start** — N2 stops below idle and the temperature
+stays high; a **failed light-off** — fuel is on, there is no flame, a dry motor
+is required. Each scenario is a branch in the state machine
+`src/engineState.js` plus an indication on the panel.
 
-Затрагивает: `src/engineState.js`, панель в `index.html`, тесты
-`test/engine-state.test.mjs`. Документировать в [«Режимы работы»](05-modes.md).
+Touches: `src/engineState.js`, the panel in `index.html`, the tests in
+`test/engine-state.test.mjs`. To be documented in
+[Operating regimes](05-modes.md).
 
-### BL-27. Визуализация запуска
+### BL-27. Start visualisation
 
-Запуск в модели уже работает — и при этом его почти не видно. Автомат в
-`src/engineState.js` честно отрабатывает всю последовательность: стартер
-раскручивает ротор ВД, на 22 % оборотов открывается подача топлива и происходит
-розжиг со вспышкой и забросом температуры, на 30 % стартер отключается, ротор
-выходит на малый газ. Но на экране от этого видно только то, что лопатки
-закрутились, потом появилось пламя, а в углу сменилась строка «раскрутка
-стартером, розжиг…». Ни стартера, ни свечей, ни подвода воздуха в модели нет
-вовсе: стартер упомянут одной фразой в карточке коробки приводов, свечей нет в
-геометрии камеры сгорания, где есть только 20 форсунок.
+The start already works in the model — and yet it is almost invisible. The state
+machine in `src/engineState.js` honestly runs the whole sequence: the starter
+spins the HP rotor up, at 22 % the fuel is turned on and light-off happens with
+a flare and a temperature overshoot, at 30 % the starter cuts out, and the rotor
+comes up to idle. But all that can be seen on screen is the blades starting to
+turn, then a flame appearing, and a line in the corner changing to "starter
+cranking, light-off…". There is no starter, no igniters and no air supply in the
+model at all: the starter is mentioned in one phrase on the accessory gearbox
+card, and there are no igniters in the combustor geometry, which has only the 20
+fuel nozzles.
 
-Между тем запуск турбовентиляторного двигателя — вещь неочевидная и потому
-интересная: он не заводится сам, его нужно раскрутить чужой энергией до
-оборотов, на которых компрессор начнёт подавать достаточно воздуха, и только
-тогда имеет смысл подавать топливо. Показать это стоит целиком.
+Meanwhile the start of a turbofan is a non-obvious and therefore interesting
+thing: it does not fire up by itself, it has to be spun by somebody else's
+energy up to a speed at which the compressor begins to deliver enough air, and
+only then does supplying fuel make sense. It is worth showing in full.
 
-**Геометрия, которой не хватает:**
+**Geometry that is missing:**
 
-* **Воздушный стартер** на коробке приводов и подвод воздуха к нему — от ВСУ,
-  от наземной установки или от работающего второго двигателя. Труба подвода с
-  идущим по ней потоком объясняет главное: энергия приходит извне.
-* **Свечи зажигания** в жаровой трубе — две штуки, и их работа видна: короткие
-  искровые разряды с характерным щелчком до розжига, прекращающиеся после того,
-  как пламя установилось. Окно для этого в автомате уже есть: между подачей
-  топлива и появлением пламени проходит `LIGHT_DELAY` = 2.5 с, и всё это время
-  топливо в камере есть, а пламени нет.
-* **Отключение стартера** — заметное событие, а не просто исчезновение цифры:
-  привод расцепляется, поток по трубе подвода прекращается.
+* **The air starter** on the accessory gearbox and the air supply to it — from
+  the APU, from a ground unit or from the other running engine. A supply duct
+  with flow going through it explains the main point: the energy comes from
+  outside.
+* **Igniters** in the flame tube — two of them, with their operation visible:
+  short sparks with the characteristic click before light-off, ceasing once the
+  flame is established. The window for this already exists in the state machine:
+  `LIGHT_DELAY` = 2.5 s pass between fuel introduction and the appearance of the
+  flame, and throughout that time there is fuel in the chamber but no flame.
+* **Starter cut-out** — a visible event rather than a number simply
+  disappearing: the drive disengages and the flow through the supply duct stops.
 
-**Последовательность в интерфейсе.** Полоса этапов с отметками порогов и
-текущим положением: раскрутка → подача топлива на 22 % → розжиг → разгон →
-отключение стартера на 30 % → выход на малый газ 56 %. Пороги уже заданы
-константами `LIGHT_N2`, `START_N2`, `IDLE_N2` — полосу можно строить прямо по
-ним, и тогда она не разъедется с поведением. Здесь же — время от начала
-запуска: настоящий запуск занимает десятки секунд, и это само по себе полезное
-знание.
+**The sequence in the interface.** A phase bar with the thresholds marked and
+the current position on it: cranking → fuel on at 22 % → light-off →
+acceleration → starter cut-out at 30 % → idle at 56 %. The thresholds are
+already given by the constants `LIGHT_N2`, `START_N2`, `IDLE_N2` — the bar can
+be built directly from them, and then it will not drift out of step with the
+behaviour. The same place should show the time from the beginning of the start:
+a real start takes tens of seconds, and that in itself is useful knowledge.
 
-**Звук.** Сейчас синтез привязан к оборотам, и запуск звучит просто как
-нарастание. У настоящего запуска другая структура: сначала вой стартера и
-раскручиваемого ротора ВД без вентиляторного тона, затем глухой хлопок розжига
-и появление шума горения, и только потом вступает вентилятор. Это три разных
-источника, и по ним слышно, на каком этапе двигатель находится, даже не глядя
-на экран.
+**Sound.** At present the synthesis is tied to rotor speed, and a start simply
+sounds like a build-up. A real start has a different structure: first the whine
+of the starter and of the HP rotor being cranked, without any fan tone, then the
+dull thump of light-off and the arrival of combustion noise, and only after that
+does the fan come in. These are three different sources, and by them one can
+hear which phase the engine is in without looking at the screen.
 
-**Порядок этапов — главное, что нужно объяснить.** Почему топливо подаётся
-только после раскрутки (иначе оно не воспламенится, а зальёт камеру, и получится
-горячий запуск), почему стартер отключается раньше выхода на малый газ (с этих
-оборотов двигатель уже раскручивает себя сам), почему ротор НД начинает
-вращаться без всякого привода — его подхватывает поток, и в коде это уже так и
-сделано.
+**The order of the phases is the main thing to explain.** Why fuel is supplied
+only after the cranking (otherwise it will not ignite but will flood the
+chamber, giving a hot start), why the starter cuts out before idle is reached
+(from that speed the engine already winds itself up), why the LP rotor starts
+turning without any drive at all — it is picked up by the flow, and that is
+already how the code does it.
 
-Смежное: BL-17 (подача топлива) — заполнение коллектора на пороге розжига
-и есть главный визуальный момент запуска, задачи хорошо делать подряд. BL-01
-(отказы на запуске) — сначала показываем нормальный запуск, потом ломаем его;
-без первого второе не читается. BL-22 (обучающий слой) — «что происходит при
-запуске» там уже стоит в списке явлений первой очереди, и эта задача даёт ему
-картинку. BL-05 — стартер и агрегаты живут в той же зоне, что и коробка
-приводов.
+Related: BL-17 (fuel supply) — filling the manifold at the light-off threshold
+is the key visual moment of a start, so the tasks go well one after the other.
+BL-01 (start failures) — first show a normal start, then break it; without the
+first the second does not read. BL-22 (teaching layer) — "what happens during a
+start" is already on its first-tier list of phenomena, and this task gives it a
+picture. BL-05 — the starter and the accessories live in the same zone as the
+accessory gearbox.
 
-Затрагивает: `src/engine.js` (стартер, подвод воздуха, свечи), `src/airflow.js`
-(поток в трубе стартера), `src/sound.js` (вой стартера, хлопок розжига),
-`src/main.js` и `index.html` (полоса этапов, время запуска). Автомат в
-`src/engineState.js` менять почти не придётся — пороги там уже есть.
-Документировать в [«Режимах работы»](05-modes.md).
+Touches: `src/engine.js` (starter, air supply, igniters), `src/airflow.js` (flow
+in the starter duct), `src/sound.js` (starter whine, light-off thump),
+`src/main.js` and `index.html` (phase bar, start time). The state machine in
+`src/engineState.js` will barely need changing — the thresholds are already
+there. To be documented in [Operating regimes](05-modes.md).
 
-### BL-02. Ограничения и защиты
+### BL-02. Limits and protections
 
-Модель не знает про пределы: РУД можно двинуть куда угодно, T4 и обороты просто
-следуют за ним. Нужны предельные значения по T4, N1 и N2, красные зоны на
-приборах, предупреждение при выходе за них и, отдельным шагом, простейший
-регулятор в духе FADEC, который сам придерживает подачу топлива на пределе.
+The model knows nothing about limits: the throttle can be moved anywhere, and T4
+and the speeds simply follow it. What is needed are limit values for T4, N1 and
+N2, red zones on the instruments, a warning when they are exceeded and, as a
+separate step, a simple FADEC-style governor that holds the fuel back at the
+limit by itself.
 
-Ценность в том, что появляется различие между «двигатель работает» и «двигатель
-работает в допустимом режиме» — без этого приборная панель декоративна.
+The value is that a distinction appears between "the engine is running" and "the
+engine is running within limits" — without which the instrument panel is
+decorative.
 
-Затрагивает: `src/engineState.js`, панель приборов, [«Физика модели»](03-physics.md).
+Touches: `src/engineState.js`, the instrument panel,
+[Physics of the model](03-physics.md).
 
-### BL-03. Визуализация помпажа компрессора
+### BL-03. Compressor surge visualisation
 
-Самое зрелищное из ненормальных явлений и, пожалуй, лучший способ объяснить, что
-компрессор — не насос, который качает тем сильнее, чем быстрее крутится, а
-лопаточная машина со своей границей устойчивости.
+The most spectacular of the abnormal phenomena and, perhaps, the best way to
+explain that a compressor is not a pump that pushes harder the faster it spins,
+but a turbomachine with its own stability boundary.
 
-**Что происходит.** Лопатка компрессора — то же крыло, и у неё есть критический
-угол атаки. Если поднять давление за компрессором сильнее, чем позволяет текущий
-расход воздуха, поток срывается со спинок лопаток. Дальше два сценария:
-**вращающийся срыв** — по окружности бежит зона сорванного течения (медленнее
-ротора, примерно вполовину его оборотов), двигатель трясёт, тяга падает; и
-собственно **помпаж** — колебания всего тракта по оси, когда сжатый газ прорывается
-обратно через компрессор и выбрасывается наружу через воздухозаборник, с хлопком
-и вспышкой. Затем давление падает, нормальное течение восстанавливается,
-компрессор снова поджимает — и цикл повторяется несколько раз в секунду, пока
-не убрать топливо.
+**What happens.** A compressor blade is a wing, and it has a critical angle of
+attack. Raise the pressure behind the compressor higher than the current airflow
+allows, and the flow separates from the suction sides of the blades. From there
+two scenarios follow: **rotating stall** — a zone of stalled flow runs around
+the circumference (more slowly than the rotor, at roughly half its speed), the
+engine shakes and thrust falls; and **surge** proper — axial oscillation of the
+whole gas path, when the compressed gas breaks back through the compressor and
+is expelled forward through the intake, with a bang and a flash. Then the
+pressure falls, normal flow is restored, the compressor builds pressure again —
+and the cycle repeats several times per second until the fuel is pulled back.
 
-**Отчего он в модели должен возникать.** Не отдельной кнопкой, а как следствие
-режима, — иначе теряется вся поучительность. Естественный сценарий: резкая
-приёмистость, когда топливо подано быстрее, чем ротор успевает раскрутиться, —
-давление за КВД растёт, а расход воздуха ещё нет. В `src/engineState.js` для
-этого уже есть всё нужное: раздельные `n2` и `keff` с разными постоянными
-времени. Достаточно ввести запас устойчивости как функцию рассогласования между
-подачей топлива и фактическими оборотами и сравнивать его с порогом. Точно так
-же помпаж должен получаться при выходе за ограничения из BL-02 и при отборе
-воздуха сверх меры (BL-04).
+**Why it should arise in the model.** Not from a dedicated button but as a
+consequence of the regime — otherwise all the instructiveness is lost. The
+natural scenario is a rapid acceleration, when fuel is supplied faster than the
+rotor can spin up: the pressure behind the HP compressor rises while the airflow
+does not yet. `src/engineState.js` already has everything needed for this:
+separate `n2` and `keff` with different time constants. It is enough to
+introduce a stability margin as a function of the mismatch between fuel supply
+and actual speed and compare it against a threshold. In the same way surge
+should arise when the limits from BL-02 are exceeded and when bleed air is taken
+beyond measure (BL-04).
 
-**Как показывать.** Здесь и есть основная работа, по четырём подсистемам:
+**How to show it.** This is where the bulk of the work is, across four
+subsystems:
 
-* **Поток** (`src/airflow.js`) — во внутреннем контуре осевая скорость на участке
-  КВД становится отрицательной, частицы идут назад к входу и выбрасываются
-  наружу перед воздухозаборником, наружный контур при этом продолжает идти
-  как шёл. Для вращающегося срыва — один-два сектора по окружности, где частицы
-  почти стоят; сектора вращаются медленнее ротора, и это видно по картинке.
-* **Пламя и температура** — выброс горячего газа вперёд и заброс T4: воздуха
-  через камеру идёт меньше, а топливо подаётся прежним темпом, поэтому
-  температура резко растёт. Цвет частиц во внутреннем контуре при этом идёт
-  вверх по существующей шкале — отдельного механизма не нужно.
-* **Приборы** (`src/main.js`) — просадка и колебания N2, скачок T4, провал тяги,
-  предупреждение на панели. Хорошо ложится на красные зоны из BL-02.
-* **Звук** (`src/sound.js`) — серия резких хлопков с интервалом в доли секунды
-  поверх прерывистого рёва. Готовой импульсной составляющей в синтезе нет,
-  её придётся добавить: короткий импульс, прогнанный через резонанс тракта.
+* **Flow** (`src/airflow.js`) — in the core duct the axial velocity over the HPC
+  section goes negative, particles travel back towards the intake and are
+  expelled ahead of it, while the bypass duct carries on as before. For rotating
+  stall — one or two sectors around the circumference where the particles almost
+  stand still; the sectors rotate more slowly than the rotor, and that is
+  visible in the picture.
+* **Flame and temperature** — hot gas expelled forward and a T4 overshoot: less
+  air passes through the chamber while fuel is supplied at the same rate, so the
+  temperature rises sharply. The colour of the core particles moves up the
+  existing scale in the process — no separate mechanism is needed.
+* **Instruments** (`src/main.js`) — a droop and oscillation of N2, a T4 spike, a
+  collapse of thrust, a warning on the panel. This sits well on top of the red
+  zones from BL-02.
+* **Sound** (`src/sound.js`) — a series of sharp bangs a fraction of a second
+  apart over an intermittent roar. There is no impulsive component in the
+  synthesis as it stands; it would have to be added: a short pulse driven
+  through the resonance of the duct.
 
-**Карта компрессора.** Самое ценное дополнение — небольшой график в углу:
-по осям приведённый расход и степень сжатия, на нём линия рабочих режимов,
-граница устойчивости выше неё и точка текущего состояния. Видно, как при резкой
-приёмистости рабочая точка идёт вверх и упирается в границу, а при уборке РУД
-возвращается в запас. Этот график объясняет явление лучше, чем сама анимация
-выброса, — а вместе они закрывают тему.
+**The compressor map.** The most valuable addition is a small chart in the
+corner: corrected flow and pressure ratio on the axes, with the working line on
+it, the surge line above it and a point for the current state. One can watch the
+operating point climb during a rapid acceleration and run into the boundary, and
+return into the margin when the throttle is pulled back. That chart explains the
+phenomenon better than the animation of the expulsion itself — and together they
+close the topic.
 
-**Выход из помпажа.** Стоит показать оба исхода: убрать РУД — течение
-восстанавливается, двигатель возвращается на устойчивый режим; продолжать
-держать — помпаж переходит в устойчивый срыв с зависанием оборотов и ростом
-температуры, дальше только выключение. Второй исход смыкается с BL-01, где
-зависание оборотов уже описано для запуска.
+**Recovery from surge.** Both outcomes are worth showing: pull the throttle back
+and the flow is restored, the engine returning to a stable regime; keep holding
+it and the surge turns into a steady stall with hung speed and rising
+temperature, after which only shutdown remains. The second outcome joins up with
+BL-01, where hung speed is already described for the start.
 
-**Честная оговорка.** Модель не решает уравнения газовой динамики, поэтому
-граница устойчивости здесь не рассчитывается, а задаётся таблицей по типовым
-данным — как это уже сделано с профилями скоростей и температур. В документации
-это надо сказать прямо, чтобы карта компрессора не выглядела расчётной.
+**An honest caveat.** The model does not solve the equations of gas dynamics, so
+the stability boundary here is not computed but given by a table of typical data
+— as is already done with the velocity and temperature profiles. This has to be
+stated plainly in the documentation, so that the compressor map is not taken for
+a calculation.
 
-Порядок: делать после BL-02, потому что помпаж должен быть следствием выхода за
-границу режима, а не самостоятельной кнопкой. Расчётную часть — запас
-устойчивости, порог, колебания — стоит держать в `src/engineState.js`, тогда
-она проверяется в Node вместе с остальным автоматом (`test/engine-state.test.mjs`).
+Order: do it after BL-02, because surge should be a consequence of going beyond
+the boundary of a regime, not a button of its own. The computational part — the
+stability margin, the threshold, the oscillation — is best kept in
+`src/engineState.js`, so that it is checked under Node together with the rest of
+the state machine (`test/engine-state.test.mjs`).
 
-Затрагивает: `src/engineState.js`, `src/airflow.js`, `src/sound.js`,
-`src/main.js`, `index.html`, тесты. Документировать в
-[«Режимах работы»](05-modes.md) и [«Физике модели»](03-physics.md).
+Touches: `src/engineState.js`, `src/airflow.js`, `src/sound.js`, `src/main.js`,
+`index.html`, the tests. To be documented in
+[Operating regimes](05-modes.md) and [Physics of the model](03-physics.md).
 
-### BL-04. Отбор воздуха за КВД
+### BL-04. Bleed air aft of the HP compressor
 
-Геометрически места отбора за компрессором уже есть, но поток по ним не идёт.
-Стоит пустить ответвления на охлаждение сопловых аппаратов ТВД и на
-кондиционирование, с отдельным цветом в легенде. Это объясняет, почему турбина
-выдерживает температуру выше температуры плавления своего сплава — вопрос,
-который возникает у всех, кто смотрит на таблицу станций.
+The bleed ports behind the compressor already exist geometrically, but no flow
+goes through them. It is worth running branches off to cool the HP turbine
+nozzle guide vanes and to the air conditioning, with their own colour in the
+legend. This explains why the turbine survives temperatures above the melting
+point of its own alloy — a question that occurs to everyone who looks at the
+station table.
 
-Затрагивает: `src/airflow.js`, легенду потоков, [«Потоки воздуха»](04-airflow.md).
+Touches: `src/airflow.js`, the flow legend, [Airflow](04-airflow.md).
 
-### BL-17. Визуализация подачи топлива
+### BL-17. Fuel supply visualisation
 
-Топливо в модели есть как число и как последствия — `eng.fuel` включает подачу,
-`eng.burn` пропорционален расходу, от него зависят температура, тяга, пламя и
-звук. А вот пути топлива не видно совсем: топливный насос упомянут только в
-карточке коробки приводов, магистрали под мотогондолой не разделены на топливные,
-масляные и воздушные, у 20 форсунок камеры сгорания есть корпус и завихритель,
-но подвода к ним нет — в `src/engine.js` на этом месте стоит комментарий
-«подвод топлива наружу» без геометрии.
+Fuel exists in the model as a number and as consequences — `eng.fuel` turns the
+supply on, `eng.burn` is proportional to the flow, and temperature, thrust,
+flame and sound all depend on it. But the path of the fuel is not visible at
+all: the fuel pump is mentioned only on the accessory gearbox card, the pipework
+under the nacelle is not separated into fuel, oil and air lines, and while the
+20 combustor fuel nozzles have a body and a swirler there is no supply to them —
+in `src/engine.js` there is a comment "fuel line running outboard" in that place
+with no geometry behind it.
 
-Из-за этого запуск выглядит немотивированно: стартер крутит ротор, потом
-внезапно появляется пламя. Видимая подача топлива связывает розжиг, положение
-РУД и интенсивность горения в одну понятную цепочку — поэтому задача идёт в P1,
-несмотря на то что физику она не меняет.
+Because of this the start looks unmotivated: the starter turns the rotor, then a
+flame suddenly appears. A visible fuel supply ties light-off, throttle position
+and combustion intensity into one comprehensible chain — which is why the task
+is P1 despite not changing the physics.
 
-Что сделать:
+What to do:
 
-* **Геометрия тракта** — трубопровод от пилона к насосу на коробке приводов,
-  дозирующий блок, подъём по корпусу КВД к кольцевому топливному коллектору
-  вокруг камеры сгорания и 20 отводов от него к стеблям форсунок. Отдельный
-  материал и цвет, чтобы топливная магистраль отличалась от масляной и от
-  трубопроводов отбора воздуха.
-* **Анимация потока** — движение по трубам с интенсивностью и скоростью по
-  `eng.burn`: на отсечке поток стоит, на розжиге резко появляется, на приёмистости
-  ускоряется. Проще всего бегущей текстурой или смещением UV вдоль трубы, без
-  частиц: сечение мало и отдельные частицы в нём не читаются.
-* **Распыл в форсунках** — короткий конус аэрозоля от каждой форсунки в купол
-  жаровой трубы, гаснущий вместе с пламенем.
-* **Переключатель и легенда** — вместе с горячей клавишей, по образцу показа
-  потоков воздуха; строка расхода топлива на панели приборов.
+* **Geometry of the path** — a pipe from the pylon to the pump on the accessory
+  gearbox, the metering unit, a climb up the HPC casing to the annular fuel
+  manifold around the combustor and 20 branches from it to the fuel nozzle
+  stems. A separate material and colour, so that the fuel line differs from the
+  oil line and from the bleed air pipework.
+* **Flow animation** — movement along the pipes with intensity and speed taken
+  from `eng.burn`: at cut-off the flow stands still, at light-off it appears
+  abruptly, during acceleration it speeds up. Easiest with a scrolling texture
+  or a UV offset along the pipe, without particles: the cross-section is small
+  and individual particles do not read in it.
+* **Spray at the nozzles** — a short cone of atomised fuel from each nozzle into
+  the dome of the flame tube, dying together with the flame.
+* **A toggle and a legend** — together with a keyboard shortcut, following the
+  pattern of the airflow display; plus a fuel flow line on the instrument panel.
 
-Отдельно стоит показывать то, что делает розжиг понятным: топливо появляется в
-коллекторе не сразу, а по достижении `LIGHT_N2` (0.22 от номинала N2) — именно
-на этом пороге в `src/engineState.js` открывается подача, и видимое заполнение
-магистрали в этот момент объясняет последовательность запуска лучше любой
-подписи.
+Separately it is worth showing what makes light-off comprehensible: fuel appears
+in the manifold not straight away but on reaching `LIGHT_N2` (0.22 of nominal
+N2) — that is exactly the threshold at which `src/engineState.js` opens the
+supply, and the visible filling of the line at that moment explains the start
+sequence better than any caption.
 
-Затрагивает: `src/engine.js` (геометрия и материалы), `src/airflow.js` или
-отдельный модуль (анимация потока), `src/main.js` (переключатель, цикл кадра),
-`index.html` (кнопка, легенда, строка расхода). Документировать в
-[«Геометрии»](02-geometry.md) и [«Потоках воздуха»](04-airflow.md).
+Touches: `src/engine.js` (geometry and materials), `src/airflow.js` or a
+separate module (flow animation), `src/main.js` (toggle, frame loop),
+`index.html` (button, legend, flow line). To be documented in
+[Geometry](02-geometry.md) and [Airflow](04-airflow.md).
 
-Смежное: с BL-04 (отбор воздуха) общая механика «показать ещё одну среду своим
-цветом» — если делать обе задачи, легенду и переключатели стоит проектировать
-сразу под несколько сред. С BL-01 (отказы на запуске) — несостоявшийся розжиг
-наглядно выглядит именно как «топливо идёт, пламени нет».
+Related: with BL-04 (bleed air) it shares the mechanics of "show another medium
+in its own colour" — if both tasks are done, the legend and the toggles should
+be designed for several media from the outset. With BL-01 (start failures) — a
+failed light-off looks exactly like "fuel is flowing, there is no flame".
 
-### BL-18. Путешествие частицы воздуха от входа до сопла
+### BL-18. Journey of an air particle from intake to nozzle
 
-Сейчас поток показан «сверху»: тысячи частиц идут по обоим контурам, а параметры
-даны отдельной таблицей семи станций под легендой. Связь между картинкой и
-числами читатель достраивает сам. Интереснее противоположный взгляд — от лица
-одной частицы: выбрать её на входе в воздухозаборник и пройти вместе с ней весь
-тракт, видя на каждом шаге, что с ней происходит.
+At present the flow is shown "from above": thousands of particles travel through
+both ducts, while the parameters are given separately in a table of seven
+stations under the legend. The connection between picture and numbers is left
+for the reader to make. The opposite view is more interesting — from the point
+of view of a single particle: pick one at the intake and travel the whole gas
+path with it, seeing at every step what happens to it.
 
-Половина механики для этого уже есть. Частица в `src/airflow.js` хранит `x`,
-`lane`, `phase` и контур, а таблицы `CORE_V`/`BYPASS_V`, `CORE_SWIRL`, `CORE_T`
-дают скорость, закрутку и температуру **в любой точке** тракта, а не только на
-станциях. Не хватает трёх вещей.
+Half the mechanics for this already exists. A particle in `src/airflow.js`
+stores `x`, `lane`, `phase` and its duct, and the tables `CORE_V`/`BYPASS_V`,
+`CORE_SWIRL`, `CORE_T` give velocity, swirl and temperature **at any point** of
+the gas path, not only at the stations. Three things are missing.
 
-**Непрерывный профиль давления.** Давление задано лишь семью значениями в
-`STATIONS` (`src/main.js`) — для карточки, которая едет вместе с частицей, нужна
-таблица «координата по оси → давление», согласованная с этими семью точками,
-иначе числа будут прыгать на переходах. Это единственная часть задачи, которая
-требует решения по физике, а не по коду: где именно вдоль КВД набирается сжатие,
-как падает давление в камере сгорания и на турбине.
+**A continuous pressure profile.** Pressure is given by only seven values in
+`STATIONS` (`src/main.js`) — a card travelling with the particle needs a table
+of "axial coordinate → pressure" consistent with those seven points, otherwise
+the numbers will jump at the transitions. This is the only part of the task that
+calls for a decision about physics rather than about code: where exactly along
+the HPC the compression accumulates, how the pressure falls in the combustor and
+across the turbine.
 
-**Развилка контуров.** Контур назначается частице при рождении и не меняется —
-поток из контура в контур не перетекает. А для рассказа именно развилка у
-разделителя и есть кульминация: девять частей воздуха уходят наружу и создают
-почти всю тягу, одна идёт в газогенератор. Значит, на подходе к разделителю
-нужна остановка с выбором — «пойти в наружный контур или во внутренний» — и
-возможность вернуться к развилке и пройти вторую ветку.
+**The fork between ducts.** A particle is assigned its duct at birth and never
+changes it — the flow does not cross from one duct to the other. But for the
+story it is precisely the fork at the splitter that is the climax: nine parts of
+the air go outside and produce almost all the thrust, one goes into the core. So
+on the approach to the splitter there should be a stop with a choice — "go into
+the bypass duct or into the core" — and the option to return to the fork and
+take the other branch.
 
-**Проводка и карточка.** Камера следует за частицей, корпуса автоматически
-переходят в «рентген» или разрез (как это уже делается при включении потоков), а
-рядом едет карточка с текущими значениями: температура, давление, осевая
-скорость, закрутка, доля пройденного пути и одна фраза о том, что происходит
-здесь и куда частица двинется дальше. Плюс пауза, шаг по станциям и полоса
-прокрутки по всему тракту — чтобы можно было вернуться и пересмотреть отдельный
-участок.
+**Guidance and a card.** The camera follows the particle, the casings switch to
+x-ray or cutaway automatically (as already happens when the flows are turned
+on), and a card travels alongside with the current values: temperature,
+pressure, axial velocity, swirl, fraction of the path covered and one sentence
+about what happens here and where the particle will go next. Plus pause,
+stepping by stations and a scrub bar along the whole gas path — so that one can
+go back and re-watch a particular stretch.
 
-Отдельно про время. Реальная частица проходит двигатель за десятки миллисекунд —
-проход должен идти в сильном замедлении, и коэффициент замедления стоит показать
-прямо в карточке. Иначе получится ложное впечатление о темпе процессов, а
-модель и без того намеренно занижает абсолютные скорости ради читаемости
-картинки.
+A separate note about time. A real particle crosses the engine in tens of
+milliseconds — the journey has to run in heavy slow motion, and the slowdown
+factor is worth showing right on the card. Otherwise a false impression of the
+pace of the processes results, and the model already deliberately understates
+absolute velocities for the sake of a legible picture.
 
-Что показывать на остановках: разгон и поджатие в воздухозаборнике, работа
-вентилятора и рост закрутки на роторе с её гашением на спрямляющем аппарате,
-развилка, ступенчатый набор давления и температуры в КНД и КВД, торможение
-потока в диффузоре перед камерой (скорость там минимальна — иначе пламя
-сдувает), подвод тепла при почти постоянном давлении, расширение на турбинах,
-где газ отдаёт работу на привод компрессора, и разгон в сопле. И финальное
-сопоставление двух веток: наружная частица холодная и быстрая, внутренняя
-прошла через нагрев до полутора тысяч градусов — а тяги наружная дала больше.
+What to show at the stops: acceleration and pre-compression in the intake, the
+work of the fan and the rise of swirl across the rotor with its removal by the
+outlet guide vanes, the fork, the stepwise build-up of pressure and temperature
+in the booster and the HPC, the deceleration of the flow in the diffuser ahead
+of the chamber (the velocity there is at a minimum — otherwise the flame is
+blown out), heat addition at almost constant pressure, expansion through the
+turbines where the gas gives up work to drive the compressor, and acceleration
+in the nozzle. And a final comparison of the two branches: the bypass particle
+is cold and fast, the core one has been through heating to fifteen hundred
+degrees — and yet the bypass one produced more thrust.
 
-Объём L в основном из-за проводки камеры и режима паузы. Урезанная версия —
-без полёта камеры, только карточка и полоса прокрутки, которая гонит выделенную
-частицу по тракту, — вытягивает на M и уже даёт большую часть пользы.
+The size L comes mainly from the camera guidance and the pause mode. A trimmed
+version — no camera flight, just the card and a scrub bar driving the selected
+particle along the gas path — comes out at M and already delivers most of the
+value.
 
-Затрагивает: `src/airflow.js` (выделенная частица, профиль давления),
-`src/main.js` (камера, режим, карточка, переиспользование `STATIONS`),
-`index.html` и `src/style.css` (карточка и полоса прокрутки). Документировать в
-[«Потоках воздуха»](04-airflow.md), формулы — в
-[«Физике модели»](03-physics.md#станции).
+Touches: `src/airflow.js` (the selected particle, the pressure profile),
+`src/main.js` (camera, mode, card, reuse of `STATIONS`), `index.html` and
+`src/style.css` (the card and the scrub bar). To be documented in
+[Airflow](04-airflow.md), with the formulas in
+[Physics of the model](03-physics.md#stations).
 
-Смежное: с BL-09 (пресеты камеры и экскурсия) общий механизм сценариев камеры —
-делать их стоит на одной основе, различие только в том, что экскурсия идёт по
-узлам, а этот режим от лица частицы. С BL-04 (отбор воздуха) — путешествие
-естественно показывает, где часть потока уходит на охлаждение турбины. С BL-17
-(подача топлива) — в камере сгорания частица встречает распыл из форсунок.
+Related: with BL-09 (camera presets and tour) it shares the mechanism for camera
+scenarios — they should be built on one foundation, the only difference being
+that the tour goes by module while this mode goes by particle. With BL-04 (bleed
+air) — the journey naturally shows where part of the flow leaves to cool the
+turbine. With BL-17 (fuel supply) — in the combustor the particle meets the
+spray from the fuel nozzles.
 
-### BL-21. Конденсационный след за двигателем
+### BL-21. Contrail behind the engine
 
-Реактивная струя сейчас заканчивается конусом с шумовым шейдером у среза сопла.
-Настоящий двигатель на высоте тянет за собой белую полосу на километры, и
-физика её появления — благодарный сюжет: след образуется не всегда, и от чего
-это зависит, видно прямо из параметров, которые модель уже считает.
+The exhaust jet currently ends in a cone with a noise shader at the nozzle exit.
+A real engine at altitude drags a white band behind it for kilometres, and the
+physics of its appearance is a rewarding subject: the trail does not always
+form, and what that depends on follows directly from parameters the model
+already computes.
 
-**Что считать.** Сначала — параметры газа на срезе. У двигателя два потока с
-разной температурой и скоростью, и след даёт их смесь: наружный контур холодный
-и его вдевятеро больше по расходу, внутренний горячий. Смешение считается
-как средневзвешенное по расходам через степень двухконтурности, температуры
-берутся из уже имеющейся таблицы станций (`STATIONS` в `src/main.js`,
-формулы — в [«Физике»](03-physics.md#станции)), скорости — из профилей
-`CORE_V`/`BYPASS_V` в `src/airflow.js`.
+**What to compute.** First, the gas parameters at the exit. The engine has two
+streams of differing temperature and velocity, and the trail comes from their
+mixture: the bypass duct is cold and carries nine times the flow, the core is
+hot. The mixing is computed as a flow-weighted average through the bypass ratio,
+the temperatures come from the existing station table (`STATIONS` in
+`src/main.js`, formulas in [Physics](03-physics.md#stations)), and the
+velocities from the `CORE_V`/`BYPASS_V` profiles in `src/airflow.js`.
 
-Дальше — критерий образования следа. Выхлоп несёт водяной пар (сгорание
-керосина даёт около 1.24 кг воды на килограмм топлива) и тепло; смешиваясь с
-забортным воздухом, струя остывает, и вопрос в том, успевает ли смесь стать
-насыщенной по воде **раньше**, чем нагрев рассеется. Это критерий
-Шмидта — Апплемана: наклон линии смешения в координатах «температура — упругость
-пара»
+Then the criterion for trail formation. The exhaust carries water vapour
+(burning kerosene gives about 1.24 kg of water per kilogram of fuel) and heat;
+mixing with the ambient air, the jet cools, and the question is whether the
+mixture becomes saturated with respect to water **before** the warming
+dissipates. This is the Schmidt — Appleman criterion: the slope of the mixing
+line in "temperature — vapour pressure" coordinates
 
 ```
 G = EI_H₂O · c_p · P / (ε · Q · (1 − η))
 ```
 
-где `EI_H₂O ≈ 1.24`, `c_p ≈ 1004 Дж/(кг·К)`, `ε = 0.622`, `Q ≈ 43 МДж/кг` —
-теплота сгорания, `P` — забортное давление, `η` — полётный КПД (доля топливной
-энергии, ушедшая в тягу, а не в тепло). Из `G` получается пороговая температура:
-холоднее неё след будет, теплее — нет. Отсюда же следует неочевидное: **чем
-экономичнее двигатель, тем охотнее он оставляет след** — при большем `η` меньше
-тепла уходит в струю, смесь остывает быстрее и насыщение достигается легче.
+where `EI_H₂O ≈ 1.24`, `c_p ≈ 1004 J/(kg·K)`, `ε = 0.622`, `Q ≈ 43 MJ/kg` is the
+heat of combustion, `P` is ambient pressure and `η` is the propulsive efficiency
+(the fraction of fuel energy that went into thrust rather than heat). From `G` a
+threshold temperature follows: colder than that and there will be a trail,
+warmer and there will not. From the same relation comes something non-obvious:
+**the more efficient the engine, the more readily it leaves a trail** — with a
+higher `η` less heat goes into the jet, the mixture cools faster and saturation
+is reached more easily.
 
-Отдельно решается судьба следа: если забортный воздух пересыщен по льду, след
-живёт часами и расплывается в перистую облачность; если нет — кристаллы
-испаряются за секунды и полоса обрывается недалеко за самолётом. Это то самое
-различие, из-за которого в один день небо расчерчено полосами, а в другой чисто,
-и его стоит показать явно — переключением между «след не образуется»,
-«кратковременный» и «устойчивый».
+The fate of the trail is decided separately: if the ambient air is supersaturated
+with respect to ice, the trail lives for hours and spreads into cirrus cloud; if
+not, the crystals evaporate within seconds and the band breaks off not far
+behind the aircraft. That is exactly the difference that makes the sky criss-
+crossed with bands one day and clear the next, and it is worth showing
+explicitly — by switching between "no trail forms", "short-lived" and
+"persistent".
 
-**Зависимость.** Здесь есть неприятная деталь: у земли конденсационного следа не
-бывает, а модель работает ровно в одной точке — на стоянке. Поэтому задача
-опирается на BL-06 (высотно-скоростные характеристики) — либо на её урезанный
-вариант: ползунки высоты, забортной температуры и влажности с пересчётом
-давления по стандартной атмосфере, без полного пересчёта характеристик
-двигателя. Иначе след придётся включать кнопкой, и вся физика в нём пропадёт,
-останется белая полоса.
+**A dependency.** There is an awkward detail here: there are no contrails near
+the ground, and the model works at exactly one point — parked. So the task rests
+on BL-06 (altitude and airspeed characteristics) — or on a trimmed version of
+it: sliders for altitude, ambient temperature and humidity with pressure
+recomputed by the standard atmosphere, without a full recomputation of engine
+characteristics. Otherwise the trail would have to be switched on by a button
+and all the physics in it would be lost, leaving a white band.
 
-**Как рисовать.** Расчётная область потоков сейчас кончается на 8.6 у.е. —
-около четырёх метров за срезом. След нужен на другом масштабе: он должен уходить
-к горизонту, поэтому это отдельный объект, а не продолжение частиц. Разумно —
-лента или цепочка спрайтов вдоль оси с шумовым шейдером, расширяющаяся по мере
-удаления и медленно тающая; плотность и длина берутся из расчёта, а не
-подбираются на глаз.
+**How to draw it.** The flow computation domain currently ends at 8.6 units —
+about four metres behind the exit. The trail needs a different scale: it has to
+run off towards the horizon, so it is a separate object rather than a
+continuation of the particles. A ribbon or a chain of sprites along the axis
+with a noise shader, widening with distance and slowly fading, is the sensible
+approach; density and length come from the computation rather than being chosen
+by eye.
 
-Две детали, которые дают узнаваемость: след начинается **не у самого сопла**, а
-метрах в десяти позади — там, где струя успевает перемешаться и остыть, так что
-за двигателем должен быть видимый разрыв; и вместо одной полосы правильнее два
-жгута, закрученных вихрями с законцовок крыла — но это уже требует самолёта в
-кадре, а его в модели нет, поэтому в первой версии достаточно одного следа по оси.
+Two details that give it recognisability: the trail begins **not right at the
+nozzle** but some ten metres behind, where the jet has had time to mix and cool,
+so there must be a visible gap behind the engine; and instead of a single band
+two ropes wound up by the wingtip vortices would be more correct — but that
+already requires an aircraft in the frame, and there is none in the model, so a
+single trail along the axis is enough for a first version.
 
-**Что показать в интерфейсе.** Строка условий (высота, забортная температура,
-влажность), результат расчёта — температура и скорость смеси на срезе, пороговая
-температура образования, вердикт по следу — и подсказка, насколько нужно
-изменить высоту или режим, чтобы след появился или пропал. Игра с этими
-ползунками и есть главная ценность задачи.
+**What to show in the interface.** A line of conditions (altitude, ambient
+temperature, humidity), the result of the computation — temperature and velocity
+of the mixture at the exit, the threshold formation temperature, the verdict on
+the trail — and a hint as to how much the altitude or the regime needs to change
+for a trail to appear or disappear. Playing with those sliders is the main value
+of the task.
 
-Затрагивает: новый модуль расчёта условий образования, `src/airflow.js` или
-отдельный модуль для отрисовки следа, `src/main.js` (условия, панель),
-`index.html`. Расчётную часть стоит вынести без зависимостей от Three.js и DOM —
-как сделано с `src/engineState.js` — тогда критерий проверяется в Node по
-табличным точкам, а не глазами по картинке.
+Touches: a new module computing the formation conditions, `src/airflow.js` or a
+separate module for drawing the trail, `src/main.js` (conditions, panel),
+`index.html`. The computational part should be extracted with no dependency on
+Three.js or the DOM — as was done with `src/engineState.js` — so that the
+criterion is checked under Node against tabulated points rather than by eye
+against a picture.
 
-Смежное: BL-06 — обязательная опора, без высоты задача вырождается. BL-18
-(путешествие частицы) — след естественно продолжает маршрут частицы за срезом
-сопла и даёт ему финал.
+Related: BL-06 is a mandatory foundation; without altitude the task degenerates.
+BL-18 (the journey of a particle) — the trail naturally continues the particle's
+route beyond the nozzle exit and gives it a finale.
 
-### BL-05. Реверс тяги
+### BL-05. Thrust reverser
 
-Створки реверсивного устройства в наружном контуре, их выпуск по кнопке и
-перестройка потока: наружный контур разворачивается вперёд-вбок, внутренний
-продолжает идти назад. Тяжёлая задача — нужна и новая геометрия с анимацией
-(`src/engine.js`), и переключение каналов в `src/airflow.js`.
+The reverser doors in the bypass duct, their deployment by a button and the
+rearrangement of the flow: the bypass duct turns forward and outward, the core
+carries on aft. A heavy task — it needs both new geometry with animation
+(`src/engine.js`) and a switch of the ducts in `src/airflow.js`.
 
-### BL-06. Работа двигателя на высоте: забортные условия и характеристики
+### BL-06. The engine at altitude: ambient conditions and characteristics
 
-Модель работает в одной точке — на земле, в стандартный день, при стоянке.
-Всё, что модель показывает, посчитано для этой точки. Между тем самолёт
-проводит почти весь полёт на десяти-одиннадцати километрах, где воздух втрое
-разрежённее и на семьдесят градусов холоднее, и поведение двигателя там другое.
-Без этого не работают сразу несколько задач — в первую очередь конденсационный
-след (BL-21), которого у земли не бывает в принципе.
+The model works at a single point — on the ground, on a standard day, parked.
+Everything the model shows is computed for that point. Meanwhile an aircraft
+spends almost all of its flight at ten or eleven kilometres, where the air is
+three times thinner and seventy degrees colder, and the engine behaves
+differently there. Several tasks do not work without this — first and foremost
+the contrail (BL-21), which does not occur near the ground at all.
 
-**Забортные условия.** Основа — стандартная атмосфера: до 11 км температура
-падает на 6.5 °C на километр от +15 °C у земли, выше держится около −56.5 °C;
-давление и плотность считаются по ней же. Отдельно нужна поправка на реальный
-день — отклонение от стандарта, привычные «стандарт плюс пятнадцать» жаркого
-дня и «минус двадцать» зимнего: на этом видно, почему в жару двигатель
-теряет тягу, а взлётная дистанция растёт. Ползунки: высота, отклонение
-температуры от стандарта, влажность (нужна для BL-21), число Маха.
+**Ambient conditions.** The basis is the standard atmosphere: up to 11 km the
+temperature falls by 6.5 °C per kilometre from +15 °C at sea level, above that
+it holds at about −56.5 °C; pressure and density follow from the same. A
+correction for a real day is needed separately — the deviation from standard,
+the familiar "standard plus fifteen" of a hot day and "minus twenty" of a winter
+one: this shows why an engine loses thrust in the heat and the take-off distance
+grows. Sliders: altitude, temperature deviation from standard, humidity (needed
+for BL-21), Mach number.
 
-**Скоростной подпор.** На скорости воздух тормозится в воздухозаборнике, и на
-вход в вентилятор приходит газ с повышенными давлением и температурой:
+**Ram compression.** At speed the air is decelerated in the intake, and the gas
+arriving at the fan has raised pressure and temperature:
 
 ```
 T₁ = T_H · (1 + 0.2·M²)
 P₁ = P_H · (1 + 0.2·M²)^3.5
 ```
 
-Это объясняет неочевидное: с ростом скорости расход через двигатель растёт, а
-тяга всё равно падает, потому что скорость истечения приближается к скорости
-полёта.
+This explains something non-obvious: as speed grows the flow through the engine
+increases, and yet the thrust still falls, because the exhaust velocity
+approaches the flight speed.
 
-**Как пересчитывать, не считая цикл.** Полный термодинамический расчёт в
-иллюстративную модель тащить незачем — в бэклоге он сознательно оставлен за
-бортом. Честный и дешёвый путь — теория подобия: перейти к **приведённым
-параметрам**, где обороты нормируются на корень из температуры на входе, а
-расход — на температуру и давление:
+**How to recompute without computing the cycle.** There is no point dragging a
+full thermodynamic calculation into an illustrative model — it is deliberately
+left out of the backlog. The honest and cheap route is similarity theory: switch
+to **corrected parameters**, where speed is normalised by the square root of
+inlet temperature and flow by temperature and pressure:
 
 ```
-n_прив = n / √(T₁ / 288.15)
+n_corr = n / √(T₁ / 288.15)
 ```
 
-Смысл в том, что двигатель «узнаёт» не абсолютные обороты, а приведённые:
-на высоте воздух холоднее, поэтому при тех же физических оборотах приведённые
-выше, и компрессор работает ближе к своему ограничению. Все имеющиеся в модели
-зависимости от оборотов — сжатие `n1²` и `n2^2.5`, температуры станций,
-профили скоростей — тогда остаются как есть, но берут на вход приведённые
-обороты, а тяга и расход домножаются на отношение давлений и плотностей.
-Правки получаются точечными, а поведение становится качественно верным:
-на крейсере обороты выше, тяга примерно втрое меньше земной, температура за
-компрессором ниже.
-
-**Что показать.** Строку забортных условий на панели (высота, T, P, M), режимы
-одной кнопкой — стоянка, взлёт, набор, крейсер — и, по возможности, вторую
-строку в таблице станций «на земле / на высоте» для сравнения. Заодно это
-делает осмысленной таблицу станций, которая сейчас всегда про один режим.
-
-**Урезанный вариант.** Если полный пересчёт характеристик откладывается, имеет
-смысл сделать сначала только забортные условия: высота и температура задают
-T, P и плотность, они выводятся на панель и отдаются потребителям — прежде
-всего расчёту конденсационного следа. Это объём M вместо L и снимает
-зависимость с BL-21, не трогая внутреннюю физику двигателя.
-
-Затрагивает: новый модуль атмосферы (без зависимостей от Three.js и DOM, чтобы
-проверялся в Node), `src/engineState.js` (приведённые обороты),
-`src/main.js` (`STATIONS`, панель условий), `index.html`. Документировать в
-[«Физике модели»](03-physics.md), где сейчас в разделе про то, чего в модели
-нет, высотно-скоростные характеристики стоят первым пунктом.
-
-Смежное: BL-21 (конденсационный след) — прямой потребитель. BL-02 (ограничения)
-— на высоте ограничение по приведённым оборотам становится главным. BL-03
-(помпаж) — запас устойчивости зависит от приведённых параметров.
-
-## Геометрия и габариты
-
-### BL-23. Выбор двигателя из списка
-
-Сейчас в модели один двигатель, и он вшит в код: станции — константы `ST`,
-венцы создаются поимённо, число лопаток и ступеней стоит цифрами в вызовах,
-таблицы каналов в `src/airflow.js` — литералы, а синтез звука настроен по
-спектру записей конкретного CFM56-7B. Задача — сделать двигатель **выбираемым**:
-выпадающий список сверху, в нём несколько реальных двигателей с указанием
-самолётов, на которых они стоят, и при переключении перестраивается всё —
-геометрия, потоки, звук, механика, установка на крыле.
-
-Ценность не в разнообразии картинок, а в сравнении. Двигатель 737 и двигатель
-A320 решают одну задачу и выглядят по-разному, и когда их можно переключить
-в один клик, различия перестают быть текстом в справочнике: видно, что у одного
-вентилятор заметно больше, у другого мотогондола круглая, а у третьего
-вентилятор вращается втрое медленнее ротора, потому что между ними редуктор.
-
-**Что должно меняться при выборе:**
-
-* **Геометрия** — диаметр и число лопаток вентилятора, число ступеней КНД, КВД,
-  ТВД и ТНД, длины и диаметры узлов, форма мотогондолы и пилона. Это главная
-  часть работы: описание двигателя должно стать данными, а `src/engine.js` —
-  строителем по этим данным. Сейчас там больше 1200 строк, где размеры и
-  количества вписаны прямо в вызовы. Половина дела уже сделана в другом месте:
-  справочник по CFM56-7B лежит в [`docs/engines/`](engines/README.md) со
-  ссылками на источники, и тесты сверяют модель с ним — не хватает того, чтобы
-  по нему ещё и строить.
-* **Механика** — число валов и их связь. У большинства двигателей два каскада,
-  у Rolls-Royce — три, а у редукторного вентилятор и турбина низкого давления
-  вращаются с разной скоростью. Это меняет и `src/engineState.js`, где сейчас
-  ровно два ротора, и картинку: у редукторного между валом и вентилятором
-  появляется планетарный редуктор, который сам по себе стоит показать.
-* **Потоки** — степень двухконтурности задаёт соотношение расходов и внешний вид
-  струи; таблицы каналов должны строиться от геометрии, а не задаваться
-  отдельно.
-* **Звук** — частота следования лопаток считается от числа лопаток и оборотов,
-  окружная скорость конца лопатки от диаметра, а порог появления buzz-saw — от
-  неё. При смене двигателя всё это меняется само, если считать от параметров.
-* **Установка** — просвет до земли, вынос вперёд относительно крыла, форма
-  пилона, положение агрегатов. Полезно показывать контур крыла и фюзеляжа того
-  самолёта, на котором двигатель стоит, — тогда видно, почему у 737
-  воздухозаборник снизу сплюснут, а у A320 круглый: у них разный просвет.
-
-**Кого добавлять.** Разумный набор — по одному представителю от каждого
-принципиально разного устройства, а не десять похожих: CFM56 как классика
-узкофюзеляжных, LEAP как её современная замена, редукторный (PW1100G) ради
-редуктора и очень большого вентилятора, трёхвальный Rolls-Royce ради третьего
-каскада, и, если хватит сил, что-нибудь широкофюзеляжное — там другой масштаб
-и шевроны на сопле. Конкретные числа — диаметры, число лопаток и ступеней,
-степень двухконтурности, тяга — нужно свести в таблицу со ссылками на
-источники; без этого получится не выбор двигателей, а один двигатель разного
-размера.
-
-**Честная оговорка про звук.** Нынешний синтез настроен по измерениям реальных
-записей CFM56-7B: огибающая по 48 порядкам вала снята с записи и загружена в
-`PeriodicWave`. Для остальных двигателей таких измерений нет. Частоты
-пересчитаются сами, а вот форму спектра придётся либо брать общую с поправкой
-на число лопаток, либо повторять методику из [«Звука»](06-sound.md) для каждого
-двигателя. В интерфейсе стоит помечать, что измерено, а что взято по аналогии.
-
-**Порядок работ.** Задача крупная, но делится: сначала параметризация — вынести
-описание нынешнего двигателя в данные так, чтобы модель собиралась из них и
-выглядела ровно как сейчас (это шаг без видимого результата, но именно он
-определяет успех); затем второй двигатель того же устройства — проверка, что
-описание достаточно; затем звук от параметров; затем редуктор и третий вал,
-которые ломают предположение о двух роторах.
-
-Формат описания и устройство загрузчика спроектированы отдельно —
-[«Формат описания двигателя»](10-engine-plugins.md): двигатели задаются
-JSON-файлами в `public/engines/`, читаются во время работы, поэтому добавление
-нового не требует пересборки. Там же — наследование через `extends`, граница
-между данными и кодом, проверка схемой и порядок внедрения.
-
-Смежное: BL-20 (мотогондола) становится частным случаем — вопрос
-«какой у нас прототип» решается выбором из списка, а не правкой констант;
-делать их стоит вместе. BL-19 (габариты) — сравнение размеров приобретает смысл
-именно при переключении. BL-22 (обучающий слой) — «почему у этого двигателя
-вентилятор больше» просится в объяснения. BL-15 (LOD) — переключение не должно
-пересобирать сцену рывком.
-
-Затрагивает: `src/engine.js` (строитель по описанию), `src/blade.js`,
-`src/airflow.js`, `src/engineState.js` (число валов, редуктор), `src/sound.js`
-(частоты от параметров), `src/main.js` и `index.html` (список, пересборка сцены),
-всю документацию в `docs/` — она сейчас написана про один двигатель.
-
-### BL-19. Реальные габариты: размерные линии и фигура для масштаба
-
-Модель построена в честном масштабе — 1 условная единица = 0.50 м, вентилятор
-Ø 1.549 м — но на экране от этого ничего не видно: двигатель висит в пустоте без
-единого ориентира, и понять, что вентилятор ростом с человека, невозможно.
-Сами величины теперь есть и сверяются с источниками (см.
-[«Габариты по источникам»](02-geometry.md#габариты-по-источникам)) — не хватает
-только их показа.
-
-Что добавить: переключаемый слой размеров — диаметр вентилятора, наружный
-диаметр и длина мотогондолы, длина от кромки воздухозаборника до среза сопла,
-диаметр газогенератора — выносными линиями с подписями в метрах, разворачивающимися
-к камере. Плюс силуэт человека рядом с двигателем в том же масштабе: одна фигура
-объясняет размер лучше всех подписей вместе взятых. Для наглядного сравнения —
-контур сечения фюзеляжа Boeing 737 на заднем плане, чтобы было видно, что
-вентилятор по диаметру сопоставим с проходом в салоне.
-
-Дополнительно — вывод габарита выбранного узла в карточке: при клике на КВД
-показывать не только описание, но и его длину и диаметр в метрах. Значения
-берутся из уже имеющихся констант `ST` и радиусов, пересчётом на масштаб.
-
-Отдельная деталь, которая делает картину честной: реальный двигатель на 737
-висит очень низко, просвет до земли — меньше полуметра. Линия земли под моделью
-с этим размером сразу объясняет, почему мотогондола такой формы, и подводит
-к BL-20.
-
-Затрагивает: `src/engine.js` (константы габаритов), `src/main.js` (слой
-размеров, переключатель), `index.html` (кнопка, карточка узла).
-Документировать в [«Геометрии»](02-geometry.md).
-
-### BL-20. Мотогондола: что осталось после плоского низа
-
-**Главное уже сделано.** Гондола перестала быть телом вращения: `flattenBelly()`
-подрезает низ сечения плавным минимумом на `BELLY` = 0.32 у.е., профиль капота
-разделён на наружную обшивку и внутренний тракт (сплющиваются по-разному:
-снаружи плоско от губы до капотов вентилятора, внутри — только у губы, иначе
-срезало бы концы лопаток), нормали сшиты на стыке 0 и 2π. Агрегаты уехали с
-шести часов на бок поворотом группы на 62° вместе с прокси выбора, подписью и
-вектором разнесения — без этого плоский низ противоречил бы компоновке.
-Подробности — в [«Геометрии»](02-geometry.md).
-
-**Габариты взяты по источникам.** Наружный диаметр гондолы, её длины до срезов
-сопел, глубина сплющивания, диаметр и хорда лопатки вентилятора, длина, высота
-и ширина «голого» двигателя больше не подобраны по пропорции: они выписаны в
-[`docs/engines/cfm56-7b-nacelle.json`](engines/cfm56-7b-nacelle.json) со
-ссылками на Boeing ACAP, EASA TCDS и NTSB и перенесены в модель. Сверку ведут
-`test/geometry.test.mjs` (габариты против того же JSON) и
-`test/clearance.test.mjs` (венцы не входят друг в друга, агрегаты не пробивают
-обшивку). Подробности и следствия — в [«Геометрии»](02-geometry.md#габариты-по-источникам).
-
-Осталось три вещи, и первая из них — не украшение, а видимый дефект.
-
-* **Тракт потоков не знает про плоский низ.** Границы каналов в
-  `src/airflow.js` заданы таблицами «координата по оси → радиус», то есть
-  осесимметричны. Гондола снизу срезана, а канал — нет, поэтому у самой губы
-  частицы наружного контура немного выходят наружу сквозь обечайку. Лечится
-  либо тем же профилем сплющивания, применённым к радиусу границы в
-  зависимости от окружного угла, либо ограничением частиц формой обечайки.
-  Первое честнее и заодно готовит почву для несимметричных гондол вообще.
-* **Членение конструкции.** Обечайка воздухозаборника, капоты вентилятора,
-  открывающиеся вверх на замках, внутренний капот газогенератора, сопло
-  наружного контура — с видимыми линиями разъёма. Отдельно — звукопоглощающие
-  панели на внутренней поверхности воздухозаборника: их перфорированная
-  поверхность хорошо читается и объясняет, зачем там такая отделка.
-* **Пилон под прототип.** Сейчас это плоская выдавленная фигура
-  (`pylonShape` в `src/engine.js`). У 737 двигатель вынесен вперёд крыла и
-  подвешен характерным образом — форма узнаваема и стоит того, чтобы её сделать.
-
-**Прототип больше не смешанный.** Габариты гондолы и двигателя, число лопаток
-вентилятора и компоновка — 3 подпорные ступени, 9 КВД, 1 ТВД, 4 ТНД — все от
-CFM56-7B. Прежние 10 / 2 / 5 были от LEAP-1B и, уложенные в паспортную длину
-2.508 м, давали неестественно плотный шаг ступени; после приведения к
-прототипу шаг стал натуральным, а хорды лопаток вернулись к реальным.
-Проверяется в `test/geometry.test.mjs`. Для гондолы
-разница существенна: у MAX она крупнее и вынесена вперёд иначе. Если делается
-BL-23, вопрос растворяется в нём — прототип становится выбором из списка, а
-гондола частью описания двигателя, включая глубину сплющивания и угол разворота
-агрегатов. Тогда обе задачи разумно вести вместе.
-
-Смежное: с BL-05 (реверс тяги) — створки живут в капотах наружного контура,
-поэтому членение стоит проектировать сразу с расчётом на них. С BL-19 —
-размерные линии становятся содержательными, только когда габариты взяты из
-источников.
-
-Затрагивает: `src/airflow.js` (границы каналов), `src/engine.js` (членение,
-пилон, габариты). Документировать в [«Геометрии»](02-geometry.md) и
-[«Потоках воздуха»](04-airflow.md).
-
-## Интерфейс и визуализация
-
-### BL-07. Разрез произвольной плоскостью
-
-Сейчас вырезается только сектор вокруг оси. Плоскость сечения с управляемыми
-положением и наклоном (через `clippingPlanes` в Three.js) позволила бы смотреть
-на двигатель в поперечном сечении — например, показать кольцевую камеру сгорания
-с двадцатью форсунками с торца.
-
-Затрагивает: `src/main.js`, материалы в `src/engine.js`.
-
-### BL-08. Подписи с учётом перекрытия
-
-Метки внутренних узлов видны сквозь мотогондолу, из-за чего непонятно, что где
-находится. Нужна проверка видимости точки крепления метки — лучом или по буферу
-глубины — и притухание перекрытых подписей. Маленькая правка с заметным эффектом,
-поэтому стоит в P1.
-
-Затрагивает: `src/main.js`, `src/engine.js` (позиции меток).
-
-### BL-09. Пресеты камеры и экскурсия по тракту
-
-Набор именованных ракурсов — вентилятор, камера сгорания, турбина, сопло — с
-плавным перелётом. Дальше из них собирается автоматическая экскурсия: камера
-идёт по тракту от воздухозаборника к соплу, на каждой станции показывая карточку
-узла. Это превращает модель из «покрутить мышью» в готовый рассказ.
-
-### BL-10. Состояние модели в URL
-
-Ракурс, режим работы, состояние выреза и переключателей — в query-строку, чтобы
-ссылкой можно было передать конкретный вид. Дёшево и удобно при показе.
-
-### BL-11. Адаптив и тач-управление
-
-Панель рассчитана на широкий экран, жестов нет. Нужны компактная раскладка,
-сворачиваемые секции и внятная реакция на касания. Заодно проверить, что сцена
-вообще тянет на мобильной видеокарте — при 850 тыс. треугольников это не
-очевидно, и здесь задача смыкается с BL-15.
-
-### BL-12. Английская локализация
-
-Вся терминология сейчас русская. Вынести строки из `index.html` и модулей в
-словарь и добавить переключатель языка. Объём в основном определяется тем, что
-подписи узлов и карточки живут в коде.
-
-## Обучающий слой
-
-### BL-22. Пояснения от простого к формулам
-
-Модель показывает **что** происходит, но почти не объясняет **почему**. Карточки
-узлов дают по абзацу описания, документация в `docs/` разбирает физику подробно —
-но это два разных мира: на экране картинка, объяснение в отдельном файле, и
-переход между ними читатель делает сам. Задача — вставить объяснение внутрь
-модели и сделать его **послойным**.
-
-**Три уровня раскрытия.** Одно и то же явление объясняется трижды, и следующий
-уровень открывается только по нажатию:
-
-1. **На пальцах** — две-три фразы бытовым языком, без единого термина и без
-   формул. «За самолётом остаётся белая полоса, потому что в выхлопе есть водяной
-   пар: на высоте очень холодно, и он замерзает в мельчайшие льдинки — это
-   облако, которое двигатель делает сам».
-2. **Механизм** — что с чем связано и какие величины на это влияют, со ссылкой
-   на то, что видно на экране прямо сейчас: почему след появляется не у самого
-   сопла, почему в один день он держится часами, а в другой тает за секунды,
-   от чего зависит порог.
-3. **Физика** — формулы, законы и границы применимости: критерий
-   Шмидта — Апплемана, линия смешения, пересыщение по льду, а вместе с ними —
-   честная оговорка, что именно в модели посчитано, а что задано таблицей.
-
-Смысл в том, что один и тот же экран обслуживает и того, кто просто смотрит на
-красивый двигатель, и того, кто хочет разобраться до уравнений. Никто не видит
-лишнего, но глубина доступна в один-два клика. Выбранный уровень стоит
-запоминать: тому, кто раз открыл третий, дальше показывать сразу третий.
-
-**Привязка к живым числам.** Главное отличие от статьи — пояснение подставляет
-текущее состояние модели: «сейчас за компрессором 28 бар и 600 °C — это почти в
-тридцать раз выше атмосферного давления, и весь этот воздух сжали лопатки,
-которые вы видите». При изменении режима числа в тексте меняются. Так объяснение перестаёт
-быть иллюстрацией к картинке и становится её продолжением.
-
-**Обучение через кнопки.** Пояснение может попросить что-нибудь сделать и
-подсветить нужный орган управления: «уберите РУД и посмотрите, как рабочая точка
-уходит от границы устойчивости», «поднимитесь на 10 км — след появится».
-Пользователь не читает про явление, а вызывает его сам. Это и есть отличие
-интерактивного материала от текста.
-
-**Явления первой очереди:**
-
-* **Как вообще работает турбовентиляторный двигатель** — сжать, сжечь,
-  расширить; почти вся тяга идёт от вентилятора, а газогенератор нужен, чтобы
-  его крутить. Базовое объяснение, к которому цепляются остальные.
-* **Конденсационный след** (BL-21) — от «пар замерзает» до критерия образования
-  и разницы между исчезающим и устойчивым следом.
-* **Помпаж** (BL-03) — от «компрессор захлебнулся, воздух пошёл обратно» через
-  срыв потока с лопаток к границе устойчивости и карте компрессора.
-* **Зачем двухконтурность** — почему выгоднее разогнать много воздуха слабо,
-  чем мало воздуха сильно.
-* **Почему турбина не плавится** — газ горячее температуры плавления её сплава
-  (смыкается с BL-04, отбором воздуха на охлаждение).
-* **Что происходит при запуске** — зачем стартер, откуда порядок «раскрутка →
-  топливо → розжиг» (смыкается с BL-17 и BL-01).
-* **Откуда берётся звук двигателя** — вой вентилятора и рёв струи как разные
-  по природе источники.
-
-**Как хранить тексты.** Не в разметке и не в коде отрисовки, а отдельным модулем
-данных: явление → три уровня → к каким величинам модели привязано → на какой
-раздел `docs/` ссылается третий уровень. Иначе объяснения и документация
-неизбежно разъедутся. Третий уровень должен ссылаться на документ, а не
-пересказывать его: физика уже написана в `03-physics.md`, дублировать её вредно.
-
-**Проверка понимания** — необязательная и без оценок: вопрос «что будет, если…»
-с возможностью тут же проверить ответ на самой модели. Это дешёвое дополнение,
-которое превращает просмотр в занятие.
-
-Объём L из-за количества текста, но задача делится по явлениям: механизм
-раскрытия плюс первое явление — это M, дальше каждое следующее добавляется
-независимо. Начинать разумно с «как работает двигатель», потому что остальные
-объяснения на него опираются.
-
-Затрагивает: новый модуль с текстами и привязками, `src/main.js` (панель
-пояснений, подстановка значений, подсветка органов управления), `index.html`,
-`src/style.css`. Документировать в [«Интерфейсе»](07-ui.md).
-
-Смежное: BL-21 и BL-03 — первые кандидаты на разбор, и оба задуманы так, что
-объяснять там есть что. BL-18 (путешествие частицы) — естественный носитель
-пояснений: карточка, едущая вместе с частицей, это уже первый уровень. BL-09
-(экскурсия по тракту) — общий механизм подсветки и ведения по сценарию. BL-12
-(локализация) — вынесенные в один модуль тексты сильно её упрощают.
-
-## Звук
-
-### BL-13. Поглощение звука в воздухе с расстоянием
-
-Ослабление с расстоянием линейное, поглощение не моделируется — поэтому при
-отлёте камеры звук остаётся ярким в полосе 2…4 кГц, тогда как в записях он там
-заметно тише. Достаточно фильтра нижних частот, частота среза которого падает с
-расстоянием. Дешёвая правка, ощутимо повышающая достоверность на удалении.
-
-Затрагивает: `src/sound.js`, раздел «Пространство» в [«Звуке»](06-sound.md).
-
-### BL-14. Разделение вентилятора и струи в пространстве
-
-Сейчас весь звук идёт из одной точки — центра двигателя. В реальности тоны
-вентилятора слышны спереди, шум струи — сзади, и при облёте камерой это заметно.
-Нужны две точки излучения с раздельной панорамой и направленностью.
-
-## Производительность и инфраструктура
-
-### BL-24. Публикация на Vercel
-
-Модель сейчас живёт только на машине разработчика: `npm run dev` поднимает
-сервер на `0.0.0.0`, и показать её можно ровно тем, кто в той же сети. Между тем
-это ровно тот проект, который хочется открыть ссылкой — без установки, без
-объяснений. Публикация стоит одного вечера и делает всё остальное в этом бэклоге
-осмысленным: работу видно.
-
-Технически всё уже готово к статическому хостингу. Бэкенда нет, переменных
-окружения нет, внешних ассетов нет вообще — ни моделей, ни текстур, ни звуковых
-файлов, вся геометрия строится кодом, а звук синтезируется. `npm run build`
-даёт самодостаточный `dist/`, который достаточно раздать.
-
-Что сделать:
-
-* **Подключить репозиторий**, указав пресет Vite, команду `npm run build` и
-  каталог `dist`. Ветки при этом получают предварительные сборки — удобно
-  показывать незаконченную работу по ссылке, не трогая основную.
-* **Заголовки кэширования** через `vercel.json`: ассеты с хэшем в имени —
-  надолго и неизменяемыми, `index.html` — без кэша, иначе после обновления люди
-  будут неделю видеть старую версию. Отдельно важно для BL-23: описания
-  двигателей в `public/engines/` должны кэшироваться коротко, иначе новый
-  двигатель не появится у тех, кто уже заходил.
-* **Карточка для ссылки** — заголовок, описание и картинка предпросмотра, чтобы
-  отправленная в мессенджер ссылка выглядела как модель двигателя, а не как
-  голый адрес. Скриншот годится статический.
-* **Проверить, что публикуется только своё.** В `test/audio` лежат записи с
-  Freesound под свободными лицензиями, скачиваемые скриптом; в репозиторий они
-  не попадают (`.gitignore` исключает `*.mp3` и `*.wav`) и в сборку тоже. Перед
-  публикацией это стоит подтвердить, а в README указать происхождение записей и
-  их лицензию — они использовались для настройки звука, и упомянуть это честно.
-
-Что проверить после публикации: размер отдачи (637 кБ бандла ужимаются сжатием
-примерно до 166 кБ, это приемлемо, но с BL-15 станет лучше), поведение на
-телефоне — почти наверняка вскроется то, о чём написано в BL-11, — и то, что
-звук не пытается запуститься до касания экрана.
-
-Отдельная оговорка про BL-23. Задумка «докинуть файл двигателя без пересборки»
-на статическом хостинге работает иначе: живой файловой системы там нет, и новый
-файл появляется через коммит и деплой. По сути это то же самое — правка одного
-файла без сборки чего-либо руками, — но «положить файл в каталог на сервере» не
-получится. Зато остаётся открытие описания с диска: оно работает в опубликованной
-версии и никакого деплоя не требует.
-
-Затрагивает: `vercel.json`, `index.html` (метаданные карточки), `README.md`
-(ссылка на живую версию и лицензии записей). Документировать в
-[«Разработке»](08-development.md).
-
-### BL-25. Обфускация кода в публикуемой сборке
-
-С публикацией (BL-24) исходники уезжают в чужие браузеры. Ценность проекта —
-не в разметке панели, а в процедурном генераторе лопаток, компоновке тракта и
-синтезе звука, настроенном по спектральному анализу реальных записей; всё это
-после сборки лежит в одном файле, который открывается вкладкой «исходники».
-Задача — сделать так, чтобы разбор этого кода стоил заметных усилий.
-
-**Сначала гигиена сборки.** Не публиковать карты кода (`build.sourcemap` должен
-быть выключен — с ними обфускация теряет смысл полностью) и посмотреть, что
-вообще остаётся после нынешней минификации: имена локальных переменных
-сокращаются, но структура модулей, имена экспортов и все комментарии в
-шаблонных строках сохраняются. Уже на этом шаге стоит замерить, насколько
-читаем результат — возможно, дальше идти не понадобится.
-
-**Дальше собственно обфускация** — сборочный шаг поверх бандла
-(`javascript-obfuscator` и обёртки к нему для Rollup): переименование, сборка
-строк в таблицу с расшифровкой на лету, разворачивание управляющих конструкций
-в диспетчер, вставка мёртвого кода. Здесь важно не переусердствовать: два
-последних приёма дают основное замедление, а в этом проекте есть цикл кадра,
-который каждый кадр пересчитывает положения девяти тысяч частиц. Разумная
-настройка — агрессивно обрабатывать построение геометрии и синтез звука,
-осторожно `src/airflow.js` и цикл в `src/main.js`, и обязательно замерять частоту
-кадров до и после, а не полагаться на ощущение.
-
-**Чего обфускация не даёт — сказать прямо.** Код, исполняемый в браузере, всегда
-доступен: его можно прочитать в отладчике, снять с работающей сцены готовую
-геометрию через WebGL, вытащить параметры звукового графа из Web Audio.
-Шейдеры (`ShaderMaterial` в `src/airflow.js` и `src/engine.js`) уходят в GPU
-строками и остаются читаемыми в любом случае. Описания двигателей из BL-23 —
-это данные, и они по замыслу открыты. Обфускация поднимает порог входа, но не
-делает копирование невозможным; ожидать от неё большего не стоит.
-
-**Что решает задачу лучше, если цель — авторство.** В репозитории сейчас нет
-файла лицензии, хотя в `package.json` указана ISC. Явная лицензия, строка
-авторства в интерфейсе и указание происхождения использованных записей делают
-для защиты работы больше, чем перепутанные имена переменных, и стоят получаса.
-Это стоит сделать в любом случае — независимо от того, будет обфускация или нет.
-
-**Цена.** Собранный файл вырастает — при агрессивных настройках заметно, что
-идёт вразрез с BL-15, где размер наоборот уменьшают. Отладка публикуемой сборки
-становится почти невозможной, так что нужен режим сборки без обфускации для
-проверки проблем, о которых сообщат пользователи. И тесты: они гоняют исходники
-напрямую (`test/engine-state.test.mjs` импортирует `src/engineState.js`),
-обфускации не видят — значит после её включения нужна отдельная проверка,
-что собранная версия действительно работает, а не только собирается.
-
-**Решение о приоритете.** P3 сознательно: задача ничего не добавляет тому, кто
-смотрит на двигатель, и вступает в противоречие с духом остального бэклога —
-BL-22 делает модель обучающей, а формат описаний открытым. Если цель — не
-отдавать наработки, разумно сперва ответить, что именно защищается: компоновка
-и физика подробно описаны в `docs/` и открыты по замыслу, так что закрывать
-остаётся реализацию.
-
-Затрагивает: конфигурацию сборки (`vite.config.js`, которого сейчас нет),
-`package.json` (сборочный шаг и режим без обфускации), `LICENSE`, `README.md`.
-Документировать в [«Разработке»](08-development.md).
-
-### BL-26. Версионирование: релизы, форматы, совместимость
-
-Версии у проекта сейчас нет. В `package.json` стоит `1.0.0` с самого начала,
-тегов в репозитории ни одного, история — пятнадцать коммитов подряд без отметок
-о том, где кончалась одна законченная версия и начиналась другая. Пока модель
-жила на одной машине, это никого не беспокоило. С публикацией (BL-24) и
-описаниями двигателей в виде файлов (BL-23) появляется сразу три вещи, которые
-надо уметь версионировать, и они разные по природе.
-
-**Версия самого проекта.** Обычный семантический номер, тег в репозитории и
-`CHANGELOG.md`. Заполнять его есть чем: коммиты здесь пишутся развёрнуто, с
-объяснением решений, так что журнал изменений собирается из них почти без
-дописывания. Ориентир, что считать чем: мажорная — несовместимость форматов
-(описаний двигателей, сохранённого состояния), минорная — новый узел, режим или
-слой, патч — исправления и правки текстов.
-
-Отдельная тонкость этого проекта: **изменение физических коэффициентов — не
-патч**. Если поменять постоянную времени выбега или коэффициент за турбиной,
-модель начнёт показывать другие числа при тех же действиях, а на эти числа
-ссылается документация и, после BL-22, обучающие пояснения. Такие правки должны
-попадать в журнал изменений отдельной строкой, иначе расхождение между текстом
-и моделью обнаружится случайно и нескоро.
-
-**Версия в интерфейсе.** Номер версии и короткий хэш сборки в углу панели или в
-карточке «о модели». После публикации это единственный способ понять, о какой
-именно версии говорит человек, сообщающий о проблеме, — и одновременно проверка,
-что у него не закэширована старая страница (см. заголовки кэширования в BL-24).
-Значения проставляются на сборке, из `package.json` и git.
-
-**Версии форматов.** Их три, и у каждой своя политика:
-
-* **Описание двигателя** — поле `schema` уже заложено в
-  [проекте формата](10-engine-plugins.md). Нужно дописать правила: мажорная
-  версия несовместима и отвергается с внятным сообщением, минорные поля
-  добавляются с умолчаниями, а загрузчик обязан открывать файлы всех прежних
-  минорных версий своей мажорной. Иначе чужие описания начнут ломаться при
-  каждом обновлении модели.
-* **Состояние в URL** (BL-10) — ссылками делятся, и ссылка годичной давности
-  должна открываться. Значит либо версия в самой ссылке, либо формат, в котором
-  неизвестные параметры молча игнорируются, а недостающие берутся по умолчанию.
-  Второе проще и для этого случая достаточно.
-* **Сохранённые настройки в браузере** — если появятся: их формат меняется чаще
-  всего, и правило простое — при несовпадении версии сбрасывать к умолчаниям,
-  а не пытаться прочитать.
-
-**Что не нужно.** Автоматической генерации версий на каждый коммит, окружений
-и веток «релиз/разработка» проекту такого размера не требуется — это внесёт
-больше суеты, чем пользы. Достаточно тега и записи в журнале в тот момент, когда
-версия готова к показу.
-
-Затрагивает: `package.json`, `CHANGELOG.md`, конфигурацию сборки (проброс версии
-и хэша), `index.html` и `src/main.js` (показ версии), загрузчик описаний из
-BL-23. Документировать в [«Разработке»](08-development.md).
-
-### BL-15. Разбиение бандла и LOD для венцов
-
-Сборка — 637 кБ (166 кБ gzip), почти всё это Three.js; лечится `manualChunks`.
-Отдельно: венцы с мелкими лопатками строятся с максимальной детализацией
-независимо от расстояния — уровни детализации сняли бы часть нагрузки на слабых
-машинах. Обе части нужны, если браться за BL-11.
-
-Затрагивает: конфигурацию Vite, `src/blade.js`, `src/engine.js`.
-
-### BL-16. Автоматический прогон теста звука
-
-Сравнение синтеза с записью сейчас полуручное: файл синтеза рендерится в браузере
-из `OfflineAudioContext`, дальше запускаются скрипты в `test/audio`. Стоит свести
-это в одну команду и зафиксировать пороги расхождения, чтобы правки в
-`src/sound.js` не ломали достигнутое совпадение по спектру незаметно.
-
-Мешает то, что безголовый браузер рендерит сцену программным растеризатором
-примерно с одним кадром в секунду; звуковой граф от этого не зависит, поэтому
-задача решаемая — нужен запуск только аудио, без сцены.
-
-Затрагивает: `test/audio`, скрипты в `package.json`,
-[«Разработка»](08-development.md).
-
-## Что сознательно не в бэклоге
-
-Полноценный газодинамический расчёт, расчёт термодинамического цикла, механика
-лопаток и теплопередача. Модель иллюстративная: она показывает устройство и
-качественное поведение двигателя. Всё перечисленное превратило бы её в
-расчётный инструмент — это другой проект. Подробнее о границе — в
-[«Физике модели», раздел 9](03-physics.md#9-чего-в-модели-нет).
+The point is that an engine "knows" not absolute but corrected speed: at
+altitude the air is colder, so at the same physical speed the corrected speed is
+higher and the compressor works closer to its limit. All the speed dependencies
+already in the model — the `n1²` and `n2^2.5` compression, the station
+temperatures, the velocity profiles — then stay as they are but take corrected
+speed as their input, while thrust and flow are multiplied by the pressure and
+density ratios. The edits come out local, and the behaviour becomes
+qualitatively right: at cruise the speeds are higher, the thrust is about a
+third of the sea-level value, and the temperature behind the compressor is
+lower.
+
+**What to show.** A line of ambient conditions on the panel (altitude, T, P, M),
+regimes on a single button — parked, take-off, climb, cruise — and, if possible,
+a second row in the station table for "sea level / altitude" comparison. That
+also gives meaning to the station table, which at present is always about one
+regime.
+
+**A trimmed version.** If a full recomputation of the characteristics is
+postponed, it makes sense to do only the ambient conditions first: altitude and
+temperature set T, P and density, which are shown on the panel and handed to
+consumers — above all to the contrail computation. That is size M instead of L
+and removes the dependency for BL-21 without touching the internal physics of
+the engine.
+
+Touches: a new atmosphere module (with no dependency on Three.js or the DOM, so
+that it is checked under Node), `src/engineState.js` (corrected speeds),
+`src/main.js` (`STATIONS`, conditions panel), `index.html`. To be documented in
+[Physics of the model](03-physics.md), where altitude and airspeed
+characteristics currently stand as the first item in the section on what the
+model does not have.
+
+Related: BL-21 (contrail) is a direct consumer. BL-02 (limits) — at altitude the
+corrected-speed limit becomes the governing one. BL-03 (surge) — the stability
+margin depends on the corrected parameters.
+
+## Geometry and dimensions
+
+### BL-23. Choosing an engine from a list
+
+At present the model has one engine, and it is wired into the code: the stations
+are the `ST` constants, the blade rows are created by name, the blade and stage
+counts stand as numbers in the calls, the duct tables in `src/airflow.js` are
+literals, and the sound synthesis is tuned to the spectrum of recordings of one
+particular CFM56-7B. The task is to make the engine **selectable**: a drop-down
+list at the top holding several real engines with the aircraft they are fitted
+to, and on switching everything is rebuilt — geometry, flows, sound, mechanics,
+installation on the wing.
+
+The value is not in a variety of pictures but in comparison. The engine of the
+737 and the engine of the A320 solve the same problem and look different, and
+when they can be switched in one click the differences stop being text in a
+reference book: one can see that one has a noticeably larger fan, another a
+round nacelle, and a third a fan turning three times slower than its rotor
+because there is a gearbox between them.
+
+**What has to change on selection:**
+
+* **Geometry** — fan diameter and blade count, the number of booster, HPC, HPT
+  and LPT stages, module lengths and diameters, the shape of the nacelle and the
+  pylon. This is the main part of the work: the engine description has to become
+  data, and `src/engine.js` a builder driven by that data. It currently holds
+  over 1200 lines with dimensions and counts written straight into the calls.
+  Half the job is already done elsewhere: the CFM56-7B reference data lives in
+  [`docs/engines/`](engines/README.md) with citations, and the tests compare the
+  model against it — what is missing is building from it as well.
+* **Mechanics** — the number of shafts and how they are linked. Most engines
+  have two spools, Rolls-Royce has three, and in a geared engine the fan and the
+  low-pressure turbine turn at different speeds. This changes both
+  `src/engineState.js`, which currently has exactly two rotors, and the picture:
+  in a geared engine a planetary gearbox appears between the shaft and the fan,
+  and that is worth showing in its own right.
+* **Flows** — the bypass ratio sets the ratio of the flows and the appearance of
+  the jet; the duct tables should be built from the geometry rather than
+  specified separately.
+* **Sound** — the blade passing frequency is computed from the blade count and
+  the speed, the blade tip tangential speed from the diameter, and the buzz-saw
+  onset from that. When the engine changes, all of this changes by itself,
+  provided it is computed from parameters.
+* **Installation** — ground clearance, the forward offset relative to the wing,
+  the shape of the pylon, the position of the accessories. It is useful to show
+  the outline of the wing and fuselage of the aircraft the engine is fitted to —
+  then it becomes visible why the 737 intake is flattened underneath while the
+  A320 one is round: they have different ground clearance.
+
+**Whom to add.** A sensible set is one representative of each fundamentally
+different architecture rather than ten similar ones: the CFM56 as the classic
+narrow-body engine, the LEAP as its modern replacement, a geared engine
+(PW1100G) for the gearbox and the very large fan, a three-spool Rolls-Royce for
+the third spool and, if there is strength left, something wide-body — there the
+scale is different and there are chevrons on the nozzle. The specific numbers —
+diameters, blade and stage counts, bypass ratio, thrust — must be collected into
+a table with citations; without that the result is not a choice of engines but
+one engine in different sizes.
+
+**An honest caveat about the sound.** The current synthesis is tuned to
+measurements of real CFM56-7B recordings: the envelope over 48 shaft orders was
+taken from a recording and loaded into a `PeriodicWave`. For other engines there
+are no such measurements. The frequencies will recompute themselves, but the
+shape of the spectrum would have to be either taken as a common one with a
+correction for blade count, or measured for each engine by repeating the method
+from [Sound](06-sound.md). The interface should mark what is measured and what
+is taken by analogy.
+
+**Order of work.** The task is large but divides: first parameterisation —
+extract the description of the current engine into data such that the model
+assembles from it and looks exactly as it does now (a step with no visible
+result, but the one that determines success); then a second engine of the same
+architecture — a check that the description is sufficient; then sound from
+parameters; then the gearbox and the third shaft, which break the assumption of
+two rotors.
+
+The format of the description and the design of the loader are worked out
+separately — [Engine description format](10-engine-plugins.md): engines are
+specified by JSON files in `public/engines/`, read at run time, so adding a new
+one requires no rebuild. The same document covers inheritance through `extends`,
+the boundary between data and code, schema validation and the order of
+implementation.
+
+Related: BL-20 (nacelle) becomes a special case — the question "which prototype
+are we on" is settled by picking from a list rather than editing constants, so
+they are worth doing together. BL-19 (dimensions) — comparing sizes acquires
+meaning precisely when switching. BL-22 (teaching layer) — "why does this engine
+have a bigger fan" begs to be explained. BL-15 (LOD) — switching must not
+rebuild the scene with a jolt.
+
+Touches: `src/engine.js` (a builder driven by a description), `src/blade.js`,
+`src/airflow.js`, `src/engineState.js` (shaft count, gearbox), `src/sound.js`
+(frequencies from parameters), `src/main.js` and `index.html` (the list, scene
+rebuild), and all the documentation in `docs/` — it is currently written about
+one engine.
+
+### BL-19. Real dimensions: dimension lines and a figure for scale
+
+The model is built to an honest scale — 1 model unit = 0.50 m, fan Ø 1.549 m —
+but none of that is visible on screen: the engine hangs in a void without a
+single reference, and there is no way to grasp that the fan is as tall as a
+person. The values themselves now exist and are checked against sources (see
+[Dimensions from sources](02-geometry.md#dimensions-from-sources)) — all that is
+missing is showing them.
+
+What to add: a toggleable dimension layer — fan diameter, nacelle outer diameter
+and length, length from the intake lip to the nozzle exit, core diameter — with
+extension lines and captions in metres that turn to face the camera. Plus the
+silhouette of a person beside the engine at the same scale: one figure explains
+the size better than all the captions put together. For a vivid comparison, the
+outline of a Boeing 737 fuselage section in the background, so that it is
+visible that the fan is comparable in diameter to the aisle of the cabin.
+
+In addition — showing the dimensions of the selected module on its card: click
+on the HPC and see not only a description but also its length and diameter in
+metres. The values come from the existing `ST` constants and radii, converted by
+the scale factor.
+
+One further detail that makes the picture honest: a real engine on the 737 hangs
+very low, with less than half a metre of ground clearance. A ground line under
+the model carrying that dimension immediately explains why the nacelle has the
+shape it does, and leads into BL-20.
+
+Touches: `src/engine.js` (dimension constants), `src/main.js` (dimension layer,
+toggle), `index.html` (button, module card). To be documented in
+[Geometry](02-geometry.md).
+
+### BL-20. Nacelle: what is left after the flat bottom
+
+**The main part is already done.** The nacelle has stopped being a surface of
+revolution: `flattenBelly()` trims the bottom of each section with a smooth
+minimum by `BELLY` = 0.32 units, the cowl profile is split into an outer skin
+and an inner gas path (flattened differently: outside, flat from the lip to the
+fan cowls; inside, only near the lip, otherwise it would shave the blade tips
+off), and the normals are welded at the 0 / 2π joint. The accessories have moved
+from six o'clock to the side by a 62° rotation of the group, together with the
+picking proxy, the label and the explode vector — without which the flat bottom
+would contradict the layout. Details are in [Geometry](02-geometry.md).
+
+**The dimensions are taken from sources.** The nacelle outer diameter, its
+lengths to the nozzle exits, the depth of the flattening, the fan blade diameter
+and chord, and the length, height and width of the bare engine are no longer
+chosen by proportion: they are written out in
+[`docs/engines/cfm56-7b-nacelle.json`](engines/cfm56-7b-nacelle.json) with
+citations to Boeing ACAP, EASA TCDS and the NTSB, and carried into the model.
+The comparison is run by `test/geometry.test.mjs` (dimensions against that same
+JSON) and `test/clearance.test.mjs` (rows do not intersect, accessories do not
+pierce the skin). Details and consequences are in
+[Geometry](02-geometry.md#dimensions-from-sources).
+
+Three things remain, and the first of them is not decoration but a visible
+defect.
+
+* **The flow path does not know about the flat bottom.** The duct boundaries in
+  `src/airflow.js` are given by tables of "axial coordinate → radius", that is,
+  they are axisymmetric. The nacelle is cut away underneath while the duct is
+  not, so right at the lip the bypass particles poke out through the barrel. The
+  cure is either the same flattening profile applied to the boundary radius as a
+  function of circumferential angle, or constraining the particles by the shape
+  of the barrel. The first is more honest and also prepares the ground for
+  asymmetric nacelles generally.
+* **Structural breakdown.** The intake barrel, the fan cowls opening upwards on
+  latches, the core cowl, the fan nozzle — with visible split lines. Separately,
+  the acoustic panels on the inner surface of the intake: their perforated
+  surface reads well and explains why the finish there is what it is.
+* **A pylon matching the prototype.** At present it is a flat extruded shape
+  (`pylonShape` in `src/engine.js`). On the 737 the engine is carried ahead of
+  the wing and slung in a characteristic way — the shape is recognisable and
+  worth building.
+
+**The prototype is no longer mixed.** The nacelle and engine dimensions, the fan
+blade count and the layout — 3 booster stages, 9 HPC, 1 HPT, 4 LPT — are all
+from the CFM56-7B. The earlier 10 / 2 / 5 came from the LEAP-1B and, packed into
+the published length of 2.508 m, produced an unnaturally tight stage pitch;
+after the alignment to the prototype the pitch became natural and the blade
+chords returned to real values. Checked in `test/geometry.test.mjs`. For the
+nacelle the difference is substantial: on the MAX it is larger and carried
+forward differently. If BL-23 is done, the question dissolves into it — the
+prototype becomes a choice from a list and the nacelle a part of the engine
+description, including the depth of the flattening and the rotation angle of the
+accessories. Then it is sensible to run both tasks together.
+
+Related: with BL-05 (thrust reverser) — the doors live in the bypass cowls, so
+the structural breakdown should be designed with them in mind from the start.
+With BL-19 — dimension lines only become meaningful once the dimensions are
+taken from sources.
+
+Touches: `src/airflow.js` (duct boundaries), `src/engine.js` (structural
+breakdown, pylon, dimensions). To be documented in [Geometry](02-geometry.md)
+and [Airflow](04-airflow.md).
+
+## Interface and visualisation
+
+### BL-07. Section by an arbitrary plane
+
+At present only a sector around the axis is cut out. A section plane with
+controllable position and tilt (through `clippingPlanes` in Three.js) would
+allow looking at the engine in cross-section — for instance, showing the annular
+combustor with its twenty fuel nozzles end-on.
+
+Touches: `src/main.js`, the materials in `src/engine.js`.
+
+### BL-08. Occlusion-aware labels
+
+Labels of internal modules show through the nacelle, which makes it unclear what
+is where. What is needed is a visibility check of the label anchor point — by
+ray or against the depth buffer — and dimming of occluded labels. A small change
+with a noticeable effect, hence P1.
+
+Touches: `src/main.js`, `src/engine.js` (label positions).
+
+### BL-09. Camera presets and a tour of the gas path
+
+A set of named viewpoints — fan, combustor, turbine, nozzle — with smooth
+flights between them. From these an automatic tour can then be assembled: the
+camera travels along the gas path from the intake to the nozzle, showing the
+module card at each station. This turns the model from "drag it with the mouse"
+into a ready-made narrative.
+
+### BL-10. Model state in the URL
+
+Viewpoint, operating regime, cutaway state and toggles — into the query string,
+so that a particular view can be passed on as a link. Cheap and convenient when
+demonstrating.
+
+### BL-11. Responsive layout and touch control
+
+The panel is designed for a wide screen and there are no gestures. What is
+needed is a compact layout, collapsible sections and a sensible response to
+touch. While at it, check that the scene runs at all on a mobile GPU — at 758
+thousand triangles that is not obvious, and here the task joins up with BL-15.
+
+### BL-12. Russian localisation
+
+All the terminology is now English. The strings from `index.html` and the
+modules would have to be moved into a dictionary and a language switch added.
+The size is mostly determined by the fact that the module labels and cards live
+in the code. The repository was originally written in Russian, so the wording
+for the second language already exists in the git history.
+
+## Teaching layer
+
+### BL-22. Explanations from simple to formulas
+
+The model shows **what** happens but hardly explains **why**. The module cards
+give a paragraph of description each, the documentation in `docs/` covers the
+physics in detail — but these are two different worlds: the picture is on
+screen, the explanation in a separate file, and the reader has to bridge them.
+The task is to put the explanation inside the model and make it **layered**.
+
+**Three levels of disclosure.** The same phenomenon is explained three times,
+and the next level opens only on request:
+
+1. **In plain words** — two or three sentences in everyday language, without a
+   single term and without formulas. "An aircraft leaves a white band behind it
+   because there is water vapour in the exhaust: at altitude it is very cold,
+   and the vapour freezes into tiny ice crystals — a cloud that the engine makes
+   itself."
+2. **The mechanism** — what is connected to what and which quantities affect it,
+   with a reference to what is visible on screen right now: why the trail does
+   not begin right at the nozzle, why on one day it lingers for hours and on
+   another melts within seconds, what the threshold depends on.
+3. **The physics** — formulas, laws and limits of validity: the
+   Schmidt — Appleman criterion, the mixing line, ice supersaturation, and along
+   with them the honest caveat about what exactly is computed in the model and
+   what is given by a table.
+
+The point is that one and the same screen serves both the person who just wants
+to look at a handsome engine and the one who wants to get down to the equations.
+Nobody sees more than they want, but the depth is one or two clicks away. The
+chosen level should be remembered: someone who once opened the third should be
+shown the third from then on.
+
+**Tied to live numbers.** The main difference from an article is that the
+explanation substitutes the current state of the model: "right now it is 28 bar
+and 600 °C behind the compressor — nearly thirty times atmospheric pressure, and
+all that air was compressed by the blades you can see". When the regime changes,
+the numbers in the text change. That way the explanation stops being an
+illustration to the picture and becomes its continuation.
+
+**Teaching through the controls.** An explanation may ask for something to be
+done and highlight the relevant control: "pull the throttle back and watch the
+operating point move away from the stability boundary", "climb to 10 km — a
+trail will appear". The user does not read about the phenomenon but causes it.
+That is precisely what distinguishes interactive material from text.
+
+**First-tier phenomena:**
+
+* **How a turbofan works at all** — compress, burn, expand; almost all the
+  thrust comes from the fan, and the core exists to turn it. The base
+  explanation the others hang off.
+* **The contrail** (BL-21) — from "the vapour freezes" to the formation
+  criterion and the difference between a vanishing and a persistent trail.
+* **Surge** (BL-03) — from "the compressor choked and the air went backwards"
+  through flow separation on the blades to the stability boundary and the
+  compressor map.
+* **Why bypass** — why it pays to accelerate a lot of air a little rather than a
+  little air a lot.
+* **Why the turbine does not melt** — the gas is hotter than the melting point
+  of its alloy (joins up with BL-04, bleed air for cooling).
+* **What happens during a start** — why a starter is needed, where the order
+  "crank → fuel → light-off" comes from (joins up with BL-17 and BL-01).
+* **Where the engine sound comes from** — the fan whine and the jet roar as
+  sources of different natures.
+
+**How to store the texts.** Not in the markup and not in the rendering code, but
+as a separate data module: phenomenon → three levels → which model quantities it
+is tied to → which section of `docs/` the third level refers to. Otherwise the
+explanations and the documentation will inevitably drift apart. The third level
+should refer to a document rather than retell it: the physics is already written
+in `03-physics.md`, and duplicating it is harmful.
+
+**A comprehension check** — optional and ungraded: a "what would happen if…"
+question with the option of checking the answer on the model itself. A cheap
+addition that turns viewing into a lesson.
+
+The size L comes from the volume of text, but the task divides by phenomenon:
+the disclosure mechanism plus the first phenomenon is an M, after which each
+further one is added independently. It is sensible to start with "how an engine
+works", because the other explanations rest on it.
+
+Touches: a new module with the texts and their bindings, `src/main.js`
+(explanation panel, value substitution, control highlighting), `index.html`,
+`src/style.css`. To be documented in [User interface](07-ui.md).
+
+Related: BL-21 and BL-03 are the first candidates for treatment, and both are
+conceived so that there is something to explain. BL-18 (the journey of a
+particle) is a natural carrier of explanations: the card travelling with the
+particle is already a first level. BL-09 (tour of the gas path) — a shared
+mechanism for highlighting and guiding through a scenario. BL-12 (localisation)
+— texts gathered into a single module simplify it greatly.
+
+## Sound
+
+### BL-13. Sound absorption in air with distance
+
+The attenuation with distance is linear and absorption is not modelled — so as
+the camera pulls away the sound stays bright in the 2…4 kHz band, whereas in
+recordings it is noticeably quieter there. A lowpass filter whose cut-off falls
+with distance would be enough. A cheap change that appreciably improves realism
+at a distance.
+
+Touches: `src/sound.js`, the "Space" section in [Sound](06-sound.md).
+
+### BL-14. Separating fan and jet in space
+
+At present the whole sound comes from one point — the centre of the engine. In
+reality the fan tones are heard from the front and the jet noise from behind,
+and that is noticeable as the camera orbits. Two emission points with separate
+panning and directivity are needed.
+
+## Performance and infrastructure
+
+### BL-24. Publishing on Vercel
+
+The model currently lives only on the developer's machine: `npm run dev` brings
+up a server on `0.0.0.0`, and it can be shown to exactly those on the same
+network. Yet this is precisely the sort of project one wants to open with a link
+— no installation, no explanations. Publishing costs one evening and gives
+meaning to everything else in this backlog: the work becomes visible.
+
+Technically everything is ready for static hosting. There is no backend, no
+environment variables and no external assets at all — no models, no textures, no
+sound files; all geometry is built in code and the sound is synthesised. `npm
+run build` produces a self-contained `dist/` that only needs serving.
+
+What to do:
+
+* **Connect the repository**, specifying the Vite preset, the `npm run build`
+  command and the `dist` directory. Branches then get preview builds — handy for
+  showing unfinished work by link without touching the main one.
+* **Cache headers** through `vercel.json`: hashed assets — long-lived and
+  immutable, `index.html` — no cache, otherwise people will keep seeing the old
+  version for a week after an update. This matters separately for BL-23: the
+  engine descriptions in `public/engines/` must be cached briefly, otherwise a
+  new engine will not appear for anyone who has already visited.
+* **A link preview card** — title, description and preview image, so that a link
+  sent into a messenger looks like an engine model rather than a bare address. A
+  static screenshot will do.
+* **Check that only our own work is published.** `test/audio` holds recordings
+  from Freesound under free licences, downloaded by a script; they do not go
+  into the repository (`.gitignore` excludes `*.mp3` and `*.wav`) and do not go
+  into the build either. This is worth confirming before publishing, and the
+  README should state the origin of the recordings and their licence — they were
+  used to tune the sound, and it is honest to say so.
+
+What to check after publishing: the transfer size (the 661 kB bundle compresses
+to about 175 kB, which is acceptable, though BL-15 would improve it), behaviour
+on a phone — almost certainly surfacing what BL-11 describes — and that the
+sound does not try to start before the screen is touched.
+
+A separate caveat about BL-23. The idea of "dropping in an engine file without a
+rebuild" works differently on static hosting: there is no live filesystem there,
+and a new file appears through a commit and a deploy. In essence it is the same
+thing — editing one file without building anything by hand — but "put a file in
+a directory on the server" will not work. What remains is opening a description
+from disk: that works in the published version and needs no deploy at all.
+
+Touches: `vercel.json`, `index.html` (card metadata), `README.md` (a link to the
+live version and the licences of the recordings). To be documented in
+[Development](08-development.md).
+
+### BL-25. Code obfuscation in the published build
+
+With publication (BL-24) the sources travel into other people's browsers. The
+value of the project is not in the panel markup but in the procedural blade
+generator, the gas path layout and the sound synthesis tuned by spectral
+analysis of real recordings; after the build all of that sits in one file that
+opens under the "sources" tab. The task is to make analysing that code cost
+noticeable effort.
+
+**Build hygiene first.** Do not publish source maps (`build.sourcemap` must be
+off — with them obfuscation is pointless) and look at what actually survives the
+current minification: local variable names are shortened, but the module
+structure, the export names and all comments inside template strings are
+preserved. Even at that step it is worth measuring how readable the result is —
+possibly there is no need to go further.
+
+**Then obfuscation proper** — a build step on top of the bundle
+(`javascript-obfuscator` and its Rollup wrappers): renaming, gathering strings
+into a table decoded on the fly, flattening control flow into a dispatcher,
+inserting dead code. The important thing here is not to overdo it: the last two
+techniques cause most of the slowdown, and this project has a frame loop that
+recomputes the positions of nine thousand particles every frame. A sensible
+configuration is to process the geometry construction and the sound synthesis
+aggressively, `src/airflow.js` and the loop in `src/main.js` cautiously, and to
+measure the frame rate before and after rather than trusting a feeling.
+
+**What obfuscation does not give — say it plainly.** Code executing in a browser
+is always available: it can be read in the debugger, the finished geometry can
+be taken off a running scene through WebGL, the sound graph parameters can be
+pulled out of Web Audio. Shaders (`ShaderMaterial` in `src/airflow.js` and
+`src/engine.js`) go to the GPU as strings and stay readable in any case. The
+engine descriptions from BL-23 are data, and they are open by design.
+Obfuscation raises the barrier to entry but does not make copying impossible;
+expecting more from it is a mistake.
+
+**What solves the problem better, if the goal is attribution.** There is
+currently no licence file in the repository, although `package.json` says ISC.
+An explicit licence, an attribution line in the interface and a statement of the
+origin of the recordings used do more to protect the work than scrambled
+variable names, and cost half an hour. That is worth doing in any case —
+regardless of whether obfuscation happens.
+
+**The cost.** The built file grows — noticeably so at aggressive settings, which
+runs counter to BL-15, where the size is reduced instead. Debugging the
+published build becomes nearly impossible, so a build mode without obfuscation
+is needed for investigating problems users report. And the tests: they run the
+sources directly (`test/engine-state.test.mjs` imports `src/engineState.js`) and
+never see the obfuscation — so once it is enabled a separate check is needed
+that the built version really works rather than merely builds.
+
+**The priority decision.** P3 deliberately: the task adds nothing for anyone
+looking at the engine and conflicts with the spirit of the rest of the backlog —
+BL-22 makes the model a teaching tool and the description format open. If the
+goal is not to give the work away, it is sensible to first answer what exactly
+is being protected: the layout and the physics are described in detail in
+`docs/` and are open by design, so what remains to close is the implementation.
+
+Touches: the build configuration (`vite.config.js`), `package.json` (the build
+step and a mode without obfuscation), `LICENSE`, `README.md`. To be documented
+in [Development](08-development.md).
+
+### BL-26. Versioning: releases, formats, compatibility
+
+The project has no version at present. `package.json` has said `1.0.0` from the
+start, there is not a single tag in the repository, and the history is a run of
+commits with no marks showing where one finished version ended and the next
+began. While the model lived on one machine this bothered nobody. With
+publication (BL-24) and engine descriptions as files (BL-23), three things
+appear at once that need versioning, and they differ in nature.
+
+**The version of the project itself.** An ordinary semantic number, a tag in the
+repository and a `CHANGELOG.md`. There is plenty to fill it with: the commits
+here are written at length, with the reasoning explained, so a change log
+assembles from them with almost no extra writing. A guide to what counts as
+what: major — incompatibility of formats (engine descriptions, saved state);
+minor — a new assembly, regime or layer; patch — fixes and text edits.
+
+A subtlety particular to this project: **changing a physical coefficient is not
+a patch**. Change the rundown time constant or a coefficient behind the turbine
+and the model starts showing different numbers for the same actions, and those
+numbers are cited by the documentation and, after BL-22, by the teaching
+explanations. Such edits must go into the change log as a separate line,
+otherwise the divergence between text and model will be discovered by accident
+and late.
+
+**The version in the interface.** A version number and a short build hash in the
+corner of the panel or on an "about this model" card. After publication this is
+the only way to tell which version someone reporting a problem is talking about
+— and at the same time a check that they do not have an old page cached (see the
+cache headers in BL-24). The values are stamped at build time, from
+`package.json` and git.
+
+**Format versions.** There are three, each with its own policy:
+
+* **The engine description** — the `schema` field is already provided for in the
+  [format design](10-engine-plugins.md). The rules need writing down: a major
+  version is incompatible and rejected with a clear message, minor fields are
+  added with defaults, and the loader must open files of all earlier minor
+  versions of its own major version. Otherwise other people's descriptions will
+  start breaking with every update of the model.
+* **State in the URL** (BL-10) — links get shared, and a year-old link should
+  still open. So either a version in the link itself, or a format in which
+  unknown parameters are silently ignored and missing ones take their defaults.
+  The second is simpler and sufficient here.
+* **Settings saved in the browser** — should any appear: their format changes
+  most often, and the rule is simple — on a version mismatch, reset to defaults
+  rather than trying to read them.
+
+**What is not needed.** Automatic version generation on every commit,
+environments and release/development branches are not required by a project this
+size — they would bring more fuss than benefit. A tag and a log entry at the
+moment a version is ready to be shown are enough.
+
+Touches: `package.json`, `CHANGELOG.md`, the build configuration (passing the
+version and hash through), `index.html` and `src/main.js` (showing the version),
+the description loader from BL-23. To be documented in
+[Development](08-development.md).
+
+### BL-15. Bundle splitting and LOD for blade rows
+
+The build is 661 kB (175 kB gzip), almost all of it Three.js; the cure is
+`manualChunks`. Separately: rows with small blades are built at maximum detail
+regardless of distance — levels of detail would take some of the load off weaker
+machines. Both parts are needed if BL-11 is taken on.
+
+Touches: the Vite configuration, `src/blade.js`, `src/engine.js`.
+
+### BL-16. Automated run of the sound test
+
+Comparing the synthesis against a recording is currently semi-manual: the
+synthesis file is rendered in the browser from an `OfflineAudioContext`, then
+the scripts in `test/audio` are run. This should be brought together into one
+command with fixed mismatch thresholds, so that edits to `src/sound.js` do not
+silently break the spectral agreement already achieved.
+
+What stands in the way is that a headless browser renders the scene on a
+software rasteriser at about one frame per second; the sound graph does not
+depend on that, so the task is solvable — what is needed is a run of the audio
+alone, without the scene.
+
+Touches: `test/audio`, the scripts in `package.json`,
+[Development](08-development.md).
+
+## What is deliberately not in the backlog
+
+A full gas-dynamic computation, a thermodynamic cycle calculation, blade
+mechanics and heat transfer. The model is illustrative: it shows the
+architecture and the qualitative behaviour of an engine. All of the above would
+turn it into a calculation tool — that is a different project. More on the
+boundary in
+["Physics of the model", section 9](03-physics.md#9-what-the-model-does-not-have).

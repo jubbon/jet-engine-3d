@@ -1,28 +1,28 @@
-# Справочники по конкретным двигателям
+# Reference data on specific engines
 
-Каталог для машиночитаемых данных по реальным двигателям и их силовым установкам,
-на которые опирается модель. Формат — JSON, одно изделие (или узел изделия) на файл.
+A directory for machine-readable data on real engines and their propulsion
+installations, on which the model relies. The format is JSON, one product (or
+one assembly of a product) per file.
 
-| Файл | О чём | Основные источники |
+| File | About | Main sources |
 |---|---|---|
-| [`cfm56-7b-nacelle.json`](cfm56-7b-nacelle.json) | Мотогондола CFM56-7B (Boeing 737NG): габариты, состав, установка на самолёт | Boeing ACAP D6-58325-7, EASA TCDS E.004, NTSB AAR-19/03 |
+| [`cfm56-7b-nacelle.json`](cfm56-7b-nacelle.json) | CFM56-7B nacelle (Boeing 737NG): dimensions, composition, installation on the aircraft | Boeing ACAP D6-58325-7, EASA TCDS E.004, NTSB AAR-19/03 |
 
-## Соглашения по формату
+## Format conventions
 
-Каждое числовое значение — объект, а не «голое» число:
+Every numeric value is an object, not a bare number:
 
 ```json
 { "value": 2.44, "unit": "m", "original": "APPROX 8 FT",
   "source": "boeing_acap_ng_revc", "confidence": "documented" }
 ```
 
-- `source` — ключ из раздела `sources` того же файла (название, издатель, дата, URL).
+- `source` — a key from the `sources` section of the same file (title, publisher, date, URL).
 - `confidence`:
-  - `documented` — значение прямо напечатано в источнике;
-  - `derived` — получено расчётом или обмером; метод описан в `measurement_method`;
-  - `derived_low` — то же, но с существенной неопределённостью (перекрытые контуры, схематичность чертежа).
-- `original` — величина в единицах источника (футы/дюймы/фунты), чтобы не терять первоисточник при пересчёте.
-- Раздел `not_published` перечисляет размеры, которых в открытых источниках нет — чтобы
-  не искать их повторно.
+  - `documented` — the value is printed directly in the source;
+  - `derived` — obtained by calculation or measurement; the method is described in `measurement_method`;
+  - `derived_low` — the same, but with substantial uncertainty (obscured outlines, schematic drawings).
+- `original` — the value in the units of the source (feet/inches/pounds), so that the primary figure is not lost in conversion.
+- The `not_published` section lists dimensions that are absent from open sources — so that nobody searches for them twice.
 
-Прототип модели — CFM56-7B, см. [`../02-geometry.md`](../02-geometry.md) и [`../06-sound.md`](../06-sound.md).
+The prototype of the model is the CFM56-7B, see [`../02-geometry.md`](../02-geometry.md) and [`../06-sound.md`](../06-sound.md).

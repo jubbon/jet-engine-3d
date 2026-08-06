@@ -1,48 +1,49 @@
-# 10. Формат описания двигателя
+# 10. Engine description format
 
-> **Статус: предложение.** Ничего из описанного здесь ещё не реализовано.
-> Документ — проект формата и загрузчика для задачи
-> [BL-23 «Выбор двигателя из списка»](09-backlog.md); он же определяет, как
-> двигатель перестаёт быть вшитым в код.
+> **Status: proposal.** Nothing described here has been implemented yet. This
+> document is a design for the format and the loader for task
+> [BL-23 "Choose an engine from a list"](09-backlog.md); it also defines how the
+> engine stops being wired into the code.
 
-Цель простая: **добавить двигатель — значит положить JSON-файл**. Без правки
-исходников, без пересборки, без знания внутреннего устройства модели. Всё, что
-отличает один двигатель от другого, описывается данными; код умеет строить по
-этим данным геометрию, потоки, звук и режимы.
+The goal is simple: **adding an engine should mean dropping in a JSON file**.
+No source edits, no rebuild, no knowledge of the internals of the model.
+Everything that distinguishes one engine from another is described by data; the
+code knows how to build geometry, flows, sound and regimes from that data.
 
-## Что сейчас мешает
+## What stands in the way today
 
-Двигатель размазан по пяти модулям в виде констант и литералов:
+The engine is smeared across five modules as constants and literals:
 
-| Где | Что вшито |
+| Where | What is wired in |
 |---|---|
-| `src/engine.js` | Станции `ST` в условных единицах, радиусы, число ступеней и лопаток — цифрами прямо в вызовах |
-| `src/blade.js` | Параметры генератора лопаток на каждый венец |
-| `src/airflow.js` | Границы каналов, профили скоростей, закрутки и температур — литеральные таблицы |
-| `src/engineState.js` | Ровно два ротора, малый газ, пороги запуска, постоянные времени |
-| `src/sound.js` | Блок `CFM` (24 лопатки, 5175 и 14460 об/мин, Ø 1.55 м) и измеренная огибающая `BUZZSAW` |
-| `src/main.js` | Таблица `STATIONS` с коэффициентами температур и давлений |
+| `src/engine.js` | The `ST` stations in model units, radii, stage and blade counts — as numbers right in the calls |
+| `src/blade.js` | Blade generator parameters for every row |
+| `src/airflow.js` | Duct boundaries, velocity, swirl and temperature profiles — literal tables |
+| `src/engineState.js` | Exactly two rotors, idle, start thresholds, time constants |
+| `src/sound.js` | The `CFM` block (24 blades, 5175 and 14460 rpm, Ø 1.55 m) and the measured `BUZZSAW` envelope |
+| `src/main.js` | The `STATIONS` table with the temperature and pressure coefficients |
 
-Ни одно из этих мест не является «настройкой» — всё это описание конкретного
-двигателя, разложенное по тем модулям, которым оно понадобилось.
+None of these places is a "setting" — all of it is the description of one
+particular engine, scattered across whichever modules happened to need it.
 
-## Где живут файлы
+## Where the files live
 
-Каталог `public/engines/`. Vite копирует `public/` в сборку **как есть**, не
-пропуская через бандлер, — значит файлы читаются во время работы, а не во время
-сборки, и это ровно то, что нужно: в готовый `dist/engines/` можно докинуть
-файл на работающем сервере, и новый двигатель появится после перезагрузки
-страницы.
+The `public/engines/` directory. Vite copies `public/` into the build **as is**,
+without passing it through the bundler — which means the files are read at run
+time rather than at build time, and that is exactly what is needed: a file can
+be dropped into a deployed `dist/engines/` on a running server, and the new
+engine appears after a page reload.
 
 ```
 public/engines/
-  index.json          манифест: что вообще есть
+  index.json          manifest: what exists at all
   cfm56-7b.json
   leap-1b.json
   pw1100g.json
 ```
 
-Манифест нужен потому, что браузер не умеет читать содержимое каталога:
+The manifest is needed because a browser cannot read the contents of a
+directory:
 
 ```json
 {
@@ -56,34 +57,34 @@ public/engines/
 }
 ```
 
-Загрузчик читает манифест на старте, наполняет выпадающий список и подтягивает
-сам файл двигателя только при выборе — описания небольшие, но грузить пять
-файлов ради одного смысла нет.
+The loader reads the manifest at start-up, fills the drop-down list and fetches
+the engine file itself only when one is selected — the descriptions are small,
+but there is no point loading five files for the sake of one.
 
-Отдельно — **загрузка своего файла с диска**: кнопка «открыть описание» или
-перетаскивание файла в окно. Это работает даже там, где нет доступа к серверу,
-и превращает формат в площадку для экспериментов: поменял диаметр вентилятора в
-текстовом редакторе, перетащил файл, увидел результат.
+Separately there is **loading your own file from disk**: an "open description"
+button or dragging a file into the window. This works even where there is no
+access to the server, and turns the format into a playground: change the fan
+diameter in a text editor, drag the file in, see the result.
 
-## Единицы и начало координат
+## Units and origin
 
-Внутри модели всё живёт в условных единицах (1 у.е. = 0.50 м) и в координатах,
-где ноль стоит где-то в районе камеры сгорания. Требовать этого от автора файла
-нельзя, поэтому:
+Inside the model everything lives in model units (1 unit = 0.50 m) and in
+coordinates whose zero sits somewhere near the combustor. Demanding that of the
+author of a file is out of the question, so:
 
-* **все размеры в файле — в метрах**, температуры в °C, обороты в об/мин, тяга
-  в кН, расходы в кг/с;
-* **ноль по оси — плоскость вентилятора**, назад положительно. Это единственная
-  точка, которую видно на любом чертеже и фотографии.
+* **all dimensions in the file are in metres**, temperatures in °C, speeds in
+  rpm, thrust in kN, flows in kg/s;
+* **the axial zero is the fan plane**, positive aft. That is the one point
+  visible on any drawing and any photograph.
 
-Пересчёт в условные единицы и сдвиг начала координат делает загрузчик. Если
-завтра масштаб модели изменится, файлы останутся прежними.
+Conversion into model units and the shift of origin are done by the loader. If
+the scale of the model changes tomorrow, the files stay as they are.
 
-## Наследование
+## Inheritance
 
-Полное описание двигателя — это полторы сотни строк, и требовать их от того,
-кто хочет добавить родственную модификацию, незачем. Поэтому в формате есть
-`extends` и глубокое слияние:
+A full engine description is about a hundred and fifty lines, and there is no
+reason to demand all of them from someone who wants to add a related variant.
+The format therefore has `extends` and deep merging:
 
 ```json
 {
@@ -95,10 +96,10 @@ public/engines/
 }
 ```
 
-Базой обычно служит ближайший родственник. Циклы в `extends` загрузчик обязан
-ловить и отвергать.
+The base is usually the nearest relative. Cycles in `extends` must be caught and
+rejected by the loader.
 
-## Структура описания
+## Structure of a description
 
 ```json
 {
@@ -110,7 +111,7 @@ public/engines/
     "manufacturer": "CFM International",
     "aircraft": ["Boeing 737NG"],
     "confidence": "reference",
-    "sources": ["…ссылка на справочные данные…"]
+    "sources": ["…link to the reference data…"]
   },
 
   "fan": {
@@ -165,7 +166,7 @@ public/engines/
 
   "sound": {
     "source": "measured",
-    "buzzsawOrders": [0.123, 0.209, "…48 значений…"],
+    "buzzsawOrders": [0.123, 0.209, "…48 values…"],
     "buzzsawOnsetMach": 0.70
   },
 
@@ -173,104 +174,110 @@ public/engines/
 }
 ```
 
-Разделы независимы: `sound` можно опустить целиком и получить звук, посчитанный
-от геометрии по общей методике, а `install` нужен только чтобы показать
-двигатель на своём месте под крылом.
+The sections are independent: `sound` can be omitted entirely, giving a sound
+computed from the geometry by the general method, and `install` is needed only
+to show the engine in its place under the wing.
 
-Пары в `tau` — постоянные времени роторов НД и ВД по этапам; они уже разделены
-именно так в `src/engineState.js`. Флаги в `features` тоже не выдуманы: плоский
-низ гондолы и вынесенные на бок агрегаты в коде есть (`BELLY` и `AGB_TILT` в
-`src/engine.js`), и при параметризации им останется получить величину из файла
-вместо константы.
+The pairs in `tau` are the time constants of the LP and HP rotors by phase; they
+are already split exactly that way in `src/engineState.js`. The flags in
+`features` are not invented either: the flat nacelle bottom and the accessories
+moved to the side already exist in the code (`BELLY` and `AGB_TILT` in
+`src/engine.js`), and once parameterised they will simply take their value from
+the file instead of from a constant.
 
-Числа в примере иллюстративные — часть из них взята из нынешнего кода
-(обороты, число лопаток, диаметр вентилятора, постоянные времени), остальные
-проставлены по порядку величины и подлежат сверке с источниками при заполнении
-настоящего файла. Именно для этого в `meta` есть `sources` и `confidence` со значениями
-`measured` (снято с записей или чертежей), `reference` (из справочных данных со
-ссылкой) и `estimated` (оценка по аналогии) — последнее должно быть видно и в
-интерфейсе, чтобы прикидка не выдавалась за факт.
+The numbers in the example are illustrative — some are taken from the current
+code (speeds, blade count, fan diameter, time constants), the rest are set to
+the right order of magnitude and are subject to checking against sources when a
+real file is filled in. That is exactly what `sources` and `confidence` are for
+in `meta`, with the values `measured` (taken from recordings or drawings),
+`reference` (from reference data with a citation) and `estimated` (an estimate
+by analogy) — the last of these must be visible in the interface too, so that a
+guess is not passed off as fact.
 
-## Что считает загрузчик, а что берётся из файла
+## What the loader computes and what comes from the file
 
-Правило: **в файле только то, что есть в справочниках**; всё, что из этого
-выводится, выводит код. Иначе файлы начнут противоречить сами себе.
+The rule: **the file holds only what appears in reference sources**; everything
+derivable from that is derived by the code. Otherwise the files start
+contradicting themselves.
 
-| Величина | Откуда |
+| Quantity | Where from |
 |---|---|
-| Частота следования лопаток | `fan.blades` × обороты НД |
-| Окружная скорость конца лопатки | π × `fan.diameterM` × обороты |
-| Порог появления buzz-saw | из окружной скорости, а не из файла |
-| Границы каналов для частиц | из радиусов модулей и мотогондолы |
-| Доля частиц в наружном контуре | из `performance.bypassRatio` |
-| Станции температур и давлений | из `overallPressureRatio` и `t4MaxC` |
-| Условные единицы и сдвиг координат | пересчётом из метров |
+| Blade passing frequency | `fan.blades` × LP speed |
+| Blade tip tangential speed | π × `fan.diameterM` × speed |
+| Buzz-saw onset threshold | from the tangential speed, not from the file |
+| Duct boundaries for the particles | from the module and nacelle radii |
+| Fraction of particles in the bypass duct | from `performance.bypassRatio` |
+| Temperature and pressure stations | from `overallPressureRatio` and `t4MaxC` |
+| Model units and coordinate shift | by conversion from metres |
 
-## Что в файл не попадает никогда
+## What never goes into a file
 
-**Исполняемый код.** Никаких выражений, формул строкой, ссылок на скрипты.
-Причины две: описание может прийти из чужих рук — перетащенный в окно файл не
-должен уметь ничего, кроме как задать числа; и предсказуемость — данные можно
-проверить схемой, произвольный код проверить нельзя.
+**Executable code.** No expressions, no formulas as strings, no references to
+scripts. There are two reasons: a description may come from someone else's hands
+— a file dragged into the window must be able to do nothing but supply numbers;
+and predictability — data can be validated by a schema, arbitrary code cannot.
 
-Отсюда следствие: если двигатель требует **новой геометрии**, которой строитель
-пока не умеет — шевроны на сопле, редуктор, третий каскад, — это не решается
-файлом. Такие вещи включаются флагами в `features`, за каждым из которых стоит
-написанный в коде строитель. Файл выбирает из существующего набора, а не
-приносит своё. Список поддерживаемых флагов — часть схемы, и неизвестный флаг
-должен давать внятное предупреждение, а не молчаливое игнорирование.
+Hence a corollary: if an engine requires **new geometry** that the builder does
+not yet know how to make — chevrons on the nozzle, a gearbox, a third spool —
+that cannot be solved by a file. Such things are enabled by flags in `features`,
+each backed by a builder written in code. The file chooses from an existing set
+rather than bringing its own. The list of supported flags is part of the schema,
+and an unknown flag must produce a clear warning rather than being silently
+ignored.
 
-Граница проходит там же, где и в остальной модели: `src/blade.js` — процедура
-построения лопатки, а не таблица точек, и параметризуется она числами, а не
-подменяется.
+The boundary runs where it does everywhere else in the model: `src/blade.js` is
+a procedure for building a blade, not a table of points, and it is parameterised
+by numbers rather than replaced.
 
-## Проверка файлов
+## Validating the files
 
-Схема лежит рядом с описаниями (`public/engines/schema.json`) и используется
-дважды: загрузчиком в браузере и тестом в Node, который прогоняет через неё все
-файлы каталога. Тогда `npm test` ловит опечатку в описании до того, как она
-превратится в двигатель без турбины.
+The schema lives next to the descriptions (`public/engines/schema.json`) and is
+used twice: by the loader in the browser and by a test in Node that runs every
+file in the directory through it. Then `npm test` catches a typo in a
+description before it turns into an engine without a turbine.
 
-Требования к поведению загрузчика:
+Requirements on loader behaviour:
 
-* обязательных полей — минимум; всё остальное имеет разумные умолчания, чтобы
-  черновое описание уже что-то показывало;
-* при ошибке — понятное сообщение с указанием поля и **остаёмся на текущем
-  двигателе**; сцена не должна разваливаться из-за чужого файла;
-* физически бессмысленные значения (ноль лопаток, отрицательный диаметр,
-  станции в перепутанном порядке) отвергаются наравне с ошибками формата;
-* `schema` с неизвестной мажорной версией — отказ с объяснением, а не попытка
-  прочитать как получится.
+* as few mandatory fields as possible; everything else has sensible defaults, so
+  that a draft description already shows something;
+* on error — a clear message naming the field, and **stay on the current
+  engine**; the scene must not fall apart because of someone else's file;
+* physically meaningless values (zero blades, a negative diameter, stations in
+  the wrong order) are rejected on the same footing as format errors;
+* a `schema` with an unknown major version — refusal with an explanation, not an
+  attempt to read it as best one can.
 
-## Переключение на ходу
+## Switching on the fly
 
-Смена двигателя — это пересборка сцены, и здесь есть что не забыть: освободить
-геометрии и материалы прежнего двигателя (иначе память утечёт при третьем
-переключении), сохранить и восстановить состояние — режим работы, обороты,
-положение камеры, включённые слои, — и пересчитать звук: `PeriodicWave`
-собирается заново под новую огибающую и число лопаток.
+Changing the engine means rebuilding the scene, and there are things not to
+forget here: dispose of the geometries and materials of the previous engine
+(otherwise memory leaks by the third switch), save and restore the state —
+operating mode, rotor speeds, camera position, enabled layers — and recompute
+the sound: the `PeriodicWave` is rebuilt for the new envelope and blade count.
 
-Хорошая проверка формата: **переключение туда и обратно должно возвращать ровно
-ту же картинку**. Если нет — значит часть состояния живёт в построенной сцене,
-а не в описании.
+A good test of the format: **switching there and back must return exactly the
+same picture**. If it does not, some of the state lives in the built scene
+rather than in the description.
 
-## Порядок внедрения
+## Order of implementation
 
-1. **Слепок текущего двигателя.** Файл `model-current.json`, из которого
-   строится ровно то, что модель показывает сегодня, и снимок-тест, сверяющий
-   ключевые размеры и количества с нынешним хардкодом. Шаг без видимого
-   результата, но именно он доказывает, что формат достаточен.
-2. **Загрузчик, манифест и список** в интерфейсе; двигатель по умолчанию —
-   тот же самый. Внешне снова ничего не меняется.
-3. **Первый настоящий двигатель.** Здесь проще, чем предполагалось: модель
-   больше не смешивает прототипы. Габариты, число лопаток вентилятора и
-   компоновка (3 подпорные ступени, 9 КВД, 1 ТВД, 4 ТНД) — всё от CFM56-7B и
-   всё сверяется тестами с [справочником](engines/cfm56-7b-nacelle.json).
-   Значит, первый файл формата — это выписка уже существующего описания, а не
-   разбирательство с тем, что именно построено.
-4. **Двигатели другого устройства** — редукторный и трёхвальный. Они ломают
-   предположение о двух роторах, и именно на них проверяется, что `spools`
-   спроектирован правильно.
+1. **A snapshot of the current engine.** A `model-current.json` file from which
+   exactly what the model shows today is built, plus a snapshot test comparing
+   the key dimensions and counts against the current hardcoded values. A step
+   with no visible result, but it is the one that proves the format is
+   sufficient.
+2. **The loader, the manifest and the list** in the interface; the default
+   engine is the same one. Outwardly, again, nothing changes.
+3. **The first real engine.** This is easier than expected: the model no longer
+   mixes prototypes. The dimensions, the fan blade count and the layout (3
+   booster stages, 9 HPC, 1 HPT, 4 LPT) all come from the CFM56-7B and are all
+   checked by tests against the
+   [reference data](engines/cfm56-7b-nacelle.json). So the first file in the
+   format is a transcription of an existing description rather than an
+   investigation into what has actually been built.
+4. **Engines of a different architecture** — geared and three-spool. They break
+   the assumption of two rotors, and it is on them that the design of `spools`
+   gets tested.
 
-Шаги 1 и 2 не меняют картинку — и это не недостаток, а условие: пока слепок не
-совпал, добавлять двигатели рано.
+Steps 1 and 2 do not change the picture — and that is not a shortcoming but a
+condition: until the snapshot matches, it is too early to add engines.

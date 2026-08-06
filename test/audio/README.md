@@ -1,21 +1,21 @@
-# Спектральный анализ звука двигателя
+# Spectral analysis of the engine sound
 
-Скрипты, которыми настраивался синтез в `src/sound.js`. Результаты и выводы —
-в [docs/06-sound.md](../../docs/06-sound.md).
+The scripts used to tune the synthesis in `src/sound.js`. The results and
+conclusions are in [docs/06-sound.md](../../docs/06-sound.md).
 
-| Скрипт | Что делает |
+| Script | What it does |
 |---|---|
-| `fetch.sh` | Скачивает записи CFM56 с Freesound и переводит в моно WAV |
-| `phases.py` | Разбор записи по фазам: где доминирует тон, где шум струи |
-| `orders.py` | Раскладка тонов по порядкам вала, огибающая buzz-saw |
-| `compare.py` | Сравнение реальной записи и синтезированного звука |
+| `fetch.sh` | Downloads CFM56 recordings from Freesound and converts them to mono WAV |
+| `phases.py` | Breaks a recording into phases: where tones dominate, where jet noise does |
+| `orders.py` | Sorts the tones by shaft order, produces the buzz-saw envelope |
+| `compare.py` | Compares a real recording against the synthesised sound |
 
-Нужны `python3` с `numpy` и `scipy`, а также `ffmpeg` и `curl`.
+They need `python3` with `numpy` and `scipy`, plus `ffmpeg` and `curl`.
 
-## Синтез для сравнения
+## Synthesis for comparison
 
-`compare.py` ждёт файл `synth_takeoff.wav`. Он рендерится офлайн в браузере:
-откройте приложение и выполните в консоли
+`compare.py` expects a file called `synth_takeoff.wav`. It is rendered offline
+in the browser: open the application and run in the console
 
 ```js
 const { createEngineSound } = await import('/src/sound.js');
@@ -25,11 +25,13 @@ await s.enable(); s.setVolume(0.5); s.update(0.92, 0.95, 0.9, 0, 0.5);
 const d = (await off.startRendering()).getChannelData(0);
 ```
 
-затем сохраните `d` (начиная со второй секунды) как 16-битный моно WAV 44.1 кГц.
-Режим 0.92 выбран потому, что реальная запись сделана именно на 92 % N1.
+then save `d` (starting from the second second) as a 16-bit mono WAV at
+44.1 kHz. The regime 0.92 was chosen because the real recording was made at
+exactly 92 % N1.
 
-## Лицензия записей
+## Licence of the recordings
 
-Записи распространяются по лицензии Creative Commons и в репозиторий не
-включены — `fetch.sh` скачивает их по требованию. Авторы: theplax
-(«Air North 737 take-off»), SoundsLikeYukon («boing 737-800 start egypt»).
+The recordings are distributed under a Creative Commons licence and are not
+included in the repository — `fetch.sh` downloads them on demand. The authors
+are theplax ("Air North 737 take-off") and SoundsLikeYukon ("boing 737-800
+start egypt").

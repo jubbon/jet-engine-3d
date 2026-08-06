@@ -1,13 +1,13 @@
-# 04. Потоки воздуха
+# 04. Airflow
 
-Включается кнопкой «Потоки воздуха» или пробелом. Если корпуса при этом
-непрозрачны и разрез выключен, автоматически включается «рентген» — иначе поток
-внутри двигателя не было бы видно.
+Switched on by the "Air flows" button or the space bar. If the casings are
+opaque at that moment and the cutaway is off, x-ray mode engages automatically —
+otherwise the flow inside the engine would not be visible.
 
-## Модель каналов
+## Duct model
 
-Оба контура заданы не траекториями, а **границами каналов**: таблицами
-«координата по оси → радиус» для внутренней и наружной стенки.
+Both ducts are defined not by trajectories but by **duct boundaries**: tables of
+"axial coordinate → radius" for the inner and the outer wall.
 
 ```js
 BYPASS_IN  = [[-7.6, 0.60], [-3.22, 0.98], [-2.86, 1.00], [1.16, 1.18], ...]
@@ -16,170 +16,177 @@ CORE_IN    = [[-7.6, 0.06], [-3.22, 0.52], [-1.04, 0.46], [2.90, 0.50], ...]
 CORE_OUT   = [[-7.6, 0.46], [-3.22, 0.94], [-1.04, 0.55], [2.90, 0.86], ...]
 ```
 
-Узлы таблиц стоят на станциях из [«Геометрии»](02-geometry.md): плоскость
-вентилятора −3.22, разделитель −2.86, срез сопла наружного контура 1.16,
-внутреннего 2.90. Правка станций в `ST` требует правки и этих таблиц —
-канал не выводится из геометрии, он задан параллельно ей.
+The table knots sit on the stations from [Geometry](02-geometry.md): fan plane
+−3.22, splitter −2.86, fan nozzle exit 1.16, core nozzle exit 2.90. Editing the
+stations in `ST` requires editing these tables too — the duct is not derived
+from the geometry, it is specified alongside it.
 
-Каждая частица хранит:
+Each particle stores:
 
-* `channel` — наружный или внутренний контур (назначается при рождении и не
-  меняется, поток из контура в контур не перетекает);
-* `lane` ∈ [0, 1] — «дорожку» между внутренней и наружной границами;
-* `phase` — окружное положение;
-* `x` — координату по оси.
+* `channel` — bypass or core duct (assigned at birth and never changed, the flow
+  does not cross from one duct to the other);
+* `lane` ∈ [0, 1] — its lane between the inner and the outer boundary;
+* `phase` — circumferential position;
+* `x` — axial coordinate.
 
-Радиус получается интерполяцией между границами:
+The radius comes from interpolating between the boundaries:
 
 ```
-r(x) = r_вн(x) + lane · (r_нар(x) − r_вн(x))
+r(x) = r_in(x) + lane · (r_out(x) − r_in(x))
 ```
 
-Такое представление автоматически удерживает частицу внутри канала на всём
-тракте: при сужении проточной части дорожки сходятся, при расширении —
-расходятся. Это визуальный аналог линий тока.
+This representation automatically keeps a particle inside the duct along the
+whole gas path: where the passage narrows the lanes converge, where it widens
+they spread apart. It is a visual analogue of streamlines.
 
-## Профили вдоль тракта
+## Profiles along the gas path
 
-Кроме границ, таблицами заданы ещё три величины — все интерполируются
-кусочно-линейно функцией `pw()`:
+Besides the boundaries, three more quantities are given as tables — all
+interpolated piecewise-linearly by `pw()`:
 
-| Таблица | Что задаёт |
+| Table | What it defines |
 |---|---|
-| `CORE_V`, `BYPASS_V` | Осевая скорость: торможение в компрессоре, минимум в камере сгорания, максимум на срезе сопла |
-| `CORE_SWIRL`, `BYPASS_SWIRL` | Закрутку: скачок на венцах ротора, гашение на направляющих аппаратах и стойках |
-| `CORE_T`, `BYPASS_T` | Относительную температуру 0…1, по которой берётся цвет |
+| `CORE_V`, `BYPASS_V` | Axial velocity: deceleration in the compressor, a minimum in the combustor, a maximum at the nozzle exit |
+| `CORE_SWIRL`, `BYPASS_SWIRL` | Swirl: a jump across the rotor rows, removal by the stator vanes and struts |
+| `CORE_T`, `BYPASS_T` | Relative temperature 0…1, from which the colour is taken |
 
-Физическое обоснование профилей — в [документе о физике](03-physics.md#7-аэродинамика-тракта-в-визуализации-потоков).
+The physical justification of the profiles is in the
+[physics document](03-physics.md#7-gas-path-aerodynamics-in-the-flow-visualisation).
 
-Интегрирование за кадр:
+Integration per frame:
 
 ```js
 x     += v(x) · speedK · dt
 phase += swirl(x) · speedK · dt
 ```
 
-где `speedK = 0.06 + 1.05 · n1` — при остановленном вентиляторе поток замирает.
+where `speedK = 0.06 + 1.05 · n1` — with the fan stopped the flow freezes.
 
-## Температура и цвет
+## Temperature and colour
 
-Цветовая шкала `RAMP` — от холодного к раскалённому:
+The colour ramp `RAMP` runs from cold to incandescent:
 
-| Относительная T | Цвет | Смысл |
+| Relative T | Colour | Meaning |
 |---:|---|---|
-| 0.00 | `#2f6bff` | Атмосферный воздух |
-| 0.12 | `#39b7ff` | После вентилятора |
-| 0.28 | `#63efe2` | Сжатие в КНД |
-| 0.42 | `#ffe066` | За КВД, около 600 °C |
-| 0.60 | `#ff9b3d` | Разбавление за камерой сгорания |
-| 0.78 | `#ff4f1a` | Расширение на турбине |
-| 1.00 | `#fff4d2` | Ядро пламени |
+| 0.00 | `#2f6bff` | Ambient air |
+| 0.12 | `#39b7ff` | After the fan |
+| 0.28 | `#63efe2` | Compression in the booster |
+| 0.42 | `#ffe066` | After the HP compressor, about 600 °C |
+| 0.60 | `#ff9b3d` | Dilution downstream of the combustor |
+| 0.78 | `#ff4f1a` | Expansion through the turbine |
+| 1.00 | `#fff4d2` | Flame core |
 
-Температура внутреннего контура домножается на
+The core duct temperature is multiplied by
 
 ```js
 heat = max(0.22 · n1, burn)
 ```
 
-поэтому без горения контур постепенно синеет, но не мгновенно: сжатие в
-компрессоре греет воздух и на выбеге.
+so without combustion the duct gradually turns blue, but not instantly:
+compression heats the air during rundown as well.
 
-## Отрисовка
+## Rendering
 
-**Частицы** — 5200 в наружном контуре и 3600 во внутреннем, один объект `Points`
-с собственным шейдером: круглые мягкие спрайты, аддитивное смешивание, размер
-зависит от температуры, положения пересчитываются в JS каждый кадр.
+**Particles** — 5200 in the bypass duct and 3600 in the core, a single `Points`
+object with its own shader: round soft sprites, additive blending, size
+depending on temperature, positions recomputed in JS every frame.
 
-**Линии тока** — 12 трубок (`TubeGeometry`) по тем же таблицам: 7 в наружном
-контуре, 5 во внутреннем. Цвет задан по вершинам из той же температурной шкалы,
-поэтому на линии видно, где именно поток нагревается.
+**Streamlines** — 12 tubes (`TubeGeometry`) built from the same tables: 7 in the
+bypass duct, 5 in the core. The colour is set per vertex from the same
+temperature ramp, so the line itself shows where the flow heats up.
 
-**Реактивная струя** — конус с шейдером на основе шума, яркость привязана к
-интенсивности горения, поэтому при отсечке топлива струя гаснет.
+**Exhaust plume** — a cone with a noise-based shader; its brightness is tied to
+the combustion intensity, so when the fuel is cut the plume dies.
 
-На границах расчётной области (−7.6 и 8.6) частицы и линии плавно гасятся
-функцией `edgeFade()` — иначе они появлялись бы и исчезали рывком, а линии тока
-выглядели бы как лучи, уходящие за край экрана.
+At the edges of the computational domain (−7.6 and 8.6) the particles and lines
+fade out smoothly through `edgeFade()` — otherwise they would pop in and out,
+and the streamlines would look like rays running off the edge of the screen.
 
-## Выхлопные газы
+## Exhaust gas
 
-Всё выше — это условная визуализация, её включают кнопкой. Выхлоп за соплом,
-наоборот, работает всегда, и делает он две вещи сразу.
+Everything above is a schematic visualisation, switched on by a button. The
+exhaust aft of the nozzle, by contrast, is always working, and it does two
+things at once.
 
-**Преломляет.** Горячий газ имеет другую плотность, а значит и другой показатель
-преломления, чем окружающий воздух. Турбулентные вихри непрерывно перемешивают
-горячее и холодное, луч света гуляет — и всё, что видно **сквозь** струю, дрожит
-и размывается. Если смотреть двигателю в сопло, толща газа набирается вдоль всего
-луча, и «плывёт» весь экран.
+**It refracts.** Hot gas has a different density, and therefore a different
+refractive index, than the surrounding air. Turbulent eddies keep mixing hot and
+cold, the light ray wanders — and everything seen **through** the jet shimmers
+and smears. Looking into the nozzle, the optical depth accumulates along the
+whole ray and the entire screen swims.
 
-**Рассеивает.** Струю видно и саму по себе — белёсым клубящимся конусом,
-плотным у сопла и растворяющимся вниз по потоку.
+**It scatters.** The jet is visible in its own right — a whitish billowing cone,
+dense at the nozzle and dissolving downstream.
 
-Реализовано экранным проходом (`src/heathaze.js`) после `RenderPass`. Для каждого
-пикселя строится луч из камеры, и вдоль него набирается оптическая толщина:
+Implemented as a screen-space pass (`src/heathaze.js`) after `RenderPass`. For
+each pixel a ray is built from the camera, and the optical depth is accumulated
+along it:
 
 ```glsl
 for (i < 16) {
-  dd = density(p) * step;       // .x - для преломления, .y - для видимого газа
-  w = dd.x * trans;             // ближние вихри искажают сильнее дальних
-  pc += p * w;                  // взвешенный «центр преломления»
+  dd = density(p) * step;       // .x - for refraction, .y - for the visible gas
+  w = dd.x * trans;             // near eddies distort more than distant ones
+  pc += p * w;                  // weighted "refraction centroid"
   trans    *= exp(-dd.x * EXT);
   transGas *= exp(-dd.y * GAS_EXT);
 }
-cover = 1 - trans;              // 0 - луч мимо струи, 1 - смотрим в сопло
-gas   = 1 - transGas;           // непрозрачность видимой струи
+cover = 1 - trans;              // 0 - the ray misses the jet, 1 - looking into the nozzle
+gas   = 1 - transGas;           // opacity of the visible jet
 ```
 
-По `cover` пиксель смещается, подмыливается пятью выборками и слегка
-расщепляется по цвету (разные длины волн преломляются по-разному). По `gas`
-поверх композитится цвет струи — тёплый у сопла, холодный в хвосте.
+By `cover` the pixel is displaced, smeared with five taps and slightly split by
+colour (different wavelengths refract differently). By `gas` the jet colour is
+composited on top — warm at the nozzle, cold at the tail.
 
-Пять решений, без которых эффект выглядит неправильно:
+Five decisions without which the effect looks wrong:
 
-**Турбулентность считается один раз — в точке `pc`, а не на каждом шаге.**
-Если брать шум на каждом шаге и усреднять, разнознаковые значения вдоль луча
-взаимно гасятся, и вместо дрожания получается еле заметная рябь. Вес `trans`
-при этом сдвигает `pc` к камере: ближние вихри и правда искажают картинку сильнее.
+**Turbulence is evaluated once — at the point `pc`, not at every step.** If the
+noise is sampled at every step and averaged, values of opposite sign along the
+ray cancel out and instead of shimmer there is a barely visible ripple. The
+weight `trans` meanwhile shifts `pc` towards the camera: near eddies really do
+distort the image more.
 
-**Шаги идут без случайного сдвига.** Обычный приём против колец на редкой сетке —
-джиттер стартовой точки — здесь попадает прямо в `pc`, соседние пиксели получают
-разное смещение, и гладкое искажение рассыпается в кашу из отдельных точек.
+**Steps are taken without a random offset.** The usual trick against banding on
+a sparse grid — jittering the start point — lands here right in `pc`, so
+neighbouring pixels get different displacements and the smooth distortion falls
+apart into a mush of isolated dots.
 
-**Корпус двигателя заслоняет струю.** Иначе при взгляде спереди дрожала бы вся
-мотогондола: струя-то за ней. Заслон считается аналитически — три цилиндра по оси
-(мотогондола, внутренний капот, центральное тело), луч обрезается по ближайшему
-попаданию. Буфер глубины для этого не нужен.
+**The engine bodies occlude the jet.** Otherwise the whole nacelle would shimmer
+when seen from the front: the jet is behind it. The occlusion is computed
+analytically — three cylinders along the axis (nacelle, core cowl, plug) — and
+the ray is clipped at the nearest hit. No depth buffer is needed for this.
 
-**У видимого газа свой профиль плотности, круче, чем у преломления** — отсюда две
-величины в `density()`. Разбавленный хвост струи ещё заметно гуляет лучом, но
-видимым облаком уже не является. Если считать газ по тому же профилю, его толща
-набирается вдоль всего луча, и при взгляде сзади кадр заливается белым целиком.
-Плюс потолок непрозрачности: даже в самой гуще двигатель должен просвечивать.
+**The visible gas has its own density profile, steeper than the refraction
+one** — hence the two values in `density()`. The diluted tail of the jet still
+bends the ray noticeably, but it is no longer a visible cloud. Compute the gas
+from the same profile and its depth accumulates along the whole ray, flooding
+the frame with white in the rear view. There is also an opacity ceiling: even in
+the thickest part the engine must show through.
 
-**Клубы газа — на хеш-шуме, а не на синусах.** Синусные поля хороши для крупной
-турбулентности и дёшевы, но на мелком масштабе выдают свою решётку: струя
-покрывается регулярным «рубчиком», будто сплетена из нитей.
+**Billows use hash noise, not sines.** Sine fields are good for large-scale
+turbulence and are cheap, but at small scales they give away their lattice: the
+jet gets covered in a regular corduroy pattern, as if woven from threads.
 
-Интенсивность даёт `hazePower(burn, n1)`: основной вклад — горение, небольшой —
-обороты вентилятора. На малом газе это лёгкое марево и негустая струя, на взлётном
-режиме — сильное дрожание и плотный белый выхлоп; на выбеге выхлоп живёт ещё около
-15 с после того, как погасло пламя, — струя уже холоднее, но ещё идёт. На
-выключенном двигателе проход отключается целиком. Проверяется в
-`test/heat-haze.test.mjs`. У видимого газа зависимость от режима более пологая
-(`power^0.6`), иначе на малом газе струи не видно вовсе.
+The intensity comes from `hazePower(burn, n1)`: combustion contributes most, fan
+speed a little. At idle this is a faint shimmer and a thin jet; at take-off
+power, strong shimmer and a dense white exhaust; during rundown the exhaust
+lives on for about 15 s after the flame has died — the jet is cooler by then but
+still flowing. On a shut-down engine the pass is switched off entirely. Checked
+in `test/heat-haze.test.mjs`. The visible gas depends on regime more gently
+(`power^0.6`), otherwise at idle there would be no jet to see at all.
 
-Вихри сносятся вниз по потоку со скоростью `2 + 7·n1`, поэтому на взлётном режиме
-выхлоп не только плотнее, но и быстрее. Отключается чекбоксом «Выхлопные газы»
-или клавишей `H`.
+The eddies are convected downstream at a speed of `2 + 7·n1`, so at take-off
+power the exhaust is not only denser but also faster. Toggled by the "Exhaust
+gas" checkbox or the `H` key.
 
-При включении **«Потоки воздуха»** выхлоп приглушается (`setFlowMode`). Это
-осознанный компромисс: в схеме важно видеть частицы, линии тока и температурную
-раскраску струи, а плотный белый газ их просто закрашивает. В схеме от эффекта
-остаётся лёгкое марево.
+When **"Air flows"** is switched on, the exhaust is damped down
+(`setFlowMode`). This is a deliberate compromise: in a diagram what matters is
+seeing the particles, the streamlines and the temperature colouring of the jet,
+and a dense white gas simply paints over them. In diagram mode only a faint
+shimmer remains.
 
-## Таблица станций
+## Station table
 
-Под легендой выводятся температура и давление по семи станциям. Значения
-пересчитываются от **фактических оборотов**, а не от положения РУД, поэтому на
-выбеге видно, как тракт остывает. Формулы — в
-[документе о физике](03-physics.md#станции).
+Below the legend, temperature and pressure at seven stations are displayed. The
+values are recomputed from the **actual rotor speeds**, not from the throttle
+position, so during rundown one can watch the gas path cool. The formulas are in
+the [physics document](03-physics.md#stations).

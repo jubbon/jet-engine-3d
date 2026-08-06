@@ -1,202 +1,216 @@
-# Турбовентиляторный двигатель — интерактивная 3D-модель (Three.js)
+# Turbofan engine — interactive 3D model (Three.js)
 
-Детальная модель ТРДД большой степени двухконтурности: вращающиеся роторы, все
-основные узлы газогенератора, визуализация потоков воздуха и режим «заглянуть внутрь».
+A detailed model of a high-bypass turbofan: turning rotors, all the main core
+assemblies, airflow visualisation and a "look inside" mode.
 
-Прототип — **CFM56-7B в мотогондоле Boeing 737NG**. Габариты не подобраны на глаз:
-каждый взят из [справочника по прототипу](docs/engines/cfm56-7b-nacelle.json) со
-ссылкой на источник, а расхождение ловится тестом — см.
-[«Габариты по источникам»](docs/02-geometry.md#габариты-по-источникам).
+The prototype is the **CFM56-7B in a Boeing 737NG nacelle**. The dimensions are
+not chosen by eye: each one comes from the
+[prototype reference data](docs/engines/cfm56-7b-nacelle.json) with a citation,
+and any divergence is caught by a test — see
+[Dimensions from sources](docs/02-geometry.md#dimensions-from-sources).
 
-## Запуск
+## Running
 
 ```bash
 npm install
-npm run dev      # http://localhost:5188, слушает на 0.0.0.0
-npm run build    # сборка в dist/
-npm test         # автомат состояний, выхлопные газы, смаз спирали,
-                 # габариты по справочнику, компоновочные зазоры
+npm run dev      # http://localhost:5188, listens on 0.0.0.0
+npm run build    # build into dist/
+npm test         # state machine, exhaust gas, spiral smear,
+                 # dimensions against the reference, layout clearances
 ```
 
-Отдельный тест запускается напрямую: `node test/geometry.test.mjs`.
+A single test runs directly: `node test/geometry.test.mjs`.
 
-## Документация
+## Documentation
 
-Подробное описание — в каталоге [`docs/`](docs/README.md):
+The full description is in the [`docs/`](docs/README.md) directory:
 
-| Документ | О чём |
+| Document | About |
 |---|---|
-| [01. Архитектура](docs/01-architecture.md) | Модули, поток данных, граф сцены, производительность |
-| [02. Геометрия двигателя](docs/02-geometry.md) | Газовоздушный тракт, станции, узлы, генератор лопаток |
-| [03. Физика модели](docs/03-physics.md) | Уравнения, заложенные в модель, и границы их применимости |
-| [04. Потоки воздуха](docs/04-airflow.md) | Каналы, частицы, линии тока, температурная шкала |
-| [05. Режимы работы](docs/05-modes.md) | Автомат состояний, запуск, останов, выбег, тесты |
-| [06. Звук](docs/06-sound.md) | Синтез на Web Audio, привязка к оборотам |
-| [07. Интерфейс](docs/07-ui.md) | Панель, разрез, рентген, разнесение узлов, клавиши |
-| [08. Разработка](docs/08-development.md) | Сборка, тесты, ограничения, что можно доработать |
-| [09. Бэклог](docs/09-backlog.md) | Очередь задач: приоритет, объём, что затрагивает |
-| [10. Формат описания двигателя](docs/10-engine-plugins.md) | Предложение: двигатели как JSON-файлы без пересборки |
+| [01. Architecture](docs/01-architecture.md) | Modules, data flow, scene graph, performance |
+| [02. Engine geometry](docs/02-geometry.md) | Gas path, stations, modules, blade generator |
+| [03. Physics of the model](docs/03-physics.md) | The equations built into the model and the limits of their validity |
+| [04. Airflow](docs/04-airflow.md) | Ducts, particles, streamlines, temperature scale |
+| [05. Operating regimes](docs/05-modes.md) | State machine, start, shutdown, rundown, tests |
+| [06. Sound](docs/06-sound.md) | Web Audio synthesis, coupling to rotor speed |
+| [07. User interface](docs/07-ui.md) | Panel, cutaway, x-ray, exploded view, keyboard shortcuts |
+| [08. Development](docs/08-development.md) | Build, tests, limitations, possible extensions |
+| [09. Backlog](docs/09-backlog.md) | Task queue: priority, size, what each one touches |
+| [10. Engine description format](docs/10-engine-plugins.md) | Proposal: engines as JSON files without a rebuild |
 
-## Что смоделировано
+## What is modelled
 
-| Узел | Детали |
+| Module | Details |
 |---|---|
-| Мотогондола | обечайка воздухозаборника со сплющенным низом («hamster pouch») и толстой металлической кромкой, капоты, пилон |
-| Вентилятор (N1) | 24 широкохордные лопатки Ø 1.549 м со стреловидностью, кок со спиралью (смазывается с оборотами), диск, корпус с бронекольцом |
-| Спрямляющий аппарат | 44 лопатки OGV в наружном контуре |
-| КНД / подпорные ступени (N1) | 3 ступени ротора + направляющие аппараты, разделитель контуров |
-| КВД (N2) | 9 ступеней ротора + 9 направляющих аппаратов, барабан, корпус |
-| Камера сгорания | кольцевая жаровая труба (наружная и внутренняя стенки, купол), 20 форсунок с завихрителями, объёмное пламя на шейдере |
-| ТВД (N2) | 1 ступень + сопловой аппарат, диск |
-| ТНД (N1) | 4 ступени + сопловые аппараты |
-| Задняя опора и сопло | 10 силовых стоек, центральное тело, сопло внутреннего контура |
-| Валы | вал НД внутри полого вала ВД, фланцы, 4 подшипниковые опоры |
-| Агрегаты | коробка приводов вынесена на бок (как на 737), насосы, вертикальная передача, трубопроводы |
+| Nacelle | Intake barrel with a flattened bottom (the "hamster pouch") and a thick polished lip, cowls, pylon |
+| Fan (N1) | 24 wide-chord blades Ø 1.549 m with sweep, spinner with a spiral (smearing with speed), disc, case with containment ring |
+| Outlet guide vanes | 44 OGVs in the bypass duct |
+| Booster / LP compressor (N1) | 3 rotor stages + stator vanes, flow splitter |
+| HP compressor (N2) | 9 rotor stages + 9 stator rows, drum, casing |
+| Combustor | Annular flame tube (outer and inner walls, dome), 20 fuel nozzles with swirlers, volumetric flame on a shader |
+| HP turbine (N2) | 1 stage + nozzle guide vanes, disc |
+| LP turbine (N1) | 4 stages + nozzle guide vanes |
+| Rear frame and nozzle | 10 struts, plug, core nozzle |
+| Shafts | LP shaft inside the hollow HP shaft, flanges, 4 bearing supports |
+| Accessories | Accessory gearbox moved to the side (as on the 737), pumps, radial drive, pipework |
 
-Лопатки строятся процедурно: NACA-подобный профиль «протягивается» по радиусу
-с изменением хорды, толщины, кривизны и угла установки (закрутка от комля к периферии),
-с обёрткой профиля по окружности — как у настоящих лопаток (`src/blade.js`).
-Каждый венец — один `InstancedMesh`.
+The blades are built procedurally: a NACA-like profile is lofted along the
+radius with varying chord, thickness, camber and stagger angle (twist from root
+to tip), and wrapped around the circumference — as real blades are
+(`src/blade.js`). Each row is a single `InstancedMesh`.
 
-## Управление
+## Controls
 
-| Действие | Как |
+| Action | How |
 |---|---|
-| **Потоки воздуха** | кнопка на панели или `Пробел` |
-| **Заглянуть внутрь** (вырез корпуса) | кнопка или `C`, угол и поворот выреза — слайдерами |
-| **Прозрачные корпуса** («рентген») | чекбокс или `X` |
-| **Разнести узлы** | слайдер «Разнести узлы» |
-| **Запуск / останов двигателя** | кнопка или `E` |
-| **Звук двигателя** | кнопка или `S`, громкость — слайдером |
-| **Выхлопные газы** (видимая струя и тепловое искажение) | чекбокс или `H` |
-| Режим работы двигателя (РУД) | слайдер (меняет обороты N1/N2, яркость пламени, скорость потоков, приборы и звук) |
-| Виды | кнопки `1…9` (`9` — вид сзади, в потоке газов) |
-| Информация об узле | наведение мышью → подсказка, клик → карточка с описанием |
-| Камера | ЛКМ — поворот, колесо — зум, ПКМ — сдвиг |
+| **Air flows** | panel button or `Space` |
+| **Look inside** (casing cutaway) | button or `C`; angle and rotation of the cut by sliders |
+| **Transparent casings** (x-ray) | checkbox or `X` |
+| **Explode modules** | the "Explode modules" slider |
+| **Start / shut down the engine** | button or `E` |
+| **Engine sound** | button or `S`, volume by slider |
+| **Exhaust gas** (visible jet and heat haze) | checkbox or `H` |
+| Engine power (throttle) | slider (changes N1/N2, flame brightness, flow speed, instruments and sound) |
+| Views | buttons `1…9` (`9` — the rear view, inside the gas stream) |
+| Module information | hover for a tooltip, click for a card with the description |
+| Camera | LMB — orbit, wheel — zoom, RMB — pan |
 
-## Как это работает внутри
+## How it works inside
 
-* **Разрез.** Два `THREE.Plane` с `clipIntersection = true` вырезают из корпусов
-  угловой сектор (объединение двух полупространств = всё, кроме сектора).
-  Плоскости назначаются только материалам оболочек (`getShellMaterials()`),
-  поэтому роторы и лопатки остаются целыми — получается классический «cutaway».
-* **Роторы.** Два независимых каскада: группы N1 (вентилятор, КНД, ТНД, вал НД)
-  и N2 (КВД, ТВД, вал ВД) вращаются с разной скоростью и в разные стороны.
-* **Разнесение узлов.** У каждого модуля свой вектор `explode`; мотогондола уходит
-  вверх, внутренний капот и агрегаты — вниз, остальные модули расходятся по оси.
-* **Выбор узлов.** Пикинг идёт не по реальной геометрии, а по одиннадцати
-  невидимым прокси-цилиндрам (`engine.pickables`) — иначе raycast по ~760 тыс.
-  треугольников на каждое движение мыши.
+* **Cutaway.** Two `THREE.Plane`s with `clipIntersection = true` cut an angular
+  sector out of the shells (the union of two half-spaces is everything but the
+  sector). The planes are assigned only to the shell materials
+  (`getShellMaterials()`), so the rotors and blades stay whole — giving the
+  classic cutaway.
+* **Rotors.** Two independent spools: the N1 groups (fan, booster, LP turbine,
+  LP shaft) and the N2 groups (HP compressor, HP turbine, HP shaft) turn at
+  different speeds and in opposite directions.
+* **Exploded view.** Each module has its own `explode` vector; the nacelle moves
+  up, the core cowl and the accessories move down, the rest spread along the
+  axis.
+* **Module picking.** Picking goes not through the real geometry but through
+  eleven invisible proxy cylinders (`engine.pickables`) — otherwise a raycast of
+  ~758 thousand triangles would run on every mouse move.
 
-## Потоки воздуха (`src/airflow.js`)
+## Airflow (`src/airflow.js`)
 
-Два канала заданы таблицами «радиус внутренней / наружной границы — координата по оси»,
-плюс профили осевой скорости, закрутки и температуры:
+The two ducts are given by tables of "inner / outer boundary radius — axial
+coordinate", plus profiles of axial velocity, swirl and temperature:
 
-* **Наружный контур** — синий: воздух после вентилятора идёт мимо газогенератора
-  и разгоняется в сопле наружного контура. ~80 % тяги.
-* **Внутренний контур** — цвет меняется по температуре: голубой → бирюзовый
-  (сжатие в КНД) → жёлтый (600 °C за КВД) → белый и оранжевый (горение,
-  1800–2000 °C) → оранжево-красный (расширение на турбине и в сопле).
+* **Bypass duct** — blue: air after the fan travels past the core and is
+  accelerated in the fan nozzle. Up to 80 % of the thrust.
+* **Core duct** — the colour changes with temperature: light blue → turquoise
+  (compression in the booster) → yellow (600 °C after the HP compressor) → white
+  and orange (combustion, 1800–2000 °C) → orange-red (expansion through the
+  turbine and the nozzle).
 
-Каждая частица хранит свою «дорожку» в канале, фазу и текущую координату;
-радиус, скорость, закрутка и цвет берутся из таблиц по координате X.
-Дополнительно рисуются линии тока (12 трубок с градиентом по температуре)
-и реактивная струя за соплом. Внизу справа — таблица температур и давлений
-по станциям, пересчитываемая по режиму.
+Each particle keeps its own lane in the duct, its phase and its current
+coordinate; radius, velocity, swirl and colour are taken from the tables by the
+X coordinate. In addition, streamlines are drawn (12 tubes with a temperature
+gradient) along with the exhaust plume behind the nozzle. Bottom right is a
+table of temperatures and pressures by station, recomputed by regime.
 
-Отдельно от этой условной визуализации работают **выхлопные газы**: экранный
-проход трассирует луч каждого пикселя сквозь конус горячего газа. Струя и видна
-сама по себе — белёсым клубящимся конусом, плотным у сопла, — и преломляет всё,
-что видно сквозь неё: картинка дрожит и размывается. Смотришь двигателю в сопло —
-плывёт весь экран; смотришь сбоку — струя уходит белым шлейфом; смотришь спереди —
-ничего, выхлоп заслоняет мотогондола. При включении потоков воздуха выхлоп
-приглушается, чтобы не закрашивать схему. Подробности — в
-[документе о потоках](docs/04-airflow.md#выхлопные-газы).
+Separately from this schematic visualisation, the **exhaust gas** works: a
+screen-space pass traces a ray for every pixel through the cone of hot gas. The
+jet is visible in its own right — a whitish billowing cone, dense at the nozzle
+— and it refracts everything seen through it: the image shimmers and smears.
+Look into the nozzle and the whole screen swims; look from the side and the jet
+trails away as a white plume; look from the front and there is nothing, the
+nacelle blocking the exhaust. When the air flows are switched on the exhaust is
+damped down so as not to paint over the diagram. Details are in the
+[airflow document](docs/04-airflow.md#exhaust-gas).
 
-Значения на приборах и в таблице отталкиваются от прототипа — взлётная тяга
-121.4 кН (CFM56-7B27), суммарная степень сжатия около 28, — но остаются
-иллюстративными: это не результат расчёта конкретного цикла. Что именно
-упрощено, перечислено в [«Физике модели»](docs/03-physics.md#9-чего-в-модели-нет).
+The values on the instruments and in the table start from the prototype —
+take-off thrust 121.4 kN (CFM56-7B27), overall pressure ratio about 28 — but
+remain illustrative: they are not the result of computing a specific cycle. What
+exactly is simplified is listed in
+[Physics of the model](docs/03-physics.md#9-what-the-model-does-not-have).
 
-## Запуск и останов (`src/engineState.js`)
+## Start and shutdown (`src/engineState.js`)
 
-Автомат состояний: `off` → `start` → `run` → `stop` → `off`.
-Модуль не знает ни про Three.js, ни про DOM — только физика режимов, поэтому
-он проверяется в Node (`npm test`).
+A state machine: `off` → `start` → `run` → `stop` → `off`. The module knows
+nothing about Three.js or the DOM — only regime physics — so it is checked under
+Node (`npm test`).
 
-**Останов** — стоп-кран: топливо отсекается мгновенно, дальше всё происходит само:
+**Shutdown** is a fuel shut-off: the fuel is cut instantly, and everything after
+that happens by itself:
 
-1. пламя гаснет за ~2 с, тяга сразу ноль;
-2. роторы идут на выбеге — экспонента плюс трение в опорах, доводящее их до
-   настоящего нуля. Ротор ВД останавливается на ~23 с, ротор НД (он тяжелее и
-   связан с вентилятором) — на ~35 с;
-3. металл горячей части светится по фактической T4, а не по РУД, поэтому турбина
-   заметно остывает уже после того, как пламя погасло;
-4. частицы потока замирают вместе с вентилятором, а внутренний контур на глазах
-   теряет цвет — без горения там просто прокачиваемый холодный воздух;
-5. в звуке рёв пропадает сразу вместе с горением, а вой вентилятора продолжает
-   падать по частоте, пока роторы не встанут, — после полной остановки тишина;
-6. РУД блокируется: сдвинуть его и «оживить» остановленный двигатель нельзя.
+1. the flame dies in about 2 s, thrust goes to zero immediately;
+2. the rotors coast down — an exponential plus bearing friction that brings them
+   to a true zero. The HP rotor stops in about 23 s, the LP rotor (heavier and
+   tied to the fan) in about 35 s;
+3. the metal of the hot section glows by the actual T4 rather than by the
+   throttle, so the turbine cools noticeably after the flame has already died;
+4. the flow particles freeze together with the fan, and the core duct visibly
+   loses its colour — without combustion it is just cold air being pumped
+   through;
+5. in the sound the roar disappears at once together with the combustion, while
+   the fan whine keeps falling in pitch until the rotors stop — after which,
+   silence;
+6. the throttle is locked: a shut-down engine cannot be revived with it.
 
-**Запуск** идёт в натуральном темпе, как у настоящего двигателя: стартер
-раскручивает ротор ВД около 17 с, на 22 % оборотов подаётся топливо, ещё через
-2.5 с происходит розжиг — до этого момента топливо в камере уже есть, а пламени
-нет и тракт холодный. Дальше заброс T4 до ~780 °C (расход воздуха мал, смесь
-богатая) и выход на малый газ N1 = 18 %, N2 = 56 % — всего ~40 с.
+**Starting** runs at a natural pace, like a real engine: the starter cranks the
+HP rotor for about 17 s, fuel is introduced at 22 % speed, and 2.5 s later
+light-off occurs — until that moment the fuel is already in the chamber but
+there is no flame and the gas path is cold. Then comes a T4 overshoot to about
+780 °C (the airflow is small, the mixture rich) and settling at idle, N1 = 18 %,
+N2 = 56 % — about 40 s in all.
 
-Ждать эти сорок секунд не обязательно: переключатель **скорости времени ×1 / ×4**
-в панели ускоряет процессы в двигателе, не трогая ни потоки, ни камеру.
+There is no need to wait out those forty seconds: the **time scale ×1 / ×4**
+switch in the panel speeds up the processes inside the engine without touching
+the flows or the camera.
 
-Кнопка работает в обе стороны в любой момент: во время выбега можно снова
-запустить, во время запуска — прервать.
+The button works both ways at any moment: during rundown the engine can be
+started again, during a start it can be aborted.
 
-## Звук (`src/sound.js`)
+## Sound (`src/sound.js`)
 
-Синтезируется на Web Audio API, без сэмплов, и настроен по спектральному анализу
-реальных записей CFM56 (скрипты — в [`test/audio/`](test/audio), разбор — в
-[документе о звуке](docs/06-sound.md)). Составляющие:
+Synthesised on the Web Audio API without samples, and tuned by spectral analysis
+of real CFM56 recordings (scripts in [`test/audio/`](test/audio), the analysis
+in the [sound document](docs/06-sound.md)). The components:
 
-* **buzz-saw** — гребёнка из 48 порядков частоты вала НД, выданная одним
-  осциллятором через `PeriodicWave` с измеренной по записям огибающей. Это
-  главное, что делает звук узнаваемым: на сверхзвуковых концах лопаток от каждой
-  лопатки вперёд по воздухозаборнику уходит слабый скачок уплотнения, а лопатки
-  чуть отличаются друг от друга — поэтому картина повторяется за оборот вала, а
-  не за период следования лопаток. Огибающая намеренно оставлена изрезанной:
-  ровная гребёнка звучит синтезатором;
-* **тон следования лопаток** `N1 об/мин / 60 × 24` и его вторая гармоника —
-  чистый вой на рулении, когда концы лопаток ещё дозвуковые;
-* **свист ротора ВД** — пила на частоте вала ВД через полосовой фильтр;
-* **шум струи** — коричневый шум в полосе 180…310 Гц с двумя ФНЧ каскадом:
-  анализ записей показал максимум на 200…315 Гц и спад −30 дБ к 2 кГц, то есть
-  струя заметно темнее «белого шума с гулом»;
-* **рокот** (полоса 88 Гц) и **широкополосный шум вентилятора** (1.2…2.8 кГц).
+* **buzz-saw** — a comb of 48 orders of the LP shaft frequency, produced by a
+  single oscillator through a `PeriodicWave` with an envelope measured from the
+  recordings. This is what makes the sound recognisable: with supersonic blade
+  tips each blade sends a weak shock wave forward along the intake, and since
+  the blades differ slightly from one another the pattern repeats once per shaft
+  revolution rather than once per blade passing period. The envelope is left
+  jagged on purpose: an even comb sounds like a synthesiser;
+* **the blade passing tone** `N1 rpm / 60 × 24` and its second harmonic — the
+  pure whine heard while taxiing, when the blade tips are still subsonic;
+* **HP rotor whine** — a sawtooth at the HP shaft frequency through a bandpass;
+* **jet noise** — brown noise in the 180…310 Hz band with two cascaded lowpass
+  filters: the analysis showed a peak at 200…315 Hz and a −30 dB roll-off by
+  2 kHz, so the jet is noticeably darker than "white noise with a hum";
+* **rumble** (an 88 Hz band) and **broadband fan noise** (1.2…2.8 kHz).
 
-Все уровни и частоты идут через `setTargetAtTime`, поэтому перекладка РУД слышна как
-плавная раскрутка. Панорама и громкость следуют за камерой: двигатель уезжает влево —
-звук уезжает влево, отъезд камеры делает его тише. При уходе со вкладки контекст
-приостанавливается.
+All levels and frequencies go through `setTargetAtTime`, so a throttle movement
+is heard as a smooth spool-up. Panning and loudness follow the camera: the
+engine moves left and the sound moves left, pulling the camera back makes it
+quieter. When the tab loses focus the context is suspended.
 
-Приёмистость: ротор выходит на режим не мгновенно (постоянная времени 2.6 с на разгон,
-1.9 с на сброс), поэтому вращение, приборы, пламя и звук меняются согласованно, а слайдер
-работает как РУД, а не как прямая установка оборотов.
+Throttle response: the rotor does not reach its regime instantly (a time
+constant of 2.6 s accelerating, 1.9 s decelerating), so rotation, instruments,
+flame and sound change together, and the slider works as a thrust lever rather
+than as a direct speed setting.
 
-Модуль принимает подменный аудиоконтекст (`createEngineSound({ makeContext })`),
-что позволяет прогнать граф в `OfflineAudioContext` и измерить результат.
+The module accepts a substitute audio context
+(`createEngineSound({ makeContext })`), which allows the graph to be rendered in
+an `OfflineAudioContext` and measured.
 
-## Структура
+## Layout
 
 ```
-index.html        разметка UI и легенды
-src/style.css     оформление панелей
-src/main.js       сцена, свет, постобработка, вырез, UI, анимация
-src/engine.js     геометрия всех узлов двигателя, материалы, метки
-src/blade.js      процедурный генератор лопаток и венцов
-src/airflow.js    частицы, линии тока, струя
-src/heathaze.js   выхлопные газы за соплом (экранный проход)
-src/sound.js      процедурный звук двигателя
-src/engineState.js  автомат состояний: запуск, работа, останов, выбег
-test/             автомат состояний, выхлоп, смаз спирали, габариты, зазоры
-docs/             документация
-docs/engines/     машиночитаемые справочники по прототипам (JSON)
+index.html        UI and legend markup
+src/style.css     panel styling
+src/main.js       scene, lighting, post-processing, cutaway, UI, animation
+src/engine.js     geometry of all engine modules, materials, labels
+src/blade.js      procedural generator of blades and rows
+src/airflow.js    particles, streamlines, plume
+src/heathaze.js   exhaust gas aft of the nozzle (screen-space pass)
+src/sound.js      procedural engine sound
+src/engineState.js  state machine: start, running, shutdown, rundown
+test/             state machine, exhaust, spiral smear, dimensions, clearances
+docs/             documentation
+docs/engines/     machine-readable reference data on prototypes (JSON)
 ```

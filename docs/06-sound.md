@@ -1,202 +1,205 @@
-# 06. Звук
+# 06. Sound
 
-Синтезируется на Web Audio API целиком, без единого звукового файла.
-Включается кнопкой «Звук двигателя» или клавишей `S` — браузеры запускают
-аудиоконтекст только по действию пользователя.
+Synthesised entirely on the Web Audio API, without a single sound file. Switched
+on by the "Engine sound" button or the `S` key — browsers only start an audio
+context in response to a user action.
 
-Модель настроена по **CFM56-7B** (Boeing 737NG) и по спектральному анализу
-реальных записей этого двигателя.
+The model is tuned to the **CFM56-7B** (Boeing 737NG) and to a spectral analysis
+of real recordings of that engine.
 
-## Что дал анализ записей
+## What the analysis of the recordings showed
 
-Проанализированы две записи CFM56 со свободной лицензией (Freesound, авторы
-theplax и SoundsLikeYukon): пролёт на взлётном режиме и работа на земле.
-Скрипты анализа лежат в [`test/audio/`](../test/audio), методика описана ниже.
+Two freely licensed CFM56 recordings were analysed (Freesound, by theplax and
+SoundsLikeYukon): a take-off flyover and ground running. The analysis scripts
+live in [`test/audio/`](../test/audio), and the method is described below.
 
-### 1. Тоны стоят на гармониках частоты вала, а не только на частоте лопаток
+### 1. The tones sit on harmonics of the shaft frequency, not only on the blade passing frequency
 
-В четырёх независимых восьмисекундных окнах подгонка гребёнки дала одну и ту же
-частоту вращения вала низкого давления:
+In four independent eight-second windows, fitting a comb gave one and the same
+rotation frequency of the low-pressure shaft:
 
-| Окно | Частота вала | Обороты | Доля от 5175 об/мин | BPF = 24×вал |
+| Window | Shaft frequency | Speed | Fraction of 5175 rpm | BPF = 24×shaft |
 |---|---:|---:|---:|---:|
-| 24 с | 79.04 Гц | 4742 об/мин | 92 % | 1897 Гц |
-| 36 с | 79.04 Гц | 4742 об/мин | 92 % | 1897 Гц |
-| 60 с | 79.12 Гц | 4747 об/мин | 92 % | 1899 Гц |
-| 72 с | 79.42 Гц | 4765 об/мин | 92 % | 1906 Гц |
+| 24 s | 79.04 Hz | 4742 rpm | 92 % | 1897 Hz |
+| 36 s | 79.04 Hz | 4742 rpm | 92 % | 1897 Hz |
+| 60 s | 79.12 Hz | 4747 rpm | 92 % | 1899 Hz |
+| 72 s | 79.42 Hz | 4765 rpm | 92 % | 1906 Hz |
 
-**50…58 % всех найденных тонов легли на целые порядки этой частоты.**
-Независимо это подтверждается автокорреляцией спектра: интервал гребёнки
-получается 158 и 237 Гц, то есть кратен 79 Гц.
+**50…58 % of all the tones found landed on integer orders of that frequency.**
+This is independently confirmed by autocorrelation of the spectrum: the comb
+spacing comes out at 158 and 237 Hz, i.e. multiples of 79 Hz.
 
-Это и есть **buzz-saw** (multiple pure tones). Когда конец лопатки обтекается
-со сверхзвуковой скоростью, от каждой лопатки вперёд по каналу воздухозаборника
-уходит слабый скачок уплотнения. Лопатки чуть отличаются друг от друга по
-установке и профилю, поэтому картина скачков повторяется не за период следования
-лопаток, а за **полный оборот вала** — отсюда гребёнка по порядкам.
+This is **buzz-saw** noise (multiple pure tones). When a blade tip is in
+supersonic flow, each blade sends a weak shock wave forward along the intake
+duct. The blades differ slightly from one another in setting angle and profile,
+so the pattern of shocks repeats not once per blade passing period but once per
+**full shaft revolution** — hence the comb of orders.
 
-### 2. Огибающая по порядкам имеет максимум около частоты следования лопаток
+### 2. The envelope over the orders peaks near the blade passing frequency
 
-| Порядок | Доля BPF | Среднее превышение над фоном |
+| Order | Fraction of BPF | Mean excess over the noise floor |
 |---:|---:|---:|
-| 1…10 | 0.04…0.42 | +7…+15 дБ |
-| 21 | 0.88 | **+25 дБ** |
-| 24 (BPF) | 1.00 | **+24 дБ** |
-| 28 | 1.17 | **+23 дБ** |
-| 31 | 1.29 | **+25 дБ** |
-| 40…48 | 1.67…2.00 | +11…+17 дБ |
+| 1…10 | 0.04…0.42 | +7…+15 dB |
+| 21 | 0.88 | **+25 dB** |
+| 24 (BPF) | 1.00 | **+24 dB** |
+| 28 | 1.17 | **+23 dB** |
+| 31 | 1.29 | **+25 dB** |
+| 40…48 | 1.67…2.00 | +11…+17 dB |
 
-Максимум приходится на 0.9…1.3 BPF, что совпадает с литературными данными по
-buzz-saw. Огибающая сильно **изрезана**: соседние порядки различаются на 10…18 дБ
-(порядок 23 — всего +6.5 дБ, порядок 24 — +24 дБ, порядок 25 — +5.4 дБ). Эта
-изрезанность и есть след разброса лопаток; ровная гребёнка звучала бы как
-синтезатор.
+The peak falls at 0.9…1.3 BPF, which agrees with the literature on buzz-saw
+noise. The envelope is heavily **jagged**: neighbouring orders differ by
+10…18 dB (order 23 is only +6.5 dB, order 24 is +24 dB, order 25 is +5.4 dB).
+That jaggedness is the signature of blade-to-blade scatter; an even comb would
+sound like a synthesiser.
 
-### 3. Широкополосная часть темнее, чем кажется
+### 3. The broadband part is darker than one would expect
 
-Третьоктавный анализ пролёта: максимум на 200…315 Гц, спад −15 дБ к 1 кГц и
-−30 дБ к 2 кГц. Шум струи сосредоточен в низких частотах, и это главное, что
-отличает звук реального двигателя от «белого шума с гулом».
+Third-octave analysis of the flyover: a peak at 200…315 Hz, −15 dB by 1 kHz and
+−30 dB by 2 kHz. Jet noise is concentrated at low frequencies, and that is the
+main thing distinguishing a real engine from "white noise with a hum".
 
-## Как это реализовано
+## How it is implemented
 
 ```mermaid
 graph LR
-  CO["Осциллятор на частоте вала<br/>PeriodicWave, 48 порядков"] --> CF[ФВЧ] --> CG[Buzz-saw]
-  BO["Синус на BPF"] --> BG[Тон лопаток]
-  B2["Синус на 2×BPF"] --> B2G[Гармоника]
-  NO["Пила на частоте вала ВД"] --> NF[Полосовой] --> NG[Свист ВД]
-  BN[Коричневый шум] --> JB["Полосовой 180…310 Гц"] --> JL[Два ФНЧ каскадом] --> JG[Шум струи]
-  BN --> RF["Полосовой 88 Гц"] --> RG[Рокот]
-  WN[Белый шум] --> FB[Полосовой 1.2…2.8 кГц] --> FG[Шум вентилятора]
-  CG --> BUS[Шина]
+  CO["Oscillator at shaft frequency<br/>PeriodicWave, 48 orders"] --> CF[HPF] --> CG[Buzz-saw]
+  BO["Sine at BPF"] --> BG[Blade tone]
+  B2["Sine at 2×BPF"] --> B2G[Harmonic]
+  NO["Sawtooth at HP shaft frequency"] --> NF[Bandpass] --> NG[HP whine]
+  BN[Brown noise] --> JB["Bandpass 180…310 Hz"] --> JL[Two cascaded LPFs] --> JG[Jet noise]
+  BN --> RF["Bandpass 88 Hz"] --> RG[Rumble]
+  WN[White noise] --> FB[Bandpass 1.2…2.8 kHz] --> FG[Fan noise]
+  CG --> BUS[Bus]
   BG --> BUS
   B2G --> BUS
   NG --> BUS
   JG --> BUS
   RG --> BUS
   FG --> BUS
-  BUS --> HP[ФВЧ 58/52 Гц] --> PAN[Панорама] --> COMP[Компрессор] --> MAS[Мастер]
+  BUS --> HP[HPF 58/52 Hz] --> PAN[Panning] --> COMP[Compressor] --> MAS[Master]
 ```
 
-### Гребёнка из одного осциллятора
+### The comb from a single oscillator
 
-Измеренная огибающая по 48 порядкам загружается в `PeriodicWave` — форму волны,
-заданную амплитудами гармоник. Тогда **один** осциллятор на частоте вращения
-вала даёт сразу всю гребёнку, и при изменении оборотов она едет целиком, как у
-настоящего двигателя. Форма волны band-limited, поэтому алиасинга нет.
+The measured envelope over 48 orders is loaded into a `PeriodicWave` — a
+waveform defined by harmonic amplitudes. **One** oscillator at the shaft
+rotation frequency then produces the entire comb at once, and as the speed
+changes it slides as a whole, just like on a real engine. The waveform is
+band-limited, so there is no aliasing.
 
 ```js
 const real = new Float32Array(49), imag = new Float32Array(49);
 for (let n = 1; n <= 48; n++) {
-  const phase = (n * 2.399963) % (Math.PI * 2);  // скачки от разных лопаток не синфазны
+  const phase = (n * 2.399963) % (Math.PI * 2);  // shocks from different blades are not in phase
   real[n] = BUZZSAW[n - 1] * Math.cos(phase);
   imag[n] = BUZZSAW[n - 1] * Math.sin(phase);
 }
 combOsc.setPeriodicWave(ctx.createPeriodicWave(real, imag));
-combOsc.frequency.value = n1 * 5175 / 60;      // частота вала
+combOsc.frequency.value = n1 * 5175 / 60;      // shaft frequency
 ```
 
-Массив `BUZZSAW` — это ровно измеренная огибающая, переведённая из децибел в
-относительные амплитуды, вместе со всей её изрезанностью.
+The `BUZZSAW` array is exactly the measured envelope converted from decibels to
+relative amplitudes, jaggedness and all.
 
-### Порог появления buzz-saw
+### Threshold at which buzz-saw appears
 
-Гребёнка включается не по произвольному порогу оборотов, а по относительному
-числу Маха на конце лопатки — из окружной и осевой скоростей:
+The comb is switched on not by an arbitrary speed threshold but by the relative
+Mach number at the blade tip, built from the tangential and axial velocities:
 
 ```js
-u = π · D · n1 · 5175 / 60        // окружная скорость конца лопатки
-axial = 150 · (0.3 + 0.7·n1)      // осевая скорость на входе
+u = π · D · n1 · 5175 / 60        // tangential velocity of the blade tip
+axial = 150 · (0.3 + 0.7·n1)      // axial velocity at the intake
 M = hypot(u, axial) / 340
 buzz = smoothstep(M, 0.98, 1.18)
 ```
 
-| N1 | Относительное число Маха | Уровень buzz-saw | BPF |
+| N1 | Relative Mach number | Buzz-saw level | BPF |
 |---:|---:|---:|---:|
-| 18 % | 0.29 | 0.00 | 373 Гц |
-| 50 % | 0.68 | 0.00 | 1035 Гц |
-| 70 % | 0.93 | 0.00 | 1449 Гц |
-| 80 % | 1.06 | 0.34 | 1656 Гц |
-| 92 % | 1.21 | 1.00 | 1904 Гц |
-| 100 % | 1.31 | 1.00 | 2070 Гц |
+| 18 % | 0.29 | 0.00 | 373 Hz |
+| 50 % | 0.68 | 0.00 | 1035 Hz |
+| 70 % | 0.93 | 0.00 | 1449 Hz |
+| 80 % | 1.06 | 0.34 | 1656 Hz |
+| 92 % | 1.21 | 1.00 | 1904 Hz |
+| 100 % | 1.31 | 1.00 | 2070 Hz |
 
-Поэтому на рулении слышен чистый вой на частоте следования лопаток, а на
-взлётном режиме к нему добавляется характерный рокочущий «пилящий» призвук.
-Когда гребёнка разгорается, чистый тон приглушается — в реальности энергия
-перераспределяется в пользу порядков вала.
+So while taxiing one hears a pure whine at the blade passing frequency, and at
+take-off power the characteristic rumbling "sawing" overtone joins it. As the
+comb builds up, the pure tone is damped — in reality the energy is redistributed
+in favour of the shaft orders.
 
-### Остальные составляющие
+### The remaining components
 
-| Источник | Привязан к | Полоса |
+| Source | Driven by | Band |
 |---|---|---|
-| Шум струи | горению `burn` | максимум 180…310 Гц, каскад из двух ФНЧ для крутого спада |
-| Рокот | горению и расходу | полоса 88 Гц |
-| Шум вентилятора | оборотам N1 | 1.2…2.8 кГц, широкая полоса |
-| Свист ротора ВД | оборотам N2 | полоса на 4-й гармонике вала ВД |
+| Jet noise | combustion `burn` | peak at 180…310 Hz, two cascaded LPFs for a steep roll-off |
+| Rumble | combustion and airflow | bandpass at 88 Hz |
+| Fan noise | N1 speed | 1.2…2.8 kHz, wide band |
+| HP rotor whine | N2 speed | bandpass at the 4th harmonic of the HP shaft |
 
-Разделение принципиальное: **тоны привязаны к оборотам, шум — к горению и
-расходу воздуха**. Поэтому при отсечке топлива рёв пропадает сразу, а вой
-вентилятора продолжает падать по частоте, пока роторы не остановятся.
+The split is fundamental: **tones are tied to rotor speed, noise to combustion
+and airflow**. That is why the roar disappears the moment the fuel is cut, while
+the fan whine keeps falling in pitch until the rotors stop.
 
-Живость добавляют два медленных генератора: увод частоты вала (0.13 Гц) и
-«дыхание» струи (0.31 Гц).
+Liveliness is added by two slow oscillators: a wander of the shaft frequency
+(0.13 Hz) and a breathing of the jet (0.31 Hz).
 
-## Проверка
+## Verification
 
-Модуль принимает подменный аудиоконтекст:
+The module accepts a substitute audio context:
 
 ```js
 createEngineSound({ makeContext: () => new OfflineAudioContext(1, 44100 * 6, 44100) })
 ```
 
-Синтез рендерится офлайн и прогоняется через **тот же** анализ, что и реальная
-запись. Результат:
+The synthesis is rendered offline and put through **the same** analysis as the
+real recording. The result:
 
-| Показатель | Запись CFM56 | Синтез | |
+| Metric | CFM56 recording | Synthesis | |
 |---|---:|---:|---|
-| Частота вала | 79.04 Гц | 79.26 Гц | +0.3 % |
-| Частота следования лопаток | 1897 Гц | 1902 Гц | +0.3 % |
-| Максимум огибающей | порядок 28 (1.17 BPF) | порядок 24 (1.00 BPF) | |
-| Корреляция гребёнки | 0.54 | 0.81 | синтез регулярнее |
-| **Расхождение формы спектра до 5 кГц** | — | — | **3.2 дБ** |
+| Shaft frequency | 79.04 Hz | 79.26 Hz | +0.3 % |
+| Blade passing frequency | 1897 Hz | 1902 Hz | +0.3 % |
+| Envelope peak | order 28 (1.17 BPF) | order 24 (1.00 BPF) | |
+| Comb correlation | 0.54 | 0.81 | the synthesis is more regular |
+| **Spectral shape mismatch up to 5 kHz** | — | — | **3.2 dB** |
 
-По ходу настройки расхождение формы третьоктавного спектра снижено с 9.6 дБ
-до 3.2 дБ: убран избыток инфранизких частот, сделан круче спад шума струи,
-ослаблен широкополосный шум вентилятора.
+During tuning the third-octave spectral shape mismatch was reduced from 9.6 dB
+to 3.2 dB: the excess of infrasonic content was removed, the jet noise roll-off
+was made steeper, and the broadband fan noise was attenuated.
 
-Уровни: пик 0.52 на взлётном режиме и 0.11 на малом газе при громкости 50 % —
-клиппинга нет. На остановленном двигателе выход **ровно ноль**.
+Levels: a peak of 0.52 at take-off power and 0.11 at idle with the volume at
+50 % — no clipping. On a stopped engine the output is **exactly zero**.
 
-### Что осталось несовпадающим и почему
+### What still does not match, and why
 
-* Синтез регулярнее записи (корреляция гребёнки 0.81 против 0.54) — в записи
-  есть ветер, отражения и посторонние источники, которые размывают структуру.
-* Синтез ярче в полосе 2…4 кГц на 4…6 дБ. Это осознанно: запись сделана на
-  расстоянии, а на таких дистанциях воздух заметно поглощает высокие частоты.
-  Виртуальный слушатель стоит рядом с двигателем, где поглощения почти нет.
-* Максимум огибающей у синтеза приходится на 24-й порядок, у записи на 28-й —
-  расхождение в пределах одного лепестка огибающей.
+* The synthesis is more regular than the recording (comb correlation 0.81
+  against 0.54) — the recording contains wind, reflections and extraneous
+  sources that blur the structure.
+* The synthesis is 4…6 dB brighter in the 2…4 kHz band. This is deliberate: the
+  recording was made at a distance, and over such distances air absorbs high
+  frequencies noticeably. The virtual listener stands next to the engine, where
+  there is almost no absorption.
+* The envelope peak of the synthesis falls on order 24, that of the recording on
+  order 28 — a discrepancy within one lobe of the envelope.
 
-Совпадение по абсолютным уровням не проверялось: запись без калибровки, её
-уровень зависит от расстояния, микрофона и настроек записи.
+Agreement in absolute levels was not checked: the recording is uncalibrated, and
+its level depends on distance, microphone and recording settings.
 
-## Пространство
+## Space
 
-Панорама и громкость следуют за камерой: центр двигателя проецируется на экран,
-и его горизонтальная координата задаёт панораму, а расстояние — громкость.
-Ослабление линейное; эффект Доплера, поглощение в воздухе и отражения не
-моделируются. При уходе со вкладки контекст приостанавливается.
+Panning and loudness follow the camera: the centre of the engine is projected
+onto the screen, its horizontal coordinate sets the panning and its distance the
+loudness. The attenuation is linear; the Doppler effect, absorption in air and
+reflections are not modelled. When the tab loses focus the context is suspended.
 
-## Как повторить измерения
+## Reproducing the measurements
 
 ```bash
 cd test/audio
-./fetch.sh          # скачивает записи с Freesound (CC, ~7 МБ)
-python3 orders.py   # раскладка тонов по порядкам вала
-python3 compare.py  # сравнение записи и синтеза
+./fetch.sh          # downloads the recordings from Freesound (CC, ~7 MB)
+python3 orders.py   # sorts the tones by shaft order
+python3 compare.py  # compares the recording against the synthesis
 ```
 
-Для `compare.py` нужен файл синтеза: он рендерится в браузере из
-`OfflineAudioContext` (процедура — в шапке скрипта). Нужны `python3`,
-`numpy`, `scipy`, `ffmpeg`.
+`compare.py` needs a synthesis file: it is rendered in the browser from an
+`OfflineAudioContext` (the procedure is in the header of the script). It
+requires `python3`, `numpy`, `scipy` and `ffmpeg`.

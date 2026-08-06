@@ -1,137 +1,145 @@
-# 05. Режимы работы: запуск, работа, останов
+# 05. Operating regimes: start, running, shutdown
 
-Реализовано в `src/engineState.js` — модуле без зависимостей от Three.js и DOM.
-Управляется кнопкой «Запуск / Останов двигателя» или клавишей `E`.
+Implemented in `src/engineState.js` — a module with no dependency on Three.js or
+the DOM. Driven by the "Start / Shut down engine" button or the `E` key.
 
-## Автомат состояний
+## State machine
 
 ```mermaid
 stateDiagram-v2
-  [*] --> run: старт приложения
-  off --> start: кнопка
-  start --> run: N2 достиг малого газа
-  start --> stop: кнопка (прерывание запуска)
-  run --> stop: кнопка (стоп-кран)
-  stop --> off: оба ротора остановились
-  stop --> start: кнопка (повторный запуск на выбеге)
+  [*] --> run: application start-up
+  off --> start: button
+  start --> run: N2 reached idle
+  start --> stop: button (start aborted)
+  run --> stop: button (fuel shut-off)
+  stop --> off: both rotors have stopped
+  stop --> start: button (restart during rundown)
 
-  off: off — выключен<br/>роторы неподвижны, топлива нет
-  start: start — запуск<br/>стартер, розжиг, выход на малый газ
-  run: run — работа<br/>обороты задаются РУД
-  stop: stop — останов<br/>топливо отсечено, роторы на выбеге
+  off: off — shut down<br/>rotors at rest, no fuel
+  start: start — starting<br/>starter, light-off, acceleration to idle
+  run: run — running<br/>speeds commanded by the throttle
+  stop: stop — shutdown<br/>fuel cut, rotors coasting down
 ```
 
-Переходы `start → run` и `stop → off` происходят **внутри автомата**, по факту
-достижения оборотов, а не по нажатию кнопки. Поэтому цикл анимации сверяет
-`eng.mode` с показанным режимом и обновляет панель при расхождении.
+The transitions `start → run` and `stop → off` happen **inside the state
+machine**, when the speeds are actually reached, not when a button is pressed.
+That is why the animation loop compares `eng.mode` against the displayed mode
+and refreshes the panel whenever they differ.
 
-## Останов
+## Shutdown
 
-Нажатие кнопки в режиме `run` — это стоп-кран: `fuel = 0` мгновенно. Дальше
-двигатель доходит до нуля сам, без участия пользователя.
+Pressing the button in `run` mode is a fuel shut-off: `fuel = 0` immediately.
+From there the engine reaches zero on its own, without the user.
 
-| Что | Когда | Механизм |
+| What | When | Mechanism |
 |---|---|---|
-| Тяга обнуляется | сразу | Тяга считается только при подаче топлива |
-| Пламя гаснет | ~1.9 с | `burn` → 0 с постоянной времени 0.35 с |
-| Ротор ВД останавливается | ~22.6 с | Экспонента τ = 5.9 с + трение 0.0035 /с |
-| Ротор НД останавливается | ~35.2 с | Экспонента τ = 9.3 с + трение 0.0022 /с |
-| Режим переходит в `off` | ~35.2 с | Оба ротора достигли нуля |
-| Тракт остывает | десятки секунд | T4 → 15 °C с постоянной времени 7 с |
+| Thrust goes to zero | immediately | Thrust is computed only while fuel is on |
+| Flame dies | ~1.9 s | `burn` → 0 with a time constant of 0.35 s |
+| HP rotor stops | ~22.6 s | Exponential τ = 5.9 s + friction 0.0035 /s |
+| LP rotor stops | ~35.2 s | Exponential τ = 9.3 s + friction 0.0022 /s |
+| Mode changes to `off` | ~35.2 s | Both rotors have reached zero |
+| Gas path cools | tens of seconds | T4 → 15 °C with a time constant of 7 s |
 
-Что видно и слышно при этом:
+What can be seen and heard while this happens:
 
-* турбина продолжает светиться после того, как пламя погасло — накал привязан к
-  фактической T4, а не к РУД;
-* частицы потока замедляются вместе с вентилятором, внутренний контур теряет
-  цвет — без горения там просто прокачиваемый воздух;
-* рёв в звуке пропадает сразу вместе с горением, а вой вентилятора продолжает
-  падать по частоте, пока роторы крутятся; после полной остановки — тишина;
-* слайдер РУД блокируется: «оживить» остановленный двигатель им нельзя.
+* the turbine keeps glowing after the flame has died — the incandescence is tied
+  to the actual T4, not to the throttle;
+* the flow particles slow down together with the fan, and the core duct loses
+  its colour — without combustion it is just air being pumped through;
+* the roar in the sound disappears at once together with the combustion, while
+  the fan whine keeps falling in pitch as long as the rotors turn; after they
+  stop, silence;
+* the throttle slider is locked: a shut-down engine cannot be revived with it.
 
-Ротор высокого давления встаёт раньше ротора низкого давления — это следствие
-разных моментов инерции, см. [физику](03-physics.md#2-динамика-выхода-на-режим-и-выбега).
+The high-pressure rotor stops before the low-pressure one — a consequence of
+their different moments of inertia, see the
+[physics](03-physics.md#2-dynamics-of-spool-up-and-rundown).
 
-## Запуск
+## Start
 
-1. **Раскрутка стартером.** Цель по оборотам ВД — 30 %. Ротор НД в это время
-   подхватывается потоком и вращается медленно (`n1 = 0.16 · n2`). Этап самый
-   длинный: до 22 % оборотов проходит ~16.6 с.
-2. **Подача топлива** при N2 > 22 %. Пламени ещё нет: свечи работают, топливо
-   поступает в камеру, тракт остаётся холодным.
-3. **Розжиг** через 2.5 с после подачи (`LIGHT_DELAY`) — `burn` скачком до 0.45,
-   на ~19.1 с от начала запуска.
-4. **Заброс температуры** до ~785 °C: расход воздуха ещё мал, смесь богатая.
-5. **Выход на малый газ**: N1 = 18 %, N2 = 56 %, T4 = 495 °C. Занимает ~39.7 с
-   от начала, после чего режим переходит в `run` и РУД разблокируется.
+1. **Starter cranking.** The HP speed target is 30 %. Meanwhile the LP rotor is
+   picked up by the flow and turns slowly (`n1 = 0.16 · n2`). This is the
+   longest phase: reaching 22 % takes about 16.6 s.
+2. **Fuel introduction** at N2 > 22 %. There is no flame yet: the igniters are
+   firing, fuel enters the chamber, the gas path stays cold.
+3. **Light-off** 2.5 s after fuel introduction (`LIGHT_DELAY`) — `burn` jumps to
+   0.45, about 19.1 s into the start.
+4. **Temperature overshoot** to about 785 °C: the airflow is still small and the
+   mixture rich.
+5. **Reaching idle**: N1 = 18 %, N2 = 56 %, T4 = 495 °C. It takes about 39.7 s
+   from the beginning, after which the mode changes to `run` and the throttle is
+   unlocked.
 
-Запуск можно прервать в любой момент — кнопка переведёт двигатель в `stop`.
-Так же и наоборот: во время выбега можно запустить двигатель заново.
+The start can be aborted at any moment — the button puts the engine into `stop`.
+And the other way round: during rundown the engine can be started again.
 
-## Приёмистость
+## Throttle response
 
-В режиме `run` обороты следуют за РУД не мгновенно, а по апериодическому закону:
-разгон медленнее сброса, ротор НД инерционнее ротора ВД. С малого газа до
-взлётного двигатель выходит примерно за 11.5 с.
+In `run` mode the speeds follow the throttle not instantly but by a first-order
+lag: acceleration is slower than deceleration, and the LP rotor has more inertia
+than the HP one. From idle to take-off power the engine takes about 11.5 s.
 
-Слайдер работает именно как рычаг управления двигателем: он задаёт **цель**, а
-приборы показывают **фактические** обороты. Поэтому при резкой перекладке видно,
-как N1 и N2 догоняют команду с разной скоростью.
+The slider behaves exactly like a thrust lever: it sets the **target**, while the
+instruments show the **actual** speeds. So a sharp movement makes it visible how
+N1 and N2 chase the command at different rates.
 
-## Тесты
+## Tests
 
-`npm test` — 20 проверок в `test/engine-state.test.mjs`, автомат прогоняется с
-шагом 1/60 с. Тест печатает трассу останова и запуска, что удобно при подборе
-постоянных времени:
+`npm test` — 20 checks in `test/engine-state.test.mjs`, with the state machine
+stepped at 1/60 s. The test prints a trace of the shutdown and the start, which
+is convenient when tuning the time constants:
 
 ```
-=== ПОЛНЫЙ ОСТАНОВ (с 85 % РУД) ===
-исходно: N1=88%  N2=93%  T4=1583°C
-  t=  5с  N1= 50%  N2= 39%  T4= 781°C  горение=0.00
-  t= 10с  N1= 29%  N2= 15%  T4= 391°C  горение=0.00
-  t= 15с  N1= 16%  N2=  5%  T4= 199°C  горение=0.00
-  t= 20с  N1=  8%  N2=  1%  T4= 105°C  горение=0.00
-  t= 25с  N1=  4%  N2=  0%  T4=  59°C  горение=0.00
-  t= 30с  N1=  2%  N2=  0%  T4=  37°C  горение=0.00
-  t= 35с  N1=  0%  N2=  0%  T4=  26°C  горение=0.00
-пламя погасло: 1.9 с
-ротор ВД встал: 22.6 с
-ротор НД встал: 35.2 с
+=== FULL SHUTDOWN (from 85 % throttle) ===
+initially: N1=88%  N2=93%  T4=1583°C
+  t=  5s  N1= 50%  N2= 39%  T4= 781°C  burn=0.00
+  t= 10s  N1= 29%  N2= 15%  T4= 391°C  burn=0.00
+  t= 15s  N1= 16%  N2=  5%  T4= 199°C  burn=0.00
+  t= 20s  N1=  8%  N2=  1%  T4= 105°C  burn=0.00
+  t= 25s  N1=  4%  N2=  0%  T4=  59°C  burn=0.00
+  t= 30s  N1=  2%  N2=  0%  T4=  37°C  burn=0.00
+  t= 35s  N1=  0%  N2=  0%  T4=  26°C  burn=0.00
+flame out: 1.9 s
+HP rotor stopped: 22.6 s
+LP rotor stopped: 35.2 s
 
-=== ЗАПУСК ===
-подача топлива: 16.6 с (N2 = 22 %)
-розжиг: 19.1 с
-выход на малый газ: 39.7 с
+=== START ===
+fuel introduced: 16.6 s (N2 = 22 %)
+light-off: 19.1 s
+idle reached: 39.7 s
 ```
 
-Проверяемые утверждения перечислены в
-[документе о физике](03-physics.md#10-что-проверено-численно).
+The propositions being checked are listed in the
+[physics document](03-physics.md#10-what-has-been-verified-numerically).
 
-Тесты появились не для галочки: браузер в безголовом режиме рендерит эту сцену
-на программном растеризаторе со скоростью около 1 кадра в секунду, поэтому
-пронаблюдать в нём пятнадцатисекундный выбег невозможно. Вынесенный модуль
-проверяется за доли секунды.
+The tests are not there for show: a headless browser renders this scene on a
+software rasteriser at about one frame per second, so watching a fifteen-second
+rundown in it is impossible. The extracted module is checked in a fraction of a
+second.
 
-## Настройка
+## Tuning
 
-Все постоянные времени и пороги собраны в начале `src/engineState.js`:
+All time constants and thresholds are gathered at the top of
+`src/engineState.js`:
 
 ```js
-export const IDLE_N1 = 0.18;    // малый газ, доля от максимальных оборотов
+export const IDLE_N1 = 0.18;    // idle, fraction of maximum speed
 export const IDLE_N2 = 0.56;
-export const START_N2 = 0.30;   // до каких оборотов раскручивает стартер
-export const LIGHT_N2 = 0.22;   // обороты подачи топлива
-export const LIGHT_DELAY = 2.5; // от подачи топлива до появления пламени, с
+export const START_N2 = 0.30;   // speed the starter cranks to
+export const LIGHT_N2 = 0.22;   // speed at which fuel is introduced
+export const LIGHT_DELAY = 2.5; // from fuel introduction to visible flame, s
 ```
 
-Постоянные времени собраны в объекте `TAU` там же и разделены по этапам:
-раскрутка стартером, разгон до малого газа, приёмистость и сброс на рабочих
-режимах, выбег. Разделение не косметическое — разгон ротора определяется
-избытком момента, а он на этих этапах разный, поэтому одной парой постоянных
-обойтись нельзя: с общей `τ` запуск получался вшестеро быстрее натурного.
+The time constants live in the `TAU` object in the same file and are split by
+phase: starter cranking, acceleration to idle, throttle response and
+deceleration at operating regimes, rundown. The split is not cosmetic — rotor
+acceleration is governed by excess torque, and that differs between these
+phases, so a single pair of constants will not do: with a common `τ` the start
+came out six times faster than the real thing.
 
-Времена запуска (~40 с) и выбега (~35 с) соответствуют реальным 30–60 с.
-Чтобы не ждать их целиком, в панели есть **скорость времени ×1 / ×4**: она
-умножает шаг только для автомата двигателя (`eng.update(dt · timeScale)`),
-не трогая ни частицы потока, ни вращение камеры. Приёмистость с малого газа до
-взлётного (11.5 с) намеренно не менялась — она и так медленнее натурной.
+The start (~40 s) and rundown (~35 s) times match the real 30–60 s. To save
+waiting through them, the panel offers a **time scale ×1 / ×4**: it multiplies
+the step for the engine state machine only (`eng.update(dt · timeScale)`),
+leaving the flow particles and the camera alone. The throttle response from idle
+to take-off (11.5 s) was deliberately left unchanged — it is already slower than
+the real thing.

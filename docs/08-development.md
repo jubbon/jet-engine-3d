@@ -1,144 +1,153 @@
-# 08. Разработка
+# 08. Development
 
-## Запуск
+## Running
 
 ```bash
 npm install
-npm run dev      # http://localhost:5188, слушает на 0.0.0.0
-npm run build    # сборка в dist/
-npm run preview  # просмотр собранной версии
-npm test         # автомат состояний, выхлопные газы, смаз спирали,
-                 # габариты по справочнику и компоновочные зазоры
+npm run dev      # http://localhost:5188, listens on 0.0.0.0
+npm run build    # build into dist/
+npm run preview  # preview the built version
+npm test         # state machine, exhaust gas, spiral smear,
+                 # dimensions against the reference, layout clearances
 ```
 
-Зависимости: `three` (рантайм) и `vite` (сборка). Внешних ассетов нет вообще —
-ни моделей, ни текстур, ни звуковых файлов: вся геометрия строится кодом,
-отражения даёт процедурное окружение `RoomEnvironment`, звук синтезируется.
+Dependencies: `three` (runtime) and `vite` (build). There are no external assets
+at all — no models, no textures, no sound files: all geometry is built in code,
+reflections come from the procedural `RoomEnvironment`, the sound is
+synthesised.
 
-Сервер поднимается на `0.0.0.0`, то есть доступен из локальной сети без
-аутентификации. Для показа коллегам это удобно, но в недоверенной сети порт
-лучше закрывать.
+The server binds to `0.0.0.0`, so it is reachable from the local network without
+authentication. Handy for showing colleagues, but on an untrusted network the
+port is better closed.
 
-## Размер сборки
+## Build size
 
 ```
-dist/index.html                 7.4 кБ  (2.4 кБ gzip)
-dist/assets/index-*.css         7.7 кБ  (2.3 кБ gzip)
-dist/assets/index-*.js        661 кБ  (175 кБ gzip)
+dist/index.html                 7.4 kB  (2.4 kB gzip)
+dist/assets/index-*.css         7.7 kB  (2.3 kB gzip)
+dist/assets/index-*.js        661 kB  (175 kB gzip)
 ```
 
-Предупреждение Vite о чанке больше 500 кБ относится к самой библиотеке Three.js.
-При необходимости лечится `manualChunks`.
+The Vite warning about a chunk larger than 500 kB refers to the Three.js library
+itself. It can be addressed with `manualChunks` if needed.
 
-## Производительность
+## Performance
 
-Около 758 тыс. треугольников и 123 вызова отрисовки (разбор по узлам — в
-[«Архитектуре»](01-architecture.md#производительность)). На дискретной или
-встроенной видеокарте это идёт с запасом; узкое место — не геометрия, а
-прозрачные оболочки в режиме «рентген» вместе с частицами и свечением.
+About 758 thousand triangles and 123 draw calls (the breakdown by module is in
+[Architecture](01-architecture.md#performance)). On a discrete or integrated GPU
+this runs with room to spare; the bottleneck is not the geometry but the
+transparent shells in x-ray mode together with the particles and the bloom.
 
-Числа тут проверяемы, а не переписываются по памяти: `buildEngine()` работает в
-Node, поэтому треугольники, венцы и лопатки считаются обходом сцены. При правке
-компоновки пересчитывай их, иначе они молча разъезжаются — так и вышло с
-прежними «850 тыс. и 50 вызовов».
+These numbers are verifiable rather than recalled from memory: `buildEngine()`
+runs under Node, so triangles, rows and blades are counted by walking the scene.
+Recount them whenever the layout changes, otherwise they drift silently — which
+is exactly what happened with the earlier "850 thousand and 50 draw calls".
 
-Если нужно облегчить сцену:
+If the scene needs lightening:
 
-* уменьшить `radialSegments` и `chordSegments` в вызовах `makeBladeGeometry()`
-  (мелкие лопатки строятся с 5–6 сечениями по радиусу — это уже минимум);
-* уменьшить число частиц `N_BYPASS` и `N_CORE` в `src/airflow.js`;
-* отключить `UnrealBloomPass`.
+* reduce `radialSegments` and `chordSegments` in the `makeBladeGeometry()` calls
+  (small blades are built with 5–6 radial sections, which is already the
+  minimum);
+* reduce the particle counts `N_BYPASS` and `N_CORE` in `src/airflow.js`;
+* switch off the `UnrealBloomPass`.
 
-Отдельно про безголовый браузер: он рендерит эту сцену программным
-растеризатором (SwiftShader) со скоростью около 1 кадра в секунду. Это не
-показатель для реального железа, но делает невозможной проверку длительных
-процессов через браузер — отсюда вынесенные модули `engineState.js` и
-`sound.js`, которые проверяются напрямую.
+A note on headless browsers: one renders this scene on a software rasteriser
+(SwiftShader) at about one frame per second. That says nothing about real
+hardware, but it does make checking long processes through a browser impossible
+— hence the extracted modules `engineState.js` and `sound.js`, which are checked
+directly.
 
-## Тесты
+## Tests
 
-Пять файлов, 75 проверок. Фреймворка нет: каждый тест — обычный Node-скрипт с
-собственным хелпером `check()`, печатает по строке `OK`/`FAIL` на проверку и
-выходит с кодом 1 при провале. Отдельный файл запускается напрямую —
+Five files, 75 checks. There is no framework: each test is a plain Node script
+with its own `check()` helper, printing one `OK`/`FAIL` line per check and
+exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
 
-`test/engine-state.test.mjs` — 20 проверок автомата режимов: полный останов,
-невозможность «оживить» двигатель положением РУД, обратный запуск с розжигом и
-забросом температуры, натурная длительность запуска, устойчивый малый газ,
-приёмистость. Тест печатает трассу процессов, поэтому им же удобно подбирать
-постоянные времени.
+`test/engine-state.test.mjs` — 20 checks of the regime state machine: full
+shutdown, the impossibility of reviving the engine with the throttle, a restart
+with light-off and temperature overshoot, a realistic start duration, stable
+idle, throttle response. The test prints a trace of the processes, which also
+makes it a convenient tool for tuning the time constants.
 
-`test/heat-haze.test.mjs` — 10 проверок выхлопных газов: на холодном
-двигателе искажения нет вообще, при запуске оно появляется только после розжига,
-на взлётном режиме выходит на максимум, после останова гаснет примерно на 15-й
-секунде. Проверяется чистая функция `hazePower()`, прогнанная через настоящий
-автомат режимов, — сам шейдер в Node не запускается.
+`test/heat-haze.test.mjs` — 10 checks of the exhaust gas: on a cold engine there
+is no distortion at all, during a start it appears only after light-off, at
+take-off power it reaches its maximum, and after shutdown it dies at around the
+15th second. What is checked is the pure function `hazePower()` driven through
+the real state machine — the shader itself does not run under Node.
 
-`test/spiral-blur.test.mjs` — 10 проверок смаза спирали на коке: на стоянке она
-резкая, к взлётному режиму прозрачность падает ниже 3 %, на выбеге возвращается.
-Отдельно проверяется, что копии спирали нигде не расходятся дальше её угловой
-толщины, — иначе вместо ровного кольца вышел бы веер полос.
+`test/spiral-blur.test.mjs` — 10 checks of the spinner spiral smear: at rest it
+is sharp, by take-off power its opacity falls below 3 %, during rundown it
+returns. Separately it checks that the copies of the spiral never spread further
+apart than its angular thickness — otherwise a fan of stripes would appear
+instead of an even ring.
 
-`test/geometry.test.mjs` — 24 проверки габаритов против
-[справочника по прототипу](engines/cfm56-7b-nacelle.json). Значения теста берёт
-прямо из JSON, а допуски — те, что заявлены в самом справочнике (±0.15 м на
-обмер чертежа ACAP, ±0.2…0.3 м на значения `derived_low`). Смысл в направлении
-сверки: правка справочника ломает тест, а не молча расходится с моделью.
-Габарит гондолы считается по вершинам, а не по профилю `lathe`, — иначе
-сплющенный низ в него не попадёт.
+`test/geometry.test.mjs` — 24 checks of the dimensions against the
+[prototype reference data](engines/cfm56-7b-nacelle.json). The test reads the
+values straight from the JSON, and the tolerances are the ones the reference
+itself states (±0.15 m for measurements off the ACAP drawing, ±0.2…0.3 m for
+`derived_low` values). The point is the direction of comparison: editing the
+reference breaks the test rather than silently diverging from the model. The
+nacelle envelope is computed from vertices rather than from the `lathe` profile
+— otherwise the flattened bottom would not be included.
 
-`test/clearance.test.mjs` — 11 проверок компоновочных зазоров: венцы лопаток не
-входят друг в друга (пересечение и по оси, и по радиусу), концы лопаток
-вентилятора и спрямляющего аппарата остаются под своей обечайкой, коробка
-приводов держит габаритную ширину двигателя и не пробивает обшивку гондолы.
-Это страховка от главного риска сжатой компоновки: газогенератор короткий,
-шаг ступени мал, и любая прибавка к хорде лопатки сажает венцы друг на друга.
+`test/clearance.test.mjs` — 11 checks of the layout clearances: blade rows do
+not intersect one another (overlapping both axially and radially), the tips of
+the fan and outlet guide vanes stay under their own wall, and the accessory
+gearbox holds the overall engine width without piercing the nacelle skin. This
+is insurance against the main risk of a tight layout: the core is short, the
+stage pitch is small, and any addition to a blade chord drops the rows onto each
+other.
 
-Звук проверяется отдельно, рендерингом графа в `OfflineAudioContext` (методика и
-результаты — в [документе о звуке](06-sound.md)).
+The sound is checked separately, by rendering the graph into an
+`OfflineAudioContext` (method and results in the [sound document](06-sound.md)).
 
-Шейдерный проход проверялся в браузере глазами, четырьмя видами: сзади (клавиша
-`9`) и от сопла — там струя должна быть видна и дрожать; спереди — там картинка
-обязана остаться резкой, иначе сломан заслон корпусом; и с включёнными потоками
-воздуха — там частицы и линии тока не должны тонуть в белом газе.
+The shader pass was checked by eye in the browser, from four views: from behind
+(key `9`) and from the nozzle — there the jet must be visible and shimmering;
+from the front — there the image must stay sharp, otherwise the occlusion by the
+bodies is broken; and with the air flows switched on — there the particles and
+streamlines must not drown in white gas.
 
-## Ограничения модели
+## Limitations of the model
 
-Модель иллюстративная. Полный перечень того, что сознательно упрощено или не
-моделируется вовсе — [«Физика модели», раздел 9](03-physics.md#9-чего-в-модели-нет).
-Коротко: нет газодинамического расчёта, нет расчёта цикла, нет высотно-скоростных
-характеристик, нет ограничений и защит двигателя; абсолютные обороты и скорости
-потока намеренно занижены ради читаемости картинки.
+The model is illustrative. The full list of what is deliberately simplified or
+not modelled at all is in
+["Physics of the model", section 9](03-physics.md#9-what-the-model-does-not-have).
+In short: no gas-dynamic computation, no cycle calculation, no
+altitude/airspeed characteristics, no engine limits or protections; the absolute
+speeds and flow velocities are deliberately reduced for the sake of a legible
+picture.
 
-## Что можно доработать
+## Possible extensions
 
-* **Реверс тяги** — створки реверсивного устройства в наружном контуре и
-  соответствующая перестройка потоков.
-* **Отбор воздуха** за компрессором на охлаждение турбины и кондиционирование:
-  геометрически места отбора есть, поток по ним не идёт.
-* **Ограничения и отказы** — помпаж, срыв пламени, превышение T4, отказ на
-  запуске (горячий запуск, зависание оборотов).
-* **Высотно-скоростные характеристики** — зависимость тяги и расхода от высоты
-  и числа Маха.
-* **Разрез в реальном времени по произвольной плоскости** — сейчас вырезается
-  только сектор вокруг оси.
-* **Подписи с учётом перекрытия** — метки внутренних узлов видны сквозь
-  мотогондолу.
+* **Thrust reverser** — the reverser doors in the bypass duct and the
+  corresponding rearrangement of the flows.
+* **Bleed air** from behind the compressor for turbine cooling and air
+  conditioning: the bleed ports exist geometrically, but no flow goes through
+  them.
+* **Limits and failures** — surge, flame-out, T4 exceedance, a failed start (hot
+  start, hung start).
+* **Altitude and airspeed characteristics** — the dependence of thrust and flow
+  on altitude and Mach number.
+* **Real-time section by an arbitrary plane** — at present only a sector around
+  the axis is cut out.
+* **Occlusion-aware labels** — labels of internal modules currently show through
+  the nacelle.
 
-## Структура файлов
+## File layout
 
 ```
-index.html              разметка панели, легенды, карточки узла
-src/main.js             сцена, свет, постобработка, вырез, UI, цикл кадра
-src/engine.js           геометрия всех узлов, материалы, метки, прокси выбора
-src/blade.js            процедурный генератор лопаток и венцов
-src/airflow.js          каналы потоков, частицы, линии тока, струя
-src/heathaze.js         выхлопные газы за соплом (экранный проход)
-src/engineState.js      автомат режимов: запуск, работа, останов, выбег
-src/sound.js            синтез звука на Web Audio
-src/style.css           оформление панелей
-test/                   автомат состояний, выхлопные газы, смаз спирали,
-                        габариты и компоновочные зазоры
-docs/                   эта документация
-docs/engines/           машиночитаемые справочники по прототипам (JSON)
+index.html              markup of the panel, the legend and the module card
+src/main.js             scene, lighting, post-processing, cutaway, UI, frame loop
+src/engine.js           geometry of all modules, materials, labels, picking proxies
+src/blade.js            procedural generator of blades and rows
+src/airflow.js          flow ducts, particles, streamlines, plume
+src/heathaze.js         exhaust gas aft of the nozzle (screen-space pass)
+src/engineState.js      regime state machine: start, running, shutdown, rundown
+src/sound.js            sound synthesis on Web Audio
+src/style.css           panel styling
+test/                   state machine, exhaust gas, spiral smear,
+                        dimensions and layout clearances
+docs/                   this documentation
+docs/engines/           machine-readable reference data on prototypes (JSON)
 ```

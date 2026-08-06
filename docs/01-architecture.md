@@ -1,23 +1,23 @@
-# 01. Архитектура
+# 01. Architecture
 
-## Модули
+## Modules
 
 ```mermaid
 graph TD
-  I[index.html<br/>разметка панели и легенды] --> M
-  M[main.js<br/>сцена, свет, постобработка,<br/>вырез, UI, цикл анимации]
-  M --> E[engine.js<br/>геометрия узлов,<br/>материалы, метки]
-  M --> A[airflow.js<br/>частицы, линии тока, струя]
-  M --> H[heathaze.js<br/>выхлопные газы:<br/>искажение и видимая струя]
-  M --> S[sound.js<br/>синтез звука]
-  M --> ST[engineState.js<br/>автомат режимов]
-  E --> B[blade.js<br/>генератор лопаток]
-  ST -.проверяется.-> T[test/engine-state.test.mjs]
-  ST -.проверяется.-> T2[test/heat-haze.test.mjs]
-  E -.проверяется.-> T3[test/spiral-blur.test.mjs]
-  E -.проверяется.-> T4["test/geometry.test.mjs<br/>test/clearance.test.mjs"]
-  J[["docs/engines/*.json<br/>справочник по прототипу"]] -.эталон.-> T4
-  H -.проверяется.-> T2
+  I[index.html<br/>panel and legend markup] --> M
+  M[main.js<br/>scene, lighting, post-processing,<br/>cutaway, UI, animation loop]
+  M --> E[engine.js<br/>module geometry,<br/>materials, labels]
+  M --> A[airflow.js<br/>particles, streamlines, plume]
+  M --> H[heathaze.js<br/>exhaust gas:<br/>distortion and visible jet]
+  M --> S[sound.js<br/>sound synthesis]
+  M --> ST[engineState.js<br/>regime state machine]
+  E --> B[blade.js<br/>blade generator]
+  ST -.checked by.-> T[test/engine-state.test.mjs]
+  ST -.checked by.-> T2[test/heat-haze.test.mjs]
+  E -.checked by.-> T3[test/spiral-blur.test.mjs]
+  E -.checked by.-> T4["test/geometry.test.mjs<br/>test/clearance.test.mjs"]
+  J[["docs/engines/*.json<br/>prototype reference data"]] -.the yardstick.-> T4
+  H -.checked by.-> T2
   style ST fill:#1c3a4d,stroke:#4fc3ff
   style T fill:#1c3a4d,stroke:#4fc3ff
   style T2 fill:#1c3a4d,stroke:#4fc3ff
@@ -25,106 +25,109 @@ graph TD
   style T4 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Зависимости однонаправленные. Два модуля намеренно не знают ни про Three.js,
-ни про DOM:
+Dependencies run one way. Two modules deliberately know nothing about either
+Three.js or the DOM:
 
-* **`engineState.js`** — чистая логика режимов, поэтому её можно прогнать
-  в Node и проверить числами (`npm test`);
-* **`sound.js`** — принимает подменный аудиоконтекст, поэтому граф можно
-  отрендерить в `OfflineAudioContext` и измерить результат.
+* **`engineState.js`** — pure regime logic, so it can be run under Node and
+  checked numerically (`npm test`);
+* **`sound.js`** — accepts a substitute audio context, so the graph can be
+  rendered in an `OfflineAudioContext` and measured.
 
-Это не абстракция ради абстракции: без неё выбег ротора нечем было бы проверить,
-кроме как смотреть на экран.
+This is not abstraction for its own sake: without it there would be no way to
+check the rotor rundown other than watching the screen.
 
-| Файл | Строк | Ответственность |
+| File | Lines | Responsibility |
 |---|---:|---|
-| `src/engine.js` | 1233 | Вся геометрия двигателя, материалы, прокси для выбора узлов |
-| `src/main.js` | 524 | Сцена, освещение, постобработка, вырез, UI, цикл кадра |
-| `src/heathaze.js` | 357 | Экранный проход выхлопных газов за соплом |
-| `src/sound.js` | 345 | Синтез звука на Web Audio |
-| `src/airflow.js` | 333 | Каналы потоков, частицы, линии тока, реактивная струя |
-| `src/style.css` | 324 | Оформление панелей |
-| `src/blade.js` | 161 | Процедурная геометрия лопаток и венцов |
-| `src/engineState.js` | 150 | Автомат режимов: запуск, работа, останов, выбег |
-| `index.html` | 146 | Разметка панели, легенды, карточки узла |
+| `src/engine.js` | 1233 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 524 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/heathaze.js` | 357 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/sound.js` | 345 | Sound synthesis on Web Audio |
+| `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
+| `src/style.css` | 324 | Panel styling |
+| `src/blade.js` | 161 | Procedural geometry of blades and rows |
+| `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
+| `index.html` | 146 | Markup of the panel, the legend and the module card |
 
-## Поток данных в кадре
+## Data flow within a frame
 
 ```mermaid
 flowchart LR
-  R[РУД<br/>слайдер] --> ES[engineState.update<br/>обороты, горение, T4]
-  ES --> ROT[Вращение роторов]
-  ES --> GL[Накал горячей части,<br/>яркость пламени]
-  ES --> AF[airflow.update<br/>скорость и цвет частиц]
-  ES --> SND[sound.update<br/>частоты и уровни]
-  ES --> UI[Приборы, таблица станций,<br/>строка состояния]
-  CAM[Камера] --> SND
+  R[Throttle<br/>slider] --> ES[engineState.update<br/>speeds, combustion, T4]
+  ES --> ROT[Rotor rotation]
+  ES --> GL[Hot section glow,<br/>flame brightness]
+  ES --> AF[airflow.update<br/>particle speed and colour]
+  ES --> SND[sound.update<br/>frequencies and levels]
+  ES --> UI[Instruments, station table,<br/>status line]
+  CAM[Camera] --> SND
 ```
 
-Единственный источник истины о состоянии двигателя — объект `eng` из
-`createEngineState()`. Слайдер задаёт только положение РУД; фактические обороты,
-горение и температура считаются в автомате, и уже от них зависят вращение,
-свечение, потоки, звук и приборы. Поэтому при останове всё гаснет согласованно.
+The single source of truth about the engine is the `eng` object returned by
+`createEngineState()`. The slider only sets the throttle position; the actual
+speeds, combustion and temperature are computed in the state machine, and it is
+those that drive rotation, glow, flows, sound and instruments. That is why
+everything dies together on shutdown.
 
-## Граф сцены
+## Scene graph
 
-Двигатель разбит на модули — они же единицы разнесения и выбора:
+The engine is split into modules — which are also the units of exploding and
+picking:
 
 ```
 engine.root
-├── nacelle    мотогондола, кромка воздухозаборника, пилон
-├── fan        корпус вентилятора, спрямляющий аппарат │ ротор N1: кок, диск, 24 лопатки
-├── booster    разделитель контуров, направляющие аппараты │ ротор N1: 3 ступени
-├── hpc        корпус, 9 направляющих аппаратов │ ротор N2: барабан, 9 ступеней
-├── combustor  диффузор, жаровая труба, купол, 20 форсунок, пламя
-├── hpt        корпус, сопловой аппарат │ ротор N2: 1 ступень, диск
-├── lpt        корпус, сопловые аппараты │ ротор N1: 4 ступени, диски
-├── exhaust    10 стоек задней опоры, сопло, центральное тело
-├── cowl       внутренний обвод наружного контура
-├── shafts     ротор N1: вал НД │ ротор N2: вал ВД │ подшипниковые опоры
-└── accessory  коробка приводов, агрегаты, трубопроводы
+├── nacelle    nacelle, intake lip, pylon
+├── fan        fan case, outlet guide vanes │ N1 rotor: spinner, disc, 24 blades
+├── booster    flow splitter, stator vanes │ N1 rotor: 3 stages
+├── hpc        casing, 9 stator rows │ N2 rotor: drum, 9 stages
+├── combustor  diffuser, flame tube, dome, 20 fuel nozzles, flame
+├── hpt        casing, nozzle guide vanes │ N2 rotor: 1 stage, disc
+├── lpt        casing, nozzle guide vanes │ N1 rotor: 4 stages, discs
+├── exhaust    10 rear frame struts, nozzle, plug
+├── cowl       inner wall of the bypass duct
+├── shafts     N1 rotor: LP shaft │ N2 rotor: HP shaft │ bearing supports
+└── accessory  accessory gearbox, accessories, pipework
 ```
 
-Вращающиеся подгруппы собраны в два массива — `n1Rotors` и `n2Rotors`. Каждый
-кадр всем группам одного каскада присваивается общий угол, поэтому роторы
-остаются синхронными даже при разнесении узлов, когда их родительские модули
-разъезжаются в стороны.
+The rotating subgroups are collected into two arrays — `n1Rotors` and
+`n2Rotors`. Every frame all groups of one spool are assigned a common angle, so
+the rotors stay in sync even in the exploded view, when their parent modules
+have moved apart.
 
-## Производительность
+## Performance
 
-* Каждый венец лопаток — один `InstancedMesh`: геометрия хранится один раз,
-  матрицы поворота задаются по числу лопаток. Венцов 37, лопаток в них 2341:
+* Every blade row is a single `InstancedMesh`: the geometry is stored once and
+  the rotation matrices are supplied per blade. There are 37 rows holding 2341
+  blades:
 
-  | Узел | Венцов | Лопаток |
+  | Module | Rows | Blades |
   |---|---:|---:|
-  | Вентилятор (с OGV) | 3 | 69 |
-  | КНД | 6 | 264 |
-  | КВД | 18 | 1242 |
-  | ТВД | 2 | 106 |
-  | ТНД | 8 | 660 |
+  | Fan (with OGV) | 3 | 69 |
+  | Booster | 6 | 264 |
+  | HP compressor | 18 | 1242 |
+  | HP turbine | 2 | 106 |
+  | LP turbine | 8 | 660 |
 
-  Плюс десять силовых стоек задней опоры тем же способом. Итого около
-  **758 тыс. треугольников** и **123 вызова отрисовки** — на венцы из них
-  приходится 38, остальное набирают одиночные меши: корпуса, обечайки, диски,
-  20 форсунок камеры сгорания, трубопроводы.
-* Выбор узла мышью идёт **не** по реальной геометрии, а по невидимым
-  прокси-цилиндрам (`engine.pickables`, 11 объектов — по одному на модуль):
-  raycast по 758 тыс. треугольников на каждое движение мыши был бы неприемлемо
-  дорог. Материал прокси имеет `visible: false` — он не рендерится, но остаётся
-  видимым для трассировки лучей.
-* При включённом разрезе или прозрачных корпусах прокси оболочек исключаются
-  из выбора, чтобы можно было ткнуть в то, что под ними.
-* `dt` в цикле ограничен 0.05 с: при просадке кадров модель замедляется, но не
-  «прыгает» через состояния.
+  Plus the ten rear frame struts built the same way. That comes to about
+  **758 thousand triangles** and **123 draw calls** — of which the rows account
+  for 38, the rest being made up by individual meshes: casings, barrels, discs,
+  the 20 fuel nozzles, the pipework.
+* Module picking goes **not** through the real geometry but through invisible
+  proxy cylinders (`engine.pickables`, 11 objects — one per module): raycasting
+  758 thousand triangles on every mouse move would be unacceptably expensive.
+  The proxy material has `visible: false` — it is not rendered, but stays
+  visible to ray tracing.
+* With the cutaway or the transparent casings switched on, the shell proxies are
+  excluded from picking, so that whatever is underneath can be clicked.
+* `dt` in the loop is capped at 0.05 s: when the frame rate drops the model
+  slows down rather than jumping over states.
 
-## Постобработка
+## Post-processing
 
-`EffectComposer` → `RenderPass` → **выхлопные газы** → `UnrealBloomPass` →
-`OutputPass`. Тональная компрессия — ACES Filmic, экспозиция 0.82. Сила свечения
-привязана к накалу горячей части, поэтому на выключенном двигателе картинка
-не «светится».
+`EffectComposer` → `RenderPass` → **exhaust gas** → `UnrealBloomPass` →
+`OutputPass`. Tone mapping is ACES Filmic at an exposure of 0.82. The bloom
+strength is tied to the glow of the hot section, so a shut-down engine does not
+sit there glowing.
 
-Проход выхлопа стоит **до** свечения: иначе ореолы вокруг раскалённых деталей
-оставались бы неподвижными, пока сами детали дрожат. Когда двигатель холодный,
-проход целиком выключается (`pass.enabled = false`) и ничего не стоит —
-см. [документ о потоках](04-airflow.md#выхлопные-газы).
+The exhaust pass comes **before** the bloom: otherwise the halos around
+red-hot parts would stay put while the parts themselves shimmer. When the engine
+is cold the pass is switched off entirely (`pass.enabled = false`) and costs
+nothing — see the [airflow document](04-airflow.md#exhaust-gas).

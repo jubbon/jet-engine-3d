@@ -2,170 +2,182 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Рабочий язык проекта — русский: документация, комментарии в коде, вывод тестов и
-сообщения коммитов. Придерживайся его.
+The written language of this repository is English: documentation, code
+comments, UI strings, test output and commit messages. Keep it that way. Replies
+to the user in the session are in Russian.
 
-## О проекте
+## About the project
 
-Интерактивная 3D-модель турбовентиляторного двигателя на Three.js + Vite.
-Прототип — **CFM56-7B в мотогондоле Boeing 737NG**. Внешних ассетов нет вообще:
-вся геометрия строится кодом, отражения даёт `RoomEnvironment`, звук
-синтезируется на Web Audio. Фреймворков нет — чистый ES-модульный JS.
+An interactive 3D model of a turbofan engine on Three.js + Vite. The prototype
+is the **CFM56-7B in a Boeing 737NG nacelle**. There are no external assets at
+all: the geometry is built in code, reflections come from `RoomEnvironment`, the
+sound is synthesised on Web Audio. No frameworks — plain ES-module JS.
 
-## Команды
+## Commands
 
 ```bash
 npm install
-npm run dev      # Vite, слушает на 0.0.0.0
-npm run build    # сборка в dist/
+npm run dev      # Vite on port 5188, listening on 0.0.0.0
+npm run build    # build into dist/
 npm run preview
-npm test         # все пять тестовых файлов подряд
+npm test         # all five test files in sequence
 ```
 
-Отдельный тест запускается напрямую, без раннера и флагов:
+A single test runs directly, with no runner and no flags:
 
 ```bash
 node test/geometry.test.mjs
 ```
 
-## Система координат и станции
+## Coordinate system and stations
 
-Это главное соглашение проекта; не трогай геометрию, не усвоив его.
+This is the central convention of the project; do not touch the geometry before
+taking it in.
 
-* Ось двигателя — **X**, поток идёт в **+X**. Тела вращения строит `lathe()` по
-  профилю `[радиус, X]` и разворачивает `rotation.z = -π/2`.
-* **1 условная единица = 0.50 м.** Из-за этого множителя радиус в условных
-  единицах численно равен **диаметру в метрах**: `fanTip = 1.549` — это
-  вентилятор Ø 1.549 м, `nacelleR = 2.44` — гондола Ø 2.44 м. Справочные
-  диаметры переносятся в код без пересчёта, и это единственная причина, по
-  которой масштаб именно такой.
-* Продольные станции живут в объекте **`ST`** (`src/engine.js`) и
-  отсчитываются от передней кромки воздухозаборника в `x = −5.20`. Станция в
-  метрах от кромки = `(x + 5.2) / 2`.
-* `ST` — единственный источник истины о продольной компоновке. На него
-  ссылаются `airflow.js` (границы каналов, профили скорости и температуры),
-  `heathaze.js` (окклюдеры, начало факела) и `main.js` (цели камер). Сдвинул
-  станцию — проверь все четыре файла: числа там сидят в таблицах и молча
-  разъезжаются.
+* The engine axis is **X**, the flow goes towards **+X**. Surfaces of revolution
+  are built by `lathe()` from a `[radius, X]` profile and rotated by
+  `rotation.z = -π/2`.
+* **1 model unit = 0.50 m.** Because of that factor a radius in model units is
+  numerically equal to a **diameter in metres**: `fanTip = 1.549` is a fan of
+  Ø 1.549 m, `nacelleR = 2.44` is a nacelle of Ø 2.44 m. Reference diameters go
+  into the code without conversion, and that is the only reason the scale is
+  what it is.
+* The longitudinal stations live in the **`ST`** object (`src/engine.js`) and are
+  measured from the intake leading edge at `x = −5.20`. A station in metres from
+  the lip = `(x + 5.2) / 2`.
+* `ST` is the single source of truth about the longitudinal layout. It is
+  referenced by `airflow.js` (duct boundaries, velocity and temperature
+  profiles), `heathaze.js` (occluders, start of the plume) and `main.js` (camera
+  targets). Move a station and check all four files: the numbers there sit in
+  tables and drift apart silently.
 
-## Габариты берутся из справочника, а не из головы
+## Dimensions come from the reference data, not from memory
 
-`docs/engines/*.json` — машиночитаемые справочники по реальным изделиям.
-Каждое число там объект со ссылкой на источник и `confidence`
-(`documented` / `derived` / `derived_low`), соглашения описаны в
+`docs/engines/*.json` holds machine-readable reference data on real hardware.
+Every number there is an object with a citation and a `confidence`
+(`documented` / `derived` / `derived_low`); the conventions are described in
 [`docs/engines/README.md`](docs/engines/README.md).
 
-`test/geometry.test.mjs` читает эталон **прямо из JSON**, а не из своей копии
-чисел. Направление сверки выбрано намеренно: правка справочника ломает тест, а
-не молча расходится с моделью. Меняешь габарит — меняй справочник, а потом уже
-код.
+`test/geometry.test.mjs` reads the yardstick **straight from the JSON** rather
+than from its own copy of the numbers. The direction of comparison is
+deliberate: editing the reference breaks the test rather than silently diverging
+from the model. When changing a dimension, change the reference first and the
+code after.
 
-Отдельно стоит проверка, которую габаритами сделать нельзя: **отношение длины
-входа к диаметру вентилятора** (принято 0.498). Деление длины гондолы между
-воздухозаборником и соплом справочником не задано — сумма сходится при любом
-раскладе, и два подобранных на глаз варианта давали провалившийся вглубь
-тоннеля вентилятор при полностью сошедшихся габаритах. Разбор — в
-[`docs/02-geometry.md`](docs/02-geometry.md#габариты-по-источникам).
+One check stands apart because it cannot be made from dimensions: the **ratio of
+intake length to fan diameter** (adopted as 0.498). How the nacelle length
+divides between the intake and the nozzle is not fixed by the reference — the
+sum adds up for any split, and two versions chosen by eye gave a fan sunk deep
+into a tunnel while every dimension checked out. The analysis is in
+[`docs/02-geometry.md`](docs/02-geometry.md#dimensions-from-sources).
 
-## Архитектура
+## Architecture
 
-Зависимости однонаправленные, `main.js` — единственный оркестратор:
+Dependencies run one way, and `main.js` is the only orchestrator:
 
 ```
 index.html → main.js → engine.js → blade.js
                      → airflow.js  heathaze.js  sound.js  engineState.js
 ```
 
-**`engineState.js` и `sound.js` намеренно не знают ни про Three.js, ни про
-DOM.** Это не абстракция ради абстракции: безголовый браузер рендерит эту сцену
-программным растеризатором со скоростью ~1 кадр/с, поэтому сорокасекундный
-запуск двигателя через браузер не проверить в принципе. Автомат режимов гоняется
-в Node, звуковой граф — в `OfflineAudioContext` (`createEngineSound({ makeContext })`).
+**`engineState.js` and `sound.js` deliberately know nothing about Three.js or
+the DOM.** This is not abstraction for its own sake: a headless browser renders
+this scene on a software rasteriser at about 1 fps, so a forty-second engine
+start simply cannot be checked through a browser. The regime state machine is
+run under Node, the sound graph in an `OfflineAudioContext`
+(`createEngineSound({ makeContext })`).
 
-Что стоит знать, прежде чем править:
+Worth knowing before making changes:
 
-* **Единственный источник истины о двигателе — объект `eng`** из
-  `createEngineState()`. Слайдер задаёт только положение РУД; фактические
-  обороты, горение и T4 считает автомат, и уже от них зависят вращение,
-  свечение, потоки, звук и приборы. Поэтому при останове всё гаснет
-  согласованно — не подмешивай положение слайдера напрямую.
-* **Модули** создаются хелпером `module(name, title, info, explode)` в
-  `buildEngine()` и служат сразу тремя вещами: единицей разнесения узлов,
-  единицей выбора мышью и носителем текста карточки. Роторы вешаются через
-  `rotor(parent, kind)` и попадают в массивы `n1Rotors` / `n2Rotors`; каждый
-  кадр всем группам каскада присваивается **общий угол**, поэтому роторы
-  остаются синхронными даже когда родительские модули разъехались при
-  разнесении.
-* **Пикинг идёт по невидимым прокси-цилиндрам** (`engine.pickables`, 11 штук), а
-  не по реальной геометрии: в сцене ~850 тыс. треугольников, raycast по ним на
-  каждое движение мыши неприемлем. Добавил модуль — добавь ему прокси в массив
-  `PROXY`, иначе он просто не будет выбираться.
-* **Разрез** — два `THREE.Plane` с `clipIntersection = true`, назначенные
-  только материалам оболочек (`getShellMaterials()`). Роторы и лопатки остаются
-  целыми, отсюда классический cutaway. Материал, добавленный без флага
-  `{ shell: true }`, разрезаться не будет.
-* **Порядок постобработки:** `RenderPass` → выхлопные газы → `UnrealBloomPass` →
-  `OutputPass`. Выхлоп стоит **до** свечения намеренно: иначе ореолы вокруг
-  раскалённых деталей оставались бы неподвижными, пока сами детали дрожат.
-* Каждый венец лопаток — один `InstancedMesh` (`bladeRow()`); профиль лопатки
-  строится процедурно в `blade.js` с закруткой от комля к периферии.
-* `dt` в цикле кадра ограничен 0.05 с, чтобы при просадке кадров модель
-  замедлялась, а не прыгала через состояния. Переключатель скорости времени
-  ×1/×4 умножает шаг **только** для автомата двигателя.
+* **The single source of truth about the engine is the `eng` object** from
+  `createEngineState()`. The slider sets only the throttle position; the actual
+  speeds, combustion and T4 are computed by the state machine, and it is those
+  that drive rotation, glow, flows, sound and instruments. That is why
+  everything dies together on shutdown — do not mix the slider position in
+  directly.
+* **Modules** are created by the helper `module(name, title, info, explode)` in
+  `buildEngine()` and serve three purposes at once: the unit of exploding, the
+  unit of mouse picking and the carrier of the card text. Rotors are attached
+  through `rotor(parent, kind)` and land in the `n1Rotors` / `n2Rotors` arrays;
+  every frame all groups of a spool are assigned a **common angle**, so the
+  rotors stay in sync even when their parent modules have moved apart in the
+  exploded view.
+* **Picking goes through invisible proxy cylinders** (`engine.pickables`, 11 of
+  them) rather than the real geometry: the scene holds ~758 thousand triangles
+  and raycasting them on every mouse move is unacceptable. Add a module and add
+  a proxy for it to the `PROXY` array, otherwise it simply will not be
+  selectable.
+* **The cutaway** is two `THREE.Plane`s with `clipIntersection = true`, assigned
+  only to the shell materials (`getShellMaterials()`). Rotors and blades stay
+  whole, giving the classic cutaway. A material added without the
+  `{ shell: true }` flag will not be cut.
+* **Post-processing order:** `RenderPass` → exhaust gas → `UnrealBloomPass` →
+  `OutputPass`. The exhaust comes **before** the bloom deliberately: otherwise
+  the halos around red-hot parts would stay put while the parts themselves
+  shimmer.
+* Every blade row is a single `InstancedMesh` (`bladeRow()`); the blade profile
+  is built procedurally in `blade.js` with twist from root to tip.
+* `dt` in the frame loop is capped at 0.05 s, so that when the frame rate drops
+  the model slows down rather than jumping over states. The ×1/×4 time scale
+  switch multiplies the step **only** for the engine state machine.
 
-## Тесты
+## Tests
 
-Фреймворка нет. Каждый тест — обычный Node-скрипт с собственным хелпером
-`check()`, печатает по строке `OK`/`FAIL` на проверку и выходит с кодом 1 при
-провале. Пиши новые в том же стиле.
+There is no framework. Each test is a plain Node script with its own `check()`
+helper, printing one `OK`/`FAIL` line per check and exiting with code 1 on
+failure. Write new ones in the same style.
 
-| Файл | Что проверяет |
+| File | What it checks |
 |---|---|
-| `engine-state.test.mjs` | Автомат режимов: полный останов, натурная длительность запуска, розжиг с задержкой, приёмистость. Печатает трассу — им же удобно подбирать постоянные времени |
-| `heat-haze.test.mjs` | Чистую функцию `hazePower()`, прогнанную через настоящий автомат; сам шейдер в Node не запускается |
-| `spiral-blur.test.mjs` | Смаз спирали на коке и то, что её копии не расходятся дальше угловой толщины |
-| `geometry.test.mjs` | Габариты против справочника, число ступеней, глубину воздухозаборника, порядок станций |
-| `clearance.test.mjs` | Венцы не входят друг в друга, концы лопаток под обечайкой, агрегаты под обшивкой гондолы |
+| `engine-state.test.mjs` | The regime state machine: full shutdown, realistic start duration, delayed light-off, throttle response. Prints a trace — also handy for tuning the time constants |
+| `heat-haze.test.mjs` | The pure function `hazePower()` driven through the real state machine; the shader itself does not run under Node |
+| `spiral-blur.test.mjs` | The spinner spiral smear and that its copies do not spread further apart than the angular thickness |
+| `geometry.test.mjs` | Dimensions against the reference, stage counts, intake depth, station ordering |
+| `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin |
 
-`geometry` и `clearance` строят **настоящую сцену** через `buildEngine()` прямо в
-Node — Three.js это позволяет без рендерера. Габариты считаются по вершинам, а не
-по профилю `lathe`: сплющенный низ гондолы в профиль не попадает.
+`geometry` and `clearance` build the **real scene** through `buildEngine()`
+right under Node — Three.js allows that without a renderer. The envelopes are
+computed from vertices rather than from the `lathe` profile: the flattened
+bottom of the nacelle does not appear in the profile.
 
-Зазоры проверяются не для красоты. Газогенератор короткий, шаг ступени 71…125 мм,
-и любая прибавка к хорде лопатки сажает соседние венцы друг на друга —
-на картинке это не видно, модель рисуется как ни в чём не бывало.
+The clearances are not checked for show. The core is short, the stage pitch is
+71…125 mm, and any addition to a blade chord drops neighbouring rows onto each
+other — which is invisible in the picture, the model rendering as if nothing
+were wrong.
 
-Звук проверяется отдельно, рендерингом графа в `OfflineAudioContext`; методика и
-скрипты — в `test/audio/`.
+The sound is checked separately by rendering the graph into an
+`OfflineAudioContext`; the method and the scripts are in `test/audio/`.
 
-## Документация
+## Documentation
 
-`docs/` — не автогенерация, а поддерживаемый текст (10 документов + справочники).
-При изменении поведения обновляй соответствующий документ в том же коммите:
-`02-geometry` (компоновка и габариты), `03-physics` (уравнения и границы
-применимости), `04-airflow`, `05-modes`, `06-sound`, `07-ui`. Очередь задач с
-приоритетами — `09-backlog.md`.
+`docs/` is not generated but maintained prose (10 documents plus the reference
+data). When behaviour changes, update the corresponding document in the same
+commit: `02-geometry` (layout and dimensions), `03-physics` (equations and the
+limits of their validity), `04-airflow`, `05-modes`, `06-sound`, `07-ui`. The
+prioritised task queue is `09-backlog.md`.
 
-## Стиль коммитов
+## Commit style
 
-Русский, содержательный заголовок без префиксов вроде `feat:`, дальше развёрнутое
-тело, объясняющее **почему** так, а не что поменялось построчно: какие варианты
-отвергнуты, какие числа откуда взяты, что проверкой не ловится. Смотри `git log` —
-из этих сообщений предполагается собирать CHANGELOG. Комментарии в коде написаны
-в той же манере: объясняют причину, а не механику.
+English, a substantive subject line without prefixes such as `feat:`, then a
+full body explaining **why** it is done this way rather than what changed line
+by line: which alternatives were rejected, where the numbers came from, what the
+tests do not catch. Look at `git log` — the intent is to assemble a CHANGELOG
+from these messages. Code comments are written in the same manner: they explain
+the reason, not the mechanics.
 
-## Числа в документации проверяемы — проверяй их
+## The numbers in the documentation are verifiable — verify them
 
-Состав и габариты разбросаны по тексту десятками конкретных чисел, и они
-регулярно отстают от кода: правка компоновки задевает сразу README, `01`, `02`,
-`03` и `08`. Прежде чем переписывать число по памяти, посчитай его на модели —
-`buildEngine()` работает в Node, так что треугольники, венцы, лопатки и габариты
-берутся обходом сцены за пару строк.
+Composition and dimensions are scattered through the prose as dozens of specific
+numbers, and they regularly fall behind the code: a layout change touches
+README, `01`, `02`, `03` and `08` at once. Before rewriting a number from
+memory, compute it on the model — `buildEngine()` runs under Node, so triangles,
+rows, blades and envelopes are obtained by walking the scene in a couple of
+lines.
 
-Мерка на сегодня (пересчитывай, а не переписывай): 758 тыс. треугольников, 123
-вызова отрисовки, 37 венцов и 2341 лопатка в них, 11 прокси выбора, 75 проверок
-в пяти тестовых файлах. Сборка — 661 кБ JS, 175 кБ gzip.
+The yardstick as of today (recount it, do not copy it): 758 thousand triangles,
+123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 75 checks
+across five test files. The build is 661 kB of JS, 175 kB gzipped.
 
-Так уже накапливалось: `01` и `08` долго обещали ~850 тыс. треугольников и
-~50 вызовов отрисовки, причём вызовы разошлись втрое — счёт был неверен ещё до
-того, как из компоновки ушли три ступени.
+It has accumulated before: `01` and `08` promised ~850 thousand triangles and
+~50 draw calls for a long time, and the draw calls were off by a factor of three
+— the count was already wrong before three stages left the layout.
