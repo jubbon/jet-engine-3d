@@ -75,6 +75,7 @@ export function createContrail() {
       varying vec2 vUv;
       varying vec3 vSideDir;
       varying vec3 vToCam;
+      varying vec3 vAxis;
       void main(){
         vec4 wp = modelMatrix * vec4(position, 1.0);
 
@@ -95,6 +96,7 @@ export function createContrail() {
         vUv = vec2(t, aSide * 0.5 + 0.5);
         vSideDir = side;
         vToCam = toCam;
+        vAxis = axis;
         gl_Position = projectionMatrix * viewMatrix * wp;
       }
     `,
@@ -103,10 +105,13 @@ export function createContrail() {
       varying vec2 vUv;
       varying vec3 vSideDir;
       varying vec3 vToCam;
+      varying vec3 vAxis;
 
       // the key light of the scene, so the trail is lit from where everything
       // else is lit from
       const vec3 LIGHT = normalize(vec3(-6.0, 9.0, 8.0));
+      const vec3 LIT = vec3(1.00, 0.99, 0.97);    // the sunlit flank
+      const vec3 SHADOW = vec3(0.42, 0.48, 0.58); // and the cold shaded one
 
       float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
       float noise(vec2 p){
@@ -129,18 +134,38 @@ export function createContrail() {
         // the normal of that imaginary tube, reconstructed per pixel: the
         // strip has only two vertices across, so it cannot come from the mesh
         vec3 n = normalize(vSideDir * v + vToCam * round);
-        float lambert = 0.55 + 0.45 * max(0.0, dot(n, LIGHT));
-        // ice scatters forward: the far side of the tube glows a little
-        float rim = pow(1.0 - round, 2.0) * 0.25;
 
-        // Mottling only, not lumps: a cigar is a body, and heavy noise ate its
-        // outline. Slow, coarse and shallow - enough to say it is cloud.
-        float mottle = 0.86 + 0.28 * (fbm(vec2(t * 5.0 - uTime * 0.03, v * 0.9)) - 0.5);
+        // Billows. Relief is what was missing: a smooth tube with a gradient
+        // across it stays an airbrushed lozenge no matter how good the
+        // gradient. The noise field perturbs the normal instead of the
+        // brightness, so every billow gets its own lit and shaded side and the
+        // light does the drawing.
+        vec2 p = vec2(t * 6.5 - uTime * 0.03, v * 1.5 + t * 1.2);
+        float e = 0.06;
+        float f0 = fbm(p);
+        float du = fbm(p + vec2(e, 0.0)) - f0;
+        float dv = fbm(p + vec2(0.0, e)) - f0;
+        // the relief flattens towards the edges, where the tube turns away and
+        // there is little cloud left to billow
+        vec3 nb = normalize(n + (vAxis * du + vSideDir * dv) * 12.0 * round);
 
-        // the tips are ends of the body, not cuts
+        // What makes a body read as a body is tonal range, not shape. A cloud
+        // lit from one side has a bright flank and a cold shaded one; an
+        // evenly white shape stays flat however it is outlined. The terminator
+        // is wide because cloud scatters light through itself rather than
+        // catching it on a surface.
+        float shade = smoothstep(-0.55, 0.75, dot(nb, LIGHT));
+        vec3 col = mix(SHADOW, LIT, shade);
+
+        // ice scatters forward: where the tube is thinnest the light comes
+        // through it, but only on the side that has light to give
+        col += vec3(0.10, 0.11, 0.13) * pow(1.0 - round, 3.0) * shade;
+
+        // the tips are ends of the body, not cuts, and the outline is not
+        // machined: the same field eats into it a little
         float ends = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.93, 1.0, t));
-        float a = round * ends * uDensity * mottle;
-        gl_FragColor = vec4(vec3(0.93, 0.95, 1.0) * (lambert + rim), clamp(a, 0.0, 1.0));
+        float a = pow(round, 1.0 + 0.5 * f0) * ends * uDensity * (1.1 + 0.35 * (f0 - 0.5));
+        gl_FragColor = vec4(col, clamp(a, 0.0, 1.0));
       }
     `,
   });

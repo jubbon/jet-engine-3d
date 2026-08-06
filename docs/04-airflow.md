@@ -221,11 +221,19 @@ The volume comes from three things, none of them geometry:
 * the alpha follows `√(1 − v²)` across the width — the depth of gas a ray meets
   crossing a cylinder, thick in the middle and vanishing at the edges. A
   plateau with soft edges is what made it look painted on;
-* the normal of that imaginary tube is reconstructed **per pixel** from the same
-  `v` (the strip has two vertices across, so it cannot come from the mesh) and
-  lit by the scene's key light, which shades the trail across its width;
-* the noise is mottling rather than lumps — one slow, coarse, shallow octave.
-  Heavier noise ate the outline and the cigar turned back into a cloud of blobs.
+* **tonal range.** The normal of that imaginary tube is reconstructed per pixel
+  from the same `v` (the strip has two vertices across, so it cannot come from
+  the mesh) and lit by the scene's key light, mixing between a sunlit white and
+  a cold shadow. An evenly white shape stays flat however well it is outlined,
+  and the terminator is wide because cloud scatters light through itself rather
+  than catching it on a surface;
+* **relief.** The noise field perturbs that normal rather than the brightness,
+  so every billow gets its own lit and shaded side and the light does the
+  drawing. This is what finally took the trail off the plane: a smooth tube with
+  a gradient across it is still an airbrushed lozenge. The strength is
+  moderate — at three times it the far half went blotchy, reading as dirt
+  rather than cloud — and it fades towards the edges, where the tube turns away
+  and there is little left to billow.
 
 Two things carry the meaning rather than the looks:
 
