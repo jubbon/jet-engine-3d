@@ -2,99 +2,102 @@ import * as THREE from 'three';
 import { makeBladeGeometry, bladeRow } from './blade.js';
 
 /* ------------------------------------------------------------------ *
- *  Геометрическая схема ТРДД (турбовентиляторного двигателя большой
- *  степени двухконтурности). Прототип - CFM56-7B в мотогондоле Boeing
- *  737NG; все габариты взяты из docs/engines/cfm56-7b-nacelle.json.
- *  Ось двигателя - X, поток идёт в направлении +X.
+ *  Geometric layout of a high-bypass turbofan. The prototype is the
+ *  CFM56-7B in a Boeing 737NG nacelle; every dimension comes from
+ *  docs/engines/cfm56-7b-nacelle.json.
+ *  The engine axis is X, the flow goes towards +X.
  *
- *  1 условная единица = 0.50 м. Из-за этого множителя РАДИУС в условных
- *  единицах численно равен ДИАМЕТРУ в метрах: fanTip = 1.549 у.е. - это
- *  вентилятор Ø 1.549 м, nacelleR = 2.44 у.е. - гондола Ø 2.44 м.
+ *  1 model unit = 0.50 m. Because of that factor a RADIUS in model units
+ *  is numerically equal to a DIAMETER in metres: fanTip = 1.549 units is
+ *  a fan of Ø 1.549 m, nacelleR = 2.44 units is a nacelle of Ø 2.44 m.
  *
- *  Продольные станции отсчитываются от кромки воздухозаборника: она
- *  стоит в x = -5.2 у.е., так что станция в метрах от кромки равна
- *  (x + 5.2) / 2. Опорные значения справочника - срез сопла наружного
- *  контура 3.18 м, срез сопла внутреннего контура 4.05 м, конец
- *  центрального тела 5.00 м, длина «голого» двигателя 2.508 м.
+ *  Longitudinal stations are measured from the intake lip: it sits at
+ *  x = -5.2 units, so a station in metres from the lip equals
+ *  (x + 5.2) / 2. The reference values are: fan nozzle exit 3.18 m, core
+ *  nozzle exit 4.05 m, plug tip 5.00 m, bare engine length 2.508 m.
  *
- *  Продольное положение двигателя внутри гондолы габаритами НЕ задано:
- *  сумма «вход + двигатель + сопло» сойдётся при любом делении. Поэтому
- *  оно привязано к отдельному показателю - отношению длины входа (от
- *  кромки до передней кромки конца лопатки) к диаметру вентилятора. У
- *  классической гондолы оно около 0.5, здесь 0.498; на воздухозаборник
- *  уходит 0.83 м, на выходное сопло за задним фланцем - 0.71 м.
- *  Ошибка тут не ловится габаритами, только глазом или тестом: занизишь
- *  сопло - вентилятор провалится вглубь входного канала, а все размеры
- *  справочника при этом останутся верными. Проверяет geometry.test.mjs.
+ *  Where the engine sits lengthwise inside the nacelle is NOT fixed by
+ *  the dimensions: the sum "intake + engine + nozzle" adds up for any
+ *  split. It is therefore tied to a separate figure - the ratio of
+ *  intake length (from the lip to the leading edge of the blade tip) to
+ *  fan diameter. On a classic nacelle it is about 0.5, here 0.498; the
+ *  intake takes 0.83 m and the exhaust nozzle aft of the rear flange
+ *  0.71 m. An error here is not caught by the dimensions, only by eye or
+ *  by test: make the nozzle too short and the fan sinks deep into the
+ *  intake duct while every reference dimension still checks out.
+ *  geometry.test.mjs guards it.
  * ------------------------------------------------------------------ */
 
 export const ST = {
-  lip: -5.2, // передняя кромка (highlight) воздухозаборника, 0 м
-  throat: -4.94, // горло воздухозаборника, 0.13 м
-  a1: -3.54, // фланец A1: стык воздухозаборника с корпусом вентилятора, 1.04 м
-  fan: -3.22, // плоскость вентилятора, 1.20 м
-  splitter: -2.86, // разделитель контуров, 1.38 м
-  boosterIn: -2.74, // 3 подпорные ступени
+  lip: -5.2, // intake highlight (leading edge), 0 m
+  throat: -4.94, // intake throat, 0.13 m
+  a1: -3.54, // flange A1: intake to fan case joint, 1.04 m
+  fan: -3.22, // fan plane, 1.20 m
+  splitter: -2.86, // flow splitter, 1.38 m
+  boosterIn: -2.74, // 3 booster stages
   boosterOut: -2.38,
-  hpcIn: -2.18, // 9 ступеней КВД
+  hpcIn: -2.18, // 9 HP compressor stages
   hpcOut: -1.04,
   combIn: -0.84,
   combOut: -0.28,
-  hptIn: -0.18, // 1 ступень ТВД
+  hptIn: -0.18, // 1 HP turbine stage
   hptOut: 0.12,
-  lptIn: 0.36, // 4 ступени ТНД
+  lptIn: 0.36, // 4 LP turbine stages
   lptOut: 1.11,
-  frame: 1.48, // задняя опора, она же задний фланец двигателя, 3.55 м
-  bypassExit: 1.16, // срез сопла наружного контура, 3.18 м
-  coreExit: 2.9, // срез сопла внутреннего контура, 4.05 м
-  plugTip: 4.8, // конец центрального тела, 5.00 м
-  fanTip: 1.549, // вентилятор Ø 1.549 м (61 in)
-  caseR: 1.829, // корпус вентилятора снаружи: высота двигателя 1.829 м
-  accR: 2.118, // агрегаты на боку: ширина двигателя 2.118 м
-  nacelleR: 2.44, // наибольший габарит гондолы Ø 2.44 м (APPROX 8 FT)
+  frame: 1.48, // turbine rear frame, also the engine rear flange, 3.55 m
+  bypassExit: 1.16, // fan nozzle exit, 3.18 m
+  coreExit: 2.9, // core nozzle exit, 4.05 m
+  plugTip: 4.8, // plug tip, 5.00 m
+  fanTip: 1.549, // fan Ø 1.549 m (61 in)
+  caseR: 1.829, // outside of the fan case: engine height 1.829 m
+  accR: 2.118, // accessories on the side: engine width 2.118 m
+  nacelleR: 2.44, // largest nacelle dimension Ø 2.44 m (APPROX 8 FT)
 };
 
-/* -------------------- смаз спирали на коке -------------------------- *
- *  Спираль на коке существует, чтобы её было видно: на стоянке и малых
- *  оборотах она предупреждает наземный персонал о работающем двигателе.
- *  Но глаз усредняет картинку примерно за 1/25 с, и уже на средних
- *  оборотах спираль заметает полный круг - остаётся ровное кольцо, а на
- *  взлётном режиме её не видно вовсе.
+/* -------------------- spinner spiral smear -------------------------- *
+ *  The spiral on the spinner exists to be seen: at rest and at low speeds
+ *  it warns ground crew that the engine is running. But the eye averages
+ *  the image over roughly 1/25 s, and already at medium speeds the spiral
+ *  sweeps a full circle - what is left is an even ring, and at take-off
+ *  power it cannot be seen at all.
  *
- *  Считаем это накоплением: рисуем несколько копий спирали, растянутых
- *  по углу на заметённый сектор. Точка кадра, закрытая одной копией из
- *  n, получает прозрачность 1/n - ровно ту долю времени, которую спираль
- *  реально провела в этой точке.
+ *  We treat this as accumulation: several copies of the spiral are drawn,
+ *  spread in angle over the swept sector. A point in the frame covered by
+ *  one copy out of n gets opacity 1/n - exactly the fraction of time the
+ *  spiral actually spent there.
  *
- *  Заметённый угол берём НЕ от экранной скорости вращения: в модели
- *  роторы намеренно замедлены ради читаемости (см. docs/03-physics.md),
- *  и по ней спираль не смазалась бы никогда. Привязка идёт к
- *  приведённому режиму keff, чтобы на малом газе спираль читалась,
- *  а к взлётному исчезала - как на настоящем двигателе.
+ *  The swept angle is NOT taken from the on-screen rotation rate: in this
+ *  model the rotors are deliberately slowed for legibility (see
+ *  docs/03-physics.md), and by that measure the spiral would never smear.
+ *  It is tied instead to the effective regime keff, so that at idle the
+ *  spiral reads clearly and by take-off power it disappears - as on a
+ *  real engine.
  * -------------------------------------------------------------------- */
 
-// Максимум копий. Нужен такой, чтобы на взлётном режиме шаг между ними не
-// превысил толщину спирали: иначе вместо ровного кольца выйдут полосы.
+// Maximum number of copies. It has to be large enough that at take-off power
+// the step between them does not exceed the thickness of the spiral: otherwise
+// stripes appear instead of an even ring.
 export const SPIRAL_GHOSTS = 56;
-const SPIRAL_WIDTH = 0.13; // угловая толщина спирали у середины кока, рад
-const SPIRAL_SWEEP = Math.PI * 2; // сколько она заметает на взлётном режиме
+const SPIRAL_WIDTH = 0.13; // angular thickness of the spiral at mid-spinner, rad
+const SPIRAL_SWEEP = Math.PI * 2; // how much it sweeps at take-off power
 
 /**
- * @param {number} keff приведённый режим 0..1 (0 - малый газ и ниже)
+ * @param {number} keff effective regime 0..1 (0 - idle and below)
  * @returns {{ghosts: number, spread: number, opacity: number}}
  */
 export function spiralBlur(keff) {
   const k = Math.max(0, Math.min(1, keff));
   const spread = SPIRAL_SWEEP * Math.pow(k, 1.4);
-  // пока заметённый угол меньше самой спирали, смазывать нечего
+  // while the swept angle is smaller than the spiral itself, there is nothing to smear
   if (spread <= SPIRAL_WIDTH) return { ghosts: 1, spread: 0, opacity: 1 };
-  // Шаг между копиями держим меньше толщины спирали, иначе смаз полосит.
-  // Копий на одну больше числа промежутков - их и раскладываем по сектору.
+  // Keep the step between copies below the thickness of the spiral, otherwise
+  // the smear turns striped. There is one more copy than there are gaps - those
+  // are what gets laid out across the sector.
   const ghosts = Math.min(SPIRAL_GHOSTS, Math.ceil((1.5 * spread) / SPIRAL_WIDTH) + 1);
   return { ghosts, spread, opacity: 1 / ghosts };
 }
 
-/* ----------------------------- материалы ---------------------------- */
+/* ----------------------------- materials ---------------------------- */
 
 const shellMaterials = [];
 const allMaterials = [];
@@ -148,7 +151,7 @@ export const MATS = {
   shaft: mat({ color: 0x6f767d, metalness: 0.95, roughness: 0.25 }),
   accessory: mat({ color: 0x454b52, metalness: 0.7, roughness: 0.5 }),
   paint: mat({ color: 0xf2f4f6, metalness: 0.1, roughness: 0.5 }),
-  // спираль на коке: прозрачность нужна для смаза на больших оборотах
+  // spinner spiral: transparency is needed for the smear at high speeds
   spiral: mat({
     color: 0x22262b,
     metalness: 0.5,
@@ -166,9 +169,9 @@ export function getAllMaterials() {
   return allMaterials;
 }
 
-/* --------------------------- утилиты формы -------------------------- */
+/* --------------------------- shape helpers -------------------------- */
 
-// Тело вращения. points: [[radius, x], ...]. Ось вращения - X.
+// Surface of revolution. points: [[radius, x], ...]. The axis of revolution is X.
 function lathe(points, material, segments = 96) {
   const v = points.map((p) => new THREE.Vector2(p[0], p[1]));
   const g = new THREE.LatheGeometry(v, segments);
@@ -179,50 +182,54 @@ function lathe(points, material, segments = 96) {
   return m;
 }
 
-/* ------------------- плоский низ мотогондолы ------------------------ *
- *  У 737 гондола не круглая: низ и губа воздухозаборника сплющены -
- *  «hamster pouch». Причина не стилистическая. Крыло 737 низко над
- *  землёй, и чтобы посадить на него CFM56, вентилятор обрезали в
- *  диаметре, а коробку приводов с агрегатами перенесли из-под двигателя
- *  на бок (с 6 часов на 9). Освободившийся низ и сплющили.
+/* ------------------- flat bottom of the nacelle --------------------- *
+ *  The 737 nacelle is not round: the bottom and the intake lip are
+ *  flattened - the "hamster pouch". The reason is not stylistic. The 737
+ *  wing sits low above the ground, and to fit a CFM56 under it the fan
+ *  was cut down in diameter and the accessory gearbox was moved from
+ *  underneath the engine to the side (from 6 o'clock to 9). The bottom
+ *  thus freed up is what got flattened.
  *
- *  Тела вращения здесь строит lathe(), поэтому форму даём деформацией
- *  вершин: низ сечения подрезаем до заданного уровня плавным минимумом,
- *  чтобы вместо острого угла получился скруглённый переход в борта.
+ *  Surfaces of revolution here are built by lathe(), so the shape is
+ *  produced by deforming vertices: the bottom of each section is trimmed
+ *  to a given level with a smooth minimum, so that instead of a sharp
+ *  corner there is a rounded transition into the sides.
  * -------------------------------------------------------------------- */
 
-/* Глубина среза взята из справочника через ширину плоского участка: при
-   наружном радиусе 2.44 у.е. хорда шириной 1.2 м (2.4 у.е., «hamster pouch»
-   на виде спереди) отсекается на глубине 0.16 м. Высота гондолы получается
-   2.44 - 0.16 = 2.28 м - в пределах допуска обмеренных 2.40 ± 0.2 м, а
-   недостающее до 2.40 добирает обтекатель пилона сверху, который на виде
-   спереди и мешал обмерить верх гондолы. */
-const BELLY = 0.32; // 0.16 м
+/* The depth of the cut comes from the reference via the width of the flat: at
+   an outer radius of 2.44 units a chord 1.2 m wide (2.4 units, the "hamster
+   pouch" seen head-on) is cut off at a depth of 0.16 m. That gives a nacelle
+   height of 2.44 - 0.16 = 2.28 m - within the tolerance of the measured
+   2.40 ± 0.2 m, and the shortfall to 2.40 is made up by the pylon fairing on
+   top, which is exactly what obscured the top of the nacelle when measuring
+   the head-on view. */
+const BELLY = 0.32; // 0.16 m
 
-// Снаружи гондола плоская от губы через капоты вентилятора и круглеет к соплу.
+// Outside, the nacelle is flat from the lip through the fan cowls and becomes round towards the nozzle.
 const outerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -0.8, 1.16));
 
-// А внутри воздухозаборник обязан прийти к кругу уже к плоскости вентилятора:
-// зазор до концов лопаток здесь меньше десятой доли единицы, и сплющенный
-// тракт просто срезал бы их.
+// Inside, however, the intake must be round by the time it reaches the fan
+// plane: the clearance to the blade tips there is under a tenth of a unit, and
+// a flattened duct would simply shave them off.
 const innerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -4.94, -3.6));
 
-// Угол, на который коробка приводов с агрегатами уведена от низа двигателя
-// на бок. Он же задаёт направление разнесения узла и место подписи.
+// The angle by which the accessory gearbox is swung from the bottom of the
+// engine round to the side. It also sets the explode direction of the module
+// and the position of its label.
 const AGB_TILT = THREE.MathUtils.degToRad(62);
 const AGB_AXIS = new THREE.Vector3(1, 0, 0);
 const AGB_EXPLODE = new THREE.Vector3(0, -4.4, 0).applyAxisAngle(AGB_AXIS, AGB_TILT);
 
-// плавный минимум: скругляет стык плоского низа с бортами
+// smooth minimum: rounds the joint between the flat bottom and the sides
 function smoothMin(a, b, k) {
   const h = THREE.MathUtils.clamp(0.5 + (0.5 * (b - a)) / k, 0, 1);
   return b * (1 - h) + a * h - k * h * (1 - h);
 }
 
-/* computeVertexNormals() оставляет шов там, где lathe дублирует вершины на
-   стыке 0 и 2π: у копий разные соседние треугольники, а значит и разные
-   нормали. Усредняем нормали совпадающих вершин - шов пропадает. Рёбра
-   профиля при этом остаются острыми: у них координаты различаются. */
+/* computeVertexNormals() leaves a seam where lathe duplicates vertices at the
+   0 / 2π joint: the copies have different neighbouring triangles and therefore
+   different normals. Averaging the normals of coincident vertices removes the
+   seam. Edges of the profile stay sharp: their coordinates differ. */
 function weldNormals(geo) {
   geo.computeVertexNormals();
   const pos = geo.attributes.position;
@@ -251,27 +258,27 @@ function weldNormals(geo) {
 }
 
 /**
- * Сплющивает низ тела вращения, построенного lathe().
+ * Flattens the bottom of a surface of revolution built by lathe().
  * @param {THREE.Mesh} mesh
- * @param {(x: number) => number} depth сколько срезать снизу на станции x
+ * @param {(x: number) => number} depth how much to cut from below at station x
  */
 function flattenBelly(mesh, depth) {
   const geo = mesh.geometry;
-  geo.rotateZ(-Math.PI / 2); // из осей LatheGeometry в оси двигателя
+  geo.rotateZ(-Math.PI / 2); // from LatheGeometry axes into engine axes
   mesh.rotation.z = 0;
 
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
-    if (y >= 0) continue; // сплющивается только низ
+    if (y >= 0) continue; // only the bottom is flattened
     const d = depth(pos.getX(i));
     if (d <= 1e-4) continue;
-    // радиус на кольце постоянный, поэтому уровень среза общий для всего кольца
+    // the radius is constant around the ring, so the cut level is shared by the whole ring
     const r = Math.hypot(y, pos.getZ(i));
     if (r < 1e-4) continue;
-    // Скругление стыка держим тугим: с мягким переходом сплющивание
-    // расползается по бортам и вход читается овалом, а не кругом со
-    // срезанным низом.
+    // Keep the fillet tight: with a soft transition the flattening spreads out
+    // along the sides and the intake reads as an oval rather than a circle with
+    // its bottom cut off.
     pos.setY(i, -smoothMin(-y, Math.max(r * 0.4, r - d), r * 0.09));
   }
   pos.needsUpdate = true;
@@ -280,7 +287,7 @@ function flattenBelly(mesh, depth) {
   return mesh;
 }
 
-// Кольцевой диск/барабан ротора
+// Annular rotor disc / drum
 function drum(x0, x1, r0, r1, material, seg = 64) {
   return lathe(
     [
@@ -316,7 +323,7 @@ function ringOf(count, fn, parent) {
   return parent;
 }
 
-/* ------------------------- сборка двигателя ------------------------- */
+/* --------------------------- engine assembly ------------------------ */
 
 export function buildEngine() {
   const root = new THREE.Group();
@@ -339,20 +346,20 @@ export function buildEngine() {
     return g;
   }
 
-  /* ===================== 1. Мотогондола / воздухозаборник ============ */
+  /* ===================== 1. Nacelle / intake ========================= */
   const mNac = module(
     'nacelle',
-    'Мотогондола и воздухозаборник',
-    'Обечайка воздухозаборника с противообледенительной системой, капоты вентилятора и наружный контур. Наибольший габарит 2.44 м, длина до среза сопла наружного контура 3.18 м. Низ и губа уплощены («hamster pouch»): крыло 737 низко над землёй.',
+    'Nacelle and air intake',
+    'Intake barrel with anti-icing, fan cowls and the bypass duct. Largest dimension 2.44 m, length to the fan nozzle exit 3.18 m. The bottom and the lip are flattened (the "hamster pouch"): the 737 wing sits low above the ground.',
     new THREE.Vector3(0, 4.4, 0)
   );
 
-  // Профиль капота разбит на две половины: наружная обшивка идёт назад,
-  // внутренняя возвращается вперёд. Вместе они дают ту же замкнутую
-  // оболочку, что и раньше, но сплющиваются по-разному - снаружи гондола
-  // плоская почти по всей длине, внутри только у губы (см. flattenBelly).
-  // Наружная обшивка: губа Ø 1.70 м, максимум Ø 2.44 м у стыка воздухозаборника
-  // с капотами вентилятора, дальше плавный поджим к соплу наружного контура.
+  // The cowl profile is split into two halves: the outer skin runs aft, the
+  // inner one comes back forward. Together they form one closed shell, but they
+  // are flattened differently - outside the nacelle is flat along almost its
+  // whole length, inside only near the lip (see flattenBelly).
+  // Outer skin: lip Ø 1.70 m, maximum Ø 2.44 m at the intake-to-fan-cowl joint,
+  // then a gentle taper towards the fan nozzle.
   const nacOuter = [
     [1.7, ST.lip],
     [1.86, -5.1],
@@ -368,8 +375,8 @@ export function buildEngine() {
     [1.7, ST.bypassExit],
     [1.62, ST.bypassExit],
   ];
-  // Внутренний тракт: горло Ø 1.52 м, диффузор до Ø 1.58 м над концами лопаток
-  // (зазор 15 мм) и наружный контур до среза сопла.
+  // Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
+  // tips (15 mm clearance) and the bypass duct up to the nozzle exit.
   const nacInner = [
     [1.62, ST.bypassExit],
     [1.64, 1.0],
@@ -386,19 +393,19 @@ export function buildEngine() {
   ];
   mNac.add(flattenBelly(lathe(nacOuter, MATS.nacelle, 120), outerBelly));
   mNac.add(flattenBelly(lathe(nacInner, MATS.nacelle, 120), innerBelly));
-  // блестящая кромка воздухозаборника: целиком в зоне полного сплющивания,
-  // поэтому и снаружи, и изнутри режется одинаково
+  // the polished intake lip: it lies entirely within the fully flattened zone,
+  // so it is cut the same way inside and out
   mNac.add(
     flattenBelly(
       lathe(
         [
-          [1.7, ST.lip], // нос кромки
+          [1.7, ST.lip], // nose of the lip
           [1.86, -5.1],
           [1.98, -4.92],
-          [2.02, -4.8], // наружная часть уходит назад, вровень с обшивкой
-          [1.58, -4.8], // задний торец кольца, спрятан внутри обшивки
-          [1.51, -4.86], // внутренняя часть идёт обратно к носу, чуть утоплена
-          [1.5, ST.throat], // в тракт: горло, самое узкое место, чуть позади носа
+          [2.02, -4.8], // the outer part runs aft, flush with the skin
+          [1.58, -4.8], // rear face of the ring, hidden inside the skin
+          [1.51, -4.86], // the inner part runs back to the nose, slightly recessed
+          [1.5, ST.throat], // into the duct: the throat, the narrowest point, just aft of the nose
           [1.7, ST.lip],
         ],
         MATS.nacelleLip,
@@ -408,12 +415,13 @@ export function buildEngine() {
     )
   );
 
-  /* Пилон крепления к крылу. Двигатель установлен с наклоном 5° носом вверх
-     относительно самолёта, поэтому клин пилона несимметричен: снизу он лежит
-     на гондоле (ось двигателя), сверху уходит по хорде крыла. Вперёд эти две
-     линии сходятся - спереди пилон тоньше. Наклон отдан пилону, а не всей
-     модели: иначе пришлось бы разворачивать вместе с ним визуализацию
-     потоков и экранное марево, которые живут в мировых осях. */
+  /* Pylon attaching the engine to the wing. The engine is installed with 5° of
+     nose-up tilt relative to the aircraft, so the pylon wedge is asymmetric:
+     underneath it lies on the nacelle (the engine axis), on top it follows the
+     wing chord. Forward the two lines converge - the pylon is thinner at the
+     front. The tilt is given to the pylon rather than to the whole model:
+     otherwise the flow visualisation and the screen-space heat haze, which live
+     in world axes, would have to be rotated along with it. */
   const TILT = Math.tan(THREE.MathUtils.degToRad(5));
   const pylonTop = (x) => 0.72 + (x + 1.9) * TILT;
   const pylonShape = new THREE.Shape();
@@ -437,17 +445,17 @@ export function buildEngine() {
   pylon.position.set(0, 2.28, -0.15);
   mNac.add(pylon);
 
-  /* ===================== 2. Вентилятор =============================== */
+  /* ===================== 2. Fan ====================================== */
   const mFan = module(
     'fan',
-    'Вентилятор (N1)',
-    '24 широкохордные лопатки, наибольшая хорда 0.279 м. Диаметр 1.549 м, 5175 об/мин на взлётном режиме. Создаёт до 80 % тяги, прогоняя воздух в наружный контур. Степень двухконтурности 5.1.',
+    'Fan (N1)',
+    '24 wide-chord blades, largest chord 0.279 m. Diameter 1.549 m, 5175 rpm at take-off power. Produces up to 80 % of the thrust by driving air into the bypass duct. Bypass ratio 5.1.',
     new THREE.Vector3(-2.6, 0, 0)
   );
 
-  // Корпус вентилятора с бронекольцом. Наружный радиус - габаритная высота
-  // «голого» двигателя 1.829 м; на этот корпус спереди по фланцу A1 садится
-  // воздухозаборник, а сбоку навешена коробка приводов.
+  // Fan case with the containment ring. The outer radius is the overall height
+  // of the bare engine, 1.829 m; the intake bolts onto this case at flange A1
+  // in front, and the accessory gearbox hangs off its side.
   mFan.add(
     lathe(
       [
@@ -466,10 +474,10 @@ export function buildEngine() {
 
   const fanRot = rotor(mFan, 1);
 
-  // Кок (обтекатель втулки). Длина 0.50 м, наибольший радиус - втулка
-  // вентилятора: относительный диаметр втулки 0.32 от диаметра вентилятора.
-  // Нос кока оказывается в метре за кромкой воздухозаборника - на 737 он и
-  // правда сидит глубоко в утопленном канале.
+  // Spinner (hub fairing). Length 0.50 m, largest radius is the fan hub: the
+  // hub-to-tip diameter ratio is 0.32. The nose of the spinner ends up a metre
+  // aft of the intake lip - on the 737 it really does sit deep inside the
+  // recessed duct.
   const SPINNER_R = 0.5;
   const spinnerPts = [];
   for (let i = 0; i <= 16; i++) {
@@ -481,7 +489,7 @@ export function buildEngine() {
   spinnerPts.push([SPINNER_R, ST.fan + 0.12]);
   fanRot.add(lathe(spinnerPts, MATS.paint, 64));
 
-  // спираль на коке (см. spiralBlur: на оборотах размазывается в кольцо)
+  // spiral on the spinner (see spiralBlur: at speed it smears into a ring)
   const spiralCurve = new THREE.CatmullRomCurve3(
     Array.from({ length: 60 }, (_, i) => {
       const t = i / 59;
@@ -491,7 +499,7 @@ export function buildEngine() {
       return new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a));
     })
   );
-  // тесселяция скромнее исходной: трубка тонкая, а копий её теперь десятки
+  // coarser tessellation than before: the tube is thin and there are now dozens of copies
   const spiral = new THREE.InstancedMesh(
     new THREE.TubeGeometry(spiralCurve, 88, 0.022, 6),
     MATS.spiral,
@@ -501,9 +509,9 @@ export function buildEngine() {
   spiral.count = 1;
   fanRot.add(spiral);
 
-  // диск и замки лопаток
+  // disc and blade roots
   fanRot.add(drum(ST.fan - 0.12, ST.fan + 0.3, SPINNER_R, SPINNER_R + 0.02, MATS.disk));
-  // Наибольшая хорда - 0.279 м (11 in) у периферии, отсюда и «широкохордная».
+  // The largest chord is 0.279 m (11 in) at the tip - hence "wide-chord".
   const fanBlade = makeBladeGeometry({
     hubRadius: SPINNER_R + 0.01,
     tipRadius: ST.fanTip,
@@ -523,7 +531,7 @@ export function buildEngine() {
   });
   fanRot.add(bladeRow(fanBlade, MATS.composite, 24));
 
-  // спрямляющий аппарат наружного контура (OGV)
+  // outlet guide vanes of the bypass duct (OGV)
   const ogv = makeBladeGeometry({
     hubRadius: 1.03,
     tipRadius: 1.64,
@@ -541,15 +549,15 @@ export function buildEngine() {
   });
   mFan.add(bladeRow(ogv, MATS.titanium, 44));
 
-  /* ===================== 3. Подпорные ступени (КНД) ================== */
+  /* ===================== 3. Booster (LP compressor) ================== */
   const mBoost = module(
     'booster',
-    'Подпорные ступени, КНД (N1)',
-    'Компрессор низкого давления: 3 ступени на валу вентилятора. Поджимает воздух внутреннего контура до ~2.5 бар перед КВД.',
+    'Booster, LP compressor (N1)',
+    'Low-pressure compressor: 3 stages on the fan shaft. It raises the core air to about 2.5 bar ahead of the HP compressor.',
     new THREE.Vector3(-1.7, 0, 0)
   );
 
-  // разделитель контуров + корпус КНД
+  // flow splitter and booster casing
   mBoost.add(
     lathe(
       [
@@ -577,11 +585,11 @@ export function buildEngine() {
     { x: -2.56, hub: 0.6, tip: 0.92, n: 40 },
     { x: ST.boosterOut, hub: 0.62, tip: 0.9, n: 46 },
   ];
-  /* Хорды лопаток компрессоров и турбин заданы натурными: подпорная ступень
-     ~50 мм, ступень КВД от 39 до 24 мм, лопатка ТВД ~55 мм, ТНД ~70 мм. Это
-     не косметика - венец занимает по оси хорда × cos(угол установки), а шаг
-     ступени тут 0.14…0.25 у.е. (70…125 мм), и лопатки прежних, «плакатных»
-     хорд просто входили бы друг в друга. */
+  /* Compressor and turbine blade chords are set to life-size values: booster
+     stage ~50 mm, HPC stage from 39 down to 24 mm, HPT blade ~55 mm, LPT
+     ~70 mm. This is not cosmetic - a row occupies chord × cos(stagger) along
+     the axis, the stage pitch here is 0.14…0.25 units (70…125 mm), and blades
+     with the earlier, poster-sized chords would simply run into each other. */
   boostStages.forEach((s, i) => {
     const g = makeBladeGeometry({
       hubRadius: s.hub,
@@ -600,7 +608,7 @@ export function buildEngine() {
     });
     boostRot.add(bladeRow(g, MATS.titanium, s.n, i * 0.1));
   });
-  // направляющие аппараты КНД
+  // booster stator vanes
   boostStages.forEach((s, i) => {
     const g = makeBladeGeometry({
       hubRadius: s.hub + 0.02,
@@ -620,11 +628,11 @@ export function buildEngine() {
     mBoost.add(bladeRow(g, MATS.steel, s.n + 8, 0.05));
   });
 
-  /* ===================== 4. КВД ====================================== */
+  /* ===================== 4. HP compressor ============================ */
   const mHpc = module(
     'hpc',
-    'Компрессор высокого давления (N2)',
-    '9 ступеней. Сжимает воздух примерно в 11 раз; вместе с вентилятором и КНД это даёт суммарную степень сжатия около 28 и нагрев до 550-600 °C. Часть воздуха отбирается на охлаждение турбины и кондиционирование.',
+    'High-pressure compressor (N2)',
+    '9 stages. It compresses the air by a factor of about 11; together with the fan and the booster that gives an overall pressure ratio of about 28 and heating to 550-600 °C. Some of the air is bled off for turbine cooling and air conditioning.',
     new THREE.Vector3(-0.8, 0, 0)
   );
 
@@ -633,7 +641,7 @@ export function buildEngine() {
   const hpcTip = (i) => THREE.MathUtils.lerp(0.78, 0.55, i / (hpcStages - 1));
   const hpcHub = (i) => THREE.MathUtils.lerp(0.5, 0.44, i / (hpcStages - 1));
 
-  // корпус КВД
+  // HPC casing
   const hpcCasePts = [];
   for (let i = 0; i <= 10; i++) {
     const t = i / 10;
@@ -645,7 +653,7 @@ export function buildEngine() {
   }
   hpcCasePts.push([0.84, ST.hpcIn - 0.12]);
   mHpc.add(lathe(hpcCasePts, MATS.casing, 96));
-  // переходник от КНД
+  // transition duct from the booster
   mHpc.add(
     lathe(
       [
@@ -685,7 +693,7 @@ export function buildEngine() {
     });
     hpcRot.add(bladeRow(g, MATS.titanium, n, i * 0.07));
 
-    // направляющий аппарат ступени
+    // stator vanes of the stage
     const sg = makeBladeGeometry({
       hubRadius: hpcHub(i) + 0.01,
       tipRadius: hpcTip(i) + 0.01,
@@ -699,21 +707,21 @@ export function buildEngine() {
       tipCamber: 0.07,
       radialSegments: 5,
       chordSegments: 10,
-      // направляющий аппарат ровно посередине между ступенями
+      // stator vanes exactly halfway between stages
       x: hpcX(i) + (ST.hpcOut - ST.hpcIn) / (hpcStages - 1) / 2,
     });
     mHpc.add(bladeRow(sg, MATS.steel, n + 10, 0.04));
   }
 
-  /* ===================== 5. Камера сгорания ========================== */
+  /* ===================== 5. Combustor ================================ */
   const mComb = module(
     'combustor',
-    'Камера сгорания',
-    'Кольцевая камера с 20 форсунками. Топливо сгорает при 1800-2000 °C; воздух из КВД охлаждает жаровую трубу плёночным охлаждением. Только ~25 % воздуха участвует в горении, остальное - охлаждение и разбавление.',
+    'Combustor',
+    'Annular chamber with 20 fuel nozzles. Fuel burns at 1800-2000 °C; air from the HP compressor film-cools the flame tube. Only about 25 % of the air takes part in combustion, the rest is cooling and dilution.',
     new THREE.Vector3(0, 0, 0)
   );
 
-  // диффузор
+  // diffuser
   mComb.add(
     lathe(
       [
@@ -732,7 +740,7 @@ export function buildEngine() {
     )
   );
 
-  // жаровая труба (наружная и внутренняя стенки)
+  // flame tube (outer and inner walls)
   const linerOuter = [];
   const linerInner = [];
   for (let i = 0; i <= 12; i++) {
@@ -743,7 +751,7 @@ export function buildEngine() {
   }
   mComb.add(lathe(linerOuter, MATS.combLiner, 80));
   mComb.add(lathe(linerInner, MATS.combLiner, 80));
-  // купол камеры
+  // combustor dome
   mComb.add(
     lathe(
       [
@@ -757,7 +765,7 @@ export function buildEngine() {
     )
   );
 
-  // форсунки и завихрители
+  // fuel nozzles and swirlers
   ringOf(
     20,
     (i, a) => {
@@ -771,13 +779,13 @@ export function buildEngine() {
       g.add(swirl, stem);
       g.position.set(0, 0.61 * Math.cos(a), 0.61 * Math.sin(a));
       g.rotation.x = a;
-      // подвод топлива наружу
+      // fuel line running outboard
       return g;
     },
     mComb
   );
 
-  // пламя (аддитивный шейдер)
+  // flame (additive shader)
   const flamePts = [];
   for (let i = 0; i <= 14; i++) {
     const t = i / 14;
@@ -818,7 +826,7 @@ export function buildEngine() {
         return n;
       }
       void main(){
-        // vP - в локальной системе lathe: ось Y = ось двигателя
+        // vP is in lathe local space: the Y axis is the engine axis
         float t = clamp((vP.y - uX0)/(uX1-uX0), 0.0, 1.0);
         float ang = atan(vP.z, vP.x);
         float n = noise(vec3(ang*3.0, t*6.0 - uTime*3.0, uTime*0.8));
@@ -835,11 +843,11 @@ export function buildEngine() {
   flame.renderOrder = 3;
   mComb.add(flame);
 
-  /* ===================== 6. Турбина высокого давления ================ */
+  /* ===================== 6. HP turbine =============================== */
   const mHpt = module(
     'hpt',
-    'Турбина высокого давления (N2)',
-    '1 ступень. Монокристаллические лопатки с внутренним воздушным охлаждением и керамическим покрытием работают в газе 1500 °C - выше температуры плавления сплава. Одной ступени хватает потому, что она срабатывает большой перепад при высокой окружной скорости: КВД она вращает со скоростью ~14 500 об/мин.',
+    'High-pressure turbine (N2)',
+    '1 stage. Single-crystal blades with internal air cooling and a ceramic coating work in gas at 1500 °C - above the melting point of the alloy. One stage is enough because it takes a large pressure drop at a high blade speed: it drives the HP compressor at about 14 500 rpm.',
     new THREE.Vector3(0.9, 0, 0)
   );
   mHpt.add(
@@ -857,10 +865,10 @@ export function buildEngine() {
   );
 
   const hptRot = rotor(mHpt, 2);
-  // Одна ступень: сопловой аппарат и рабочее колесо.
+  // A single stage: nozzle guide vanes and the rotor.
   const hptStages = [{ x: 0.02, hub: 0.46, tip: 0.86, n: 62, ngv: -0.12 }];
   hptStages.forEach((s, i) => {
-    // сопловой аппарат
+    // nozzle guide vanes
     const ngv = makeBladeGeometry({
       hubRadius: s.hub,
       tipRadius: s.tip + 0.02,
@@ -898,11 +906,11 @@ export function buildEngine() {
   });
   hptRot.add(drum(ST.hptIn + 0.04, ST.hptOut - 0.02, 0.44, 0.44, MATS.diskHot));
 
-  /* ===================== 7. Турбина низкого давления ================= */
+  /* ===================== 7. LP turbine =============================== */
   const mLpt = module(
     'lpt',
-    'Турбина низкого давления (N1)',
-    '4 ступени большого диаметра. Срабатывает оставшуюся энергию газа и через длинный вал приводит вентилятор и КНД (5175 об/мин на взлётном режиме).',
+    'Low-pressure turbine (N1)',
+    '4 large-diameter stages. It extracts the remaining energy from the gas and drives the fan and the booster through a long shaft (5175 rpm at take-off power).',
     new THREE.Vector3(1.9, 0, 0)
   );
 
@@ -917,7 +925,7 @@ export function buildEngine() {
   }
   lptCase.push([0.99, ST.lptIn - 0.16]);
   mLpt.add(lathe(lptCase, MATS.casingHot, 96));
-  // переходный канал от ТВД
+  // transition duct from the HP turbine
   mLpt.add(
     lathe(
       [
@@ -977,11 +985,11 @@ export function buildEngine() {
   }
   lptRot.add(drum(ST.lptIn - 0.1, ST.lptOut + 0.1, 0.46, 0.5, MATS.diskHot));
 
-  /* ===================== 8. Задняя опора и сопло ===================== */
+  /* ===================== 8. Rear frame and nozzle ==================== */
   const mExh = module(
     'exhaust',
-    'Задняя опора и сопло внутреннего контура',
-    'Силовые стойки задней опоры несут подшипник вала НД и спрямляют закрутку газа. Центральное тело (кок) формирует сопло; скорость струи на выходе 400-500 м/с при 550-600 °C.',
+    'Turbine rear frame and core nozzle',
+    'The struts of the rear frame carry the LP shaft bearing and straighten the swirl out of the gas. The plug shapes the nozzle; the jet leaves at 400-500 m/s and 550-600 °C.',
     new THREE.Vector3(2.9, 0, 0)
   );
   const strut = makeBladeGeometry({
@@ -1013,7 +1021,7 @@ export function buildEngine() {
       96
     )
   );
-  // центральное тело
+  // exhaust plug
   const plugPts = [];
   for (let i = 0; i <= 16; i++) {
     const t = i / 16;
@@ -1022,17 +1030,17 @@ export function buildEngine() {
   const plug = lathe([[0.56, ST.frame - 0.1], ...plugPts], MATS.nickel, 72);
   mExh.add(plug);
 
-  /* ===================== 9. Внутренний капот (core cowl) ============= */
+  /* ===================== 9. Core cowl ================================ */
   const mCowl = module(
     'cowl',
-    'Внутренний обвод наружного контура',
-    'Стенка, разделяющая холодный наружный и горячий внутренний контуры. Внутри - агрегаты, трубопроводы и теплоизоляция.',
+    'Inner wall of the bypass duct',
+    'The wall separating the cold bypass duct from the hot core. Inside it sit the accessories, the pipework and the thermal insulation.',
     new THREE.Vector3(0, -3.4, 0)
   );
-  // Наружная поверхность капота - внутренняя стенка наружного контура. Её
-  // радиус вместе с обечайкой гондолы задаёт площадь сопла наружного контура:
-  // при 1.62 и 1.14 у.е. на срезе это 1.04 м² - столько и нужно наружному
-  // контуру при m = 5.1 и расходе порядка 355 кг/с на взлётном режиме.
+  // The outer surface of the cowl is the inner wall of the bypass duct. Its
+  // radius, together with the nacelle barrel, sets the fan nozzle area: at 1.62
+  // and 1.14 units at the exit that is 1.04 m² - which is what the bypass duct
+  // needs at a bypass ratio of 5.1 and a flow of about 355 kg/s at take-off.
   const cowlPts = [
     [0.95, ST.splitter],
     [1.05, -2.61],
@@ -1060,11 +1068,11 @@ export function buildEngine() {
   ];
   mCowl.add(lathe(cowlPts, MATS.coreCowl, 96));
 
-  /* ===================== 10. Валы и агрегаты ========================= */
+  /* ===================== 10. Shafts and accessories ================== */
   const mShaft = module(
     'shafts',
-    'Валы роторов',
-    'Два соосных вала: вал НД (вентилятор + КНД + ТНД) проходит внутри полого вала ВД (КВД + ТВД). Роторы вращаются независимо с разной скоростью.',
+    'Rotor shafts',
+    'Two coaxial shafts: the LP shaft (fan + booster + LP turbine) runs inside the hollow HP shaft (HP compressor + HP turbine). The rotors turn independently at different speeds.',
     new THREE.Vector3(0, 0, 0)
   );
   const lpShaftRot = rotor(mShaft, 1);
@@ -1072,7 +1080,7 @@ export function buildEngine() {
   lp.rotation.z = -Math.PI / 2;
   lp.position.x = -1.01;
   lpShaftRot.add(lp);
-  // шлицы/фланцы вала НД
+  // splines and flanges of the LP shaft
   [-3.16, 1.24].forEach((x) => {
     const f = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.12, 24), MATS.shaft);
     f.rotation.z = -Math.PI / 2;
@@ -1083,7 +1091,7 @@ export function buildEngine() {
   const hpShaftRot = rotor(mShaft, 2);
   hpShaftRot.add(tube(-2.31, 0.1, 0.24, 0.3, MATS.shaft, 32));
 
-  // подшипниковые опоры
+  // bearing supports
   [
     [-3.11, 0.34],
     [-2.36, 0.36],
@@ -1098,41 +1106,43 @@ export function buildEngine() {
 
   const mAcc = module(
     'accessory',
-    'Коробка приводов и агрегаты',
-    'Через угловую передачу от вала ВД приводятся топливный и масляный насосы, генераторы и стартер. Здесь же трубопроводы отбора воздуха и агрегаты FADEC. На 737 коробка вынесена с низа двигателя на бок - это и позволило сплющить низ мотогондолы.',
+    'Accessory gearbox and accessories',
+    'A bevel drive off the HP shaft powers the fuel and oil pumps, the generators and the starter. The bleed air pipework and the FADEC units live here too. On the 737 the gearbox is moved from underneath the engine to the side - which is what allowed the bottom of the nacelle to be flattened.',
     AGB_EXPLODE
   );
-  // Всё навесное собрано так, будто висит снизу, и целиком повёрнуто на бок:
-  // так низ двигателя остаётся свободным под плоскую гондолу.
+  // Everything bolted on is laid out as if it hung underneath, then the whole
+  // assembly is rotated to the side: that keeps the bottom of the engine clear
+  // for the flat nacelle.
   const accSide = new THREE.Group();
   accSide.rotation.x = AGB_TILT;
   mAcc.add(accSide);
 
-  // Коробка приводов сидит на корпусе вентилятора (радиус 1.829) и наружу
-  // доходит до 2.118 - это и есть габаритная ширина «голого» двигателя
-  // 2.118 м при высоте 1.829 м: разницу даёт как раз она. Дальше остаётся
-  // 0.16 м до обшивки гондолы - потому гондола 737 и такая полная при
-  // сравнительно небольшом вентиляторе.
+  // The gearbox sits on the fan case (radius 1.829) and reaches out to 2.118 -
+  // which is exactly the overall width of the bare engine, 2.118 m against a
+  // height of 1.829 m: the gearbox is what makes the difference. Beyond it
+  // there are 0.16 m left to the nacelle skin - which is why the 737 nacelle is
+  // so full despite a comparatively small fan.
   const gearbox = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 0.7), MATS.accessory);
   gearbox.position.set(-2.46, -1.92, 0);
   gearbox.rotation.z = 0.03;
   accSide.add(gearbox);
-  // Агрегаты вынесены вбок от коробки, поэтому дальний угол у них дальше
-  // от оси, чем плоскость: на габарит 2.118 выводится именно он.
+  // The accessories are offset sideways from the gearbox, so their far corner
+  // lies further from the axis than their face: it is that corner which is set
+  // to the 2.118 limit.
   [[-2.96, 0.2], [-2.46, 0.22], [-1.96, 0.19]].forEach(([x, r], i) => {
     const acc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.44, 16), MATS.accessory);
     acc.rotation.x = Math.PI / 2;
-    // ступенька i * 0.02 уводит агрегаты внутрь, чтобы габарит держал
-    // первый из них, а не разъезжался по мелочи
+    // the i * 0.02 step nudges the accessories inward so that the first of them
+    // holds the limit instead of the whole group drifting apart
     acc.position.set(x, -(Math.sqrt(ST.accR ** 2 - 0.74 ** 2) - r) + i * 0.02, 0.52);
     accSide.add(acc);
   });
-  // вертикальная передача от вала ВД к коробке приводов
+  // radial drive shaft from the HP shaft down to the gearbox
   const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.15, 12), MATS.steel);
   tower.position.set(-2.96, -1.3, 0);
   tower.rotation.z = 0.2;
   accSide.add(tower);
-  // магистрали вдоль газогенератора
+  // pipework along the core
   [0.35, -0.35].forEach((z) => {
     const c = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-2.66, -1.15, z * 0.6),
@@ -1143,30 +1153,30 @@ export function buildEngine() {
     accSide.add(new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.045, 8), MATS.steel));
   });
 
-  /* ===================== метки узлов ================================= */
+  /* ===================== module labels =============================== */
   const labels = [
-    { module: mNac, text: 'Мотогондола', pos: new THREE.Vector3(-4.0, 2.5, 0) },
-    { module: mFan, text: 'Вентилятор', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
-    { module: mBoost, text: 'КНД', pos: new THREE.Vector3(-2.56, 1.02, 0) },
-    { module: mHpc, text: 'КВД', pos: new THREE.Vector3(-1.61, 0.9, 0) },
-    { module: mComb, text: 'Камера сгорания', pos: new THREE.Vector3(-0.56, 0.98, 0) },
-    { module: mHpt, text: 'ТВД', pos: new THREE.Vector3(-0.03, 1.02, 0) },
-    { module: mLpt, text: 'ТНД', pos: new THREE.Vector3(0.74, 1.18, 0) },
-    { module: mExh, text: 'Сопло', pos: new THREE.Vector3(3.2, 0.85, 0) },
-    { module: mShaft, text: 'Валы НД / ВД', pos: new THREE.Vector3(-0.96, -0.42, 0) },
+    { module: mNac, text: 'Nacelle', pos: new THREE.Vector3(-4.0, 2.5, 0) },
+    { module: mFan, text: 'Fan', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
+    { module: mBoost, text: 'Booster', pos: new THREE.Vector3(-2.56, 1.02, 0) },
+    { module: mHpc, text: 'HPC', pos: new THREE.Vector3(-1.61, 0.9, 0) },
+    { module: mComb, text: 'Combustor', pos: new THREE.Vector3(-0.56, 0.98, 0) },
+    { module: mHpt, text: 'HPT', pos: new THREE.Vector3(-0.03, 1.02, 0) },
+    { module: mLpt, text: 'LPT', pos: new THREE.Vector3(0.74, 1.18, 0) },
+    { module: mExh, text: 'Nozzle', pos: new THREE.Vector3(3.2, 0.85, 0) },
+    { module: mShaft, text: 'LP / HP shafts', pos: new THREE.Vector3(-0.96, -0.42, 0) },
     {
       module: mAcc,
-      text: 'Коробка приводов',
-      // подпись едет на бок вместе с самой коробкой
+      text: 'Accessory gearbox',
+      // the label swings to the side together with the gearbox itself
       pos: new THREE.Vector3(-2.46, -2.3, 0).applyAxisAngle(AGB_AXIS, AGB_TILT),
     },
   ];
 
   modules.forEach((m) => m.userData.base.copy(m.position));
 
-  /* ------- невидимые прокси-объёмы для быстрого выбора узлов --------- *
-   * Raycast по реальной геометрии (сотни тысяч треугольников) на каждое
-   * движение мыши слишком дорог, поэтому пикаем упрощённые оболочки.    */
+  /* ------- invisible proxy volumes for fast module picking ----------- *
+   * Raycasting the real geometry (hundreds of thousands of triangles) on
+   * every mouse move is far too expensive, so we pick simplified shells. */
   const pickMat = new THREE.MeshBasicMaterial({ visible: false });
   const pickables = [];
   const PROXY = [
@@ -1192,27 +1202,27 @@ export function buildEngine() {
   {
     const box = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.5, 1.4), pickMat);
     box.position.set(-2.56, -1.5, 0);
-    accSide.add(box); // прокси уезжает на бок вместе с агрегатами
+    accSide.add(box); // the proxy swings to the side with the accessories
     pickables.push(box);
   }
 
-  /* --------------------- смаз спирали на коке ---------------------- */
+  /* --------------------- spinner spiral smear ---------------------- */
   const _spiralM = new THREE.Matrix4();
   let shownGhosts = -1;
   let shownSpread = -1;
 
-  /** @param {number} keff приведённый режим 0..1 */
+  /** @param {number} keff effective regime 0..1 */
   function setSpiralBlur(keff) {
     const { ghosts, spread, opacity } = spiralBlur(keff);
     MATS.spiral.opacity = opacity;
-    // пока спираль непрозрачна, пусть пишет глубину и не просвечивает сама себя
+    // while the spiral is opaque, let it write depth so it does not show through itself
     MATS.spiral.depthWrite = opacity > 0.95;
     if (ghosts === shownGhosts && Math.abs(spread - shownSpread) < 0.004) return;
     shownGhosts = ghosts;
     shownSpread = spread;
     spiral.count = ghosts;
     for (let i = 0; i < ghosts; i++) {
-      // копии тянутся назад по вращению - это шлейф, а не опережение
+      // the copies trail backwards along the rotation - it is a wake, not a lead
       _spiralM.makeRotationX(ghosts > 1 ? -spread * (i / (ghosts - 1)) : 0);
       spiral.setMatrixAt(i, _spiralM);
     }

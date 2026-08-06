@@ -13,7 +13,7 @@ import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
 
-/* =============================== сцена =============================== */
+/* =============================== scene =============================== */
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -40,7 +40,7 @@ controls.target.set(-0.3, 0, 0);
 const labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
 labelRenderer.setSize(innerWidth, innerHeight);
 
-/* ---------------------------- окружение ----------------------------- */
+/* --------------------------- environment ---------------------------- */
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.45;
@@ -56,14 +56,14 @@ const fill = new THREE.DirectionalLight(0xffd9b0, 0.3);
 fill.position.set(2, -6, 3);
 scene.add(fill);
 
-// «пол» — тонкая сетка для ощущения масштаба
+// the "floor" - a faint grid that gives a sense of scale
 const grid = new THREE.GridHelper(60, 60, 0x2a3442, 0x161c25);
 grid.position.y = -3.6;
 grid.material.transparent = true;
 grid.material.opacity = 0.45;
 scene.add(grid);
 
-/* ============================== двигатель ============================= */
+/* ============================== engine =============================== */
 
 const engine = buildEngine();
 scene.add(engine.root);
@@ -71,7 +71,7 @@ scene.add(engine.root);
 const airflow = createAirflow();
 scene.add(airflow.group);
 
-/* ------------------------------ подписи ------------------------------ */
+/* ------------------------------ labels ------------------------------- */
 const labelObjects = [];
 engine.labels.forEach((l) => {
   const div = document.createElement('div');
@@ -83,7 +83,7 @@ engine.labels.forEach((l) => {
   labelObjects.push(obj);
 });
 
-/* --------------------------- вырез (разрез) -------------------------- */
+/* ---------------------------- cutaway sector ------------------------- */
 const clipA = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
 const clipB = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const clipPlanes = [clipA, clipB];
@@ -93,7 +93,7 @@ function updateClip(halfDeg, centerDeg) {
   const h = THREE.MathUtils.degToRad(halfDeg);
   const a = c - h;
   const b = c + h;
-  // сохраняем полупространства «до» и «после» сектора (объединение)
+  // keep the half-spaces before and after the sector (their union)
   clipA.normal.set(0, Math.cos(a - Math.PI / 2), Math.sin(a - Math.PI / 2));
   clipB.normal.set(0, Math.cos(b + Math.PI / 2), Math.sin(b + Math.PI / 2));
   clipA.constant = 0;
@@ -108,7 +108,7 @@ function setCutaway(on) {
   });
 }
 
-/* ----------------------------- «рентген» ----------------------------- */
+/* ------------------------------- x-ray ------------------------------- */
 function setXray(on) {
   getShellMaterials().forEach((m) => {
     m.transparent = on;
@@ -118,19 +118,19 @@ function setXray(on) {
   });
 }
 
-/* =============================== постобработка ======================= */
+/* ============================ post-processing ======================== */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-// тепловое искажение струи - до свечения, чтобы ореолы «поплыли» вместе с кадром
+// jet heat haze goes before bloom, so the halos swim together with the frame
 const haze = createHeatHaze(camera, innerWidth, innerHeight);
 composer.addPass(haze.pass);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.2, 0.4, 1.0);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-/* ============================ состояние UI =========================== */
+/* =============================== UI state ============================ */
 const state = {
-  throttle: 0.85, // положение РУД
+  throttle: 0.85, // throttle lever position
   sound: false,
   flow: false,
   cutaway: false,
@@ -141,24 +141,25 @@ const state = {
   explode: 0,
   cutHalf: 100,
   cutRot: 90,
-  timeScale: 1, // ускорение процессов двигателя, ×1 или ×4
+  timeScale: 1, // speed-up of the engine processes, ×1 or ×4
 };
 
 let n1Angle = 0;
 let n2Angle = 0;
 
-/* ------------------------- состояние двигателя ------------------------ */
+/* ---------------------------- engine state --------------------------- */
 const eng = createEngineState(state.throttle);
 
 const MODE_TEXT = {
-  off: ['ВЫКЛЮЧЕН', 'off'],
-  start: ['ЗАПУСК', 'busy'],
-  run: ['РАБОТА', ''],
-  stop: ['ОСТАНОВ · ВЫБЕГ', 'stop'],
+  off: ['SHUT DOWN', 'off'],
+  start: ['STARTING', 'busy'],
+  run: ['RUNNING', ''],
+  stop: ['SHUTDOWN · RUNDOWN', 'stop'],
 };
 
-// Автомат сам переходит «выбег → выключен» и «запуск → работа»,
-// поэтому панель обновляется по факту смены режима, а не только по кнопке.
+// The state machine makes the transitions "rundown -> off" and "start -> run"
+// on its own, so the panel is refreshed whenever the mode actually changes,
+// not only when a button is pressed.
 let shownMode = null;
 
 function refreshModeUI() {
@@ -174,15 +175,15 @@ function refreshModeUI() {
   btn.classList.toggle('danger', running);
   btn.classList.toggle('start', !running);
   btn.classList.toggle('busy', mode === 'start' || mode === 'stop');
-  $('power-label').textContent = running ? 'Останов двигателя' : 'Запуск двигателя';
+  $('power-label').textContent = running ? 'Shut down engine' : 'Start engine';
   $('power-hint').textContent =
     mode === 'start'
-      ? 'раскрутка стартером, розжиг…'
+      ? 'starter cranking, light-off…'
       : mode === 'stop'
-        ? 'топливо отсечено, роторы на выбеге…'
+        ? 'fuel cut, rotors coasting down…'
         : running
-          ? 'стоп-кран, выбег роторов'
-          : 'стартер, розжиг, выход на малый газ';
+          ? 'fuel shut-off, rotor rundown'
+          : 'starter, light-off, acceleration to idle';
   $('thr-wrap').classList.toggle('disabled', mode !== 'run');
 }
 
@@ -191,7 +192,7 @@ function setMode(mode) {
   refreshModeUI();
 }
 
-/* ------------------------------ элементы ----------------------------- */
+/* ----------------------------- elements ------------------------------ */
 const $ = (id) => document.getElementById(id);
 const btnFlow = $('btn-flow');
 const btnCut = $('btn-cut');
@@ -200,17 +201,18 @@ const info = $('info');
 const tip = $('tip');
 
 const VIEWS = [
-  { name: 'Общий вид', pos: [-11.6, 4.8, 13.8], target: [-0.3, 0, 0] },
-  { name: 'В разрезе', pos: [-8.2, 5.8, 10.4], target: [-0.5, 0, 0], cut: true },
-  { name: 'Спереди', pos: [-13.5, 1.0, 3.0], target: [-4.4, 0, 0] },
-  { name: 'Вентилятор', pos: [-8.2, 2.2, 4.6], target: [-3.22, 0, 0] },
-  { name: 'Компрессор ВД', pos: [-4.6, 2.1, 4.0], target: [-1.61, 0, 0], cut: true },
-  { name: 'Камера сгорания', pos: [-1.6, 1.9, 3.8], target: [-0.56, 0, 0], cut: true },
-  { name: 'Турбина', pos: [1.5, 2.1, 4.4], target: [0.44, 0, 0], cut: true },
-  { name: 'Сопло и струя', pos: [7.6, 2.8, 7.0], target: [3.0, 0, 0] },
-  // камера стоит вплотную к границе конуса струи: сама струя идёт на зрителя,
-  // но двигатель не тонет в ней целиком, как это было бы на оси
-  { name: 'Сзади, в потоке газов', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
+  { name: 'Overview', pos: [-11.6, 4.8, 13.8], target: [-0.3, 0, 0] },
+  { name: 'Cutaway', pos: [-8.2, 5.8, 10.4], target: [-0.5, 0, 0], cut: true },
+  { name: 'Front', pos: [-13.5, 1.0, 3.0], target: [-4.4, 0, 0] },
+  { name: 'Fan', pos: [-8.2, 2.2, 4.6], target: [-3.22, 0, 0] },
+  { name: 'HP compressor', pos: [-4.6, 2.1, 4.0], target: [-1.61, 0, 0], cut: true },
+  { name: 'Combustor', pos: [-1.6, 1.9, 3.8], target: [-0.56, 0, 0], cut: true },
+  { name: 'Turbine', pos: [1.5, 2.1, 4.4], target: [0.44, 0, 0], cut: true },
+  { name: 'Nozzle and jet', pos: [7.6, 2.8, 7.0], target: [3.0, 0, 0] },
+  // the camera sits right at the edge of the jet cone: the jet comes towards
+  // the viewer, but the engine is not entirely drowned in it as it would be
+  // directly on the axis
+  { name: 'From behind, in the gas stream', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
 ];
 
 const camTargetPos = camera.position.clone();
@@ -232,14 +234,14 @@ VIEWS.forEach((v, i) => {
   viewsEl.appendChild(b);
 });
 
-/* ----------------------------- переключатели -------------------------- */
+/* ------------------------------- toggles ------------------------------ */
 function toggleFlow(on) {
   state.flow = on;
   btnFlow.classList.toggle('on', on);
   airflow.setVisible(on);
   haze.setFlowMode(on);
   legend.classList.toggle('hidden', !on);
-  // чтобы потоки было видно внутри — делаем корпуса прозрачными
+  // make the casings transparent so the flows can be seen inside
   if (on && !state.cutaway && !state.xray) {
     $('chk-xray').checked = true;
     state.xray = true;
@@ -254,7 +256,7 @@ function toggleCut(on) {
   $('cut-opts').style.opacity = on ? 1 : 0.35;
 }
 
-/* -------------------------------- звук -------------------------------- */
+/* -------------------------------- sound ------------------------------- */
 const sound = createEngineSound();
 const btnSound = $('btn-sound');
 
@@ -278,13 +280,13 @@ document.addEventListener('visibilitychange', () => {
 btnFlow.onclick = () => toggleFlow(!state.flow);
 btnCut.onclick = () => toggleCut(!state.cutaway);
 
-// запуск / останов: во время выбега можно снова запустить, во время запуска - прервать
+// start / shutdown: during rundown it can be restarted, during start aborted
 $('btn-power').onclick = () => {
   setMode(eng.mode === 'run' || eng.mode === 'start' ? 'stop' : 'start');
 };
 
-// скорость времени: запуск занимает около 40 с, выбег - 35 с, как у настоящего
-// двигателя; ускорение позволяет не ждать их целиком
+// time scale: a start takes about 40 s and a rundown 35 s, as on a real engine;
+// the speed-up saves waiting through them in full
 function setTimeScale(k) {
   state.timeScale = k;
   $('ts-1').classList.toggle('on', k === 1);
@@ -335,6 +337,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     e.preventDefault();
     toggleFlow(!state.flow);
+    // Cyrillic letters are the same physical keys on a Russian layout
   } else if (e.key === 'c' || e.key === 'C' || e.key === 'с' || e.key === 'С') {
     toggleCut(!state.cutaway);
   } else if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') {
@@ -354,41 +357,41 @@ addEventListener('keydown', (e) => {
   }
 });
 
-/* ------------------------------ приборы ------------------------------ *
- *  fan  - сжатие в вентиляторе, от оборотов N1
- *  comp - сжатие в КВД, от оборотов N2
- *  t4   - фактическая температура газа перед турбиной
+/* ------------------------------- gauges ------------------------------ *
+ *  fan  - fan compression, driven by N1
+ *  comp - HP compressor compression, driven by N2
+ *  t4   - actual gas temperature ahead of the turbine
  * -------------------------------------------------------------------- */
 const STATIONS = [
-  ['Вход', () => 15, () => 1.0],
-  ['Наружный контур', ({ fan }) => 15 + 34 * fan, ({ fan }) => 1 + 0.68 * fan],
-  ['За КНД', ({ fan }) => 15 + 105 * fan, ({ fan }) => 1 + 1.7 * fan],
-  // Суммарная степень сжатия прототипа около 28 (вентилятор 1.7, КНД 1.5,
-  // КВД 11), не 40-50, как у двигателей следующего поколения.
-  ['За КВД', ({ comp }) => 15 + 585 * comp, ({ comp }) => 1 + 27 * comp],
-  ['Камера сгорания', ({ t4 }) => t4, ({ comp }) => 1 + 26 * comp],
-  ['За ТВД', ({ t4 }) => t4 * 0.494, ({ comp }) => 1 + 6 * comp],
-  ['Срез сопла', ({ t4 }) => t4 * 0.293, ({ fan }) => 1 + 0.65 * fan],
+  ['Intake', () => 15, () => 1.0],
+  ['Bypass duct', ({ fan }) => 15 + 34 * fan, ({ fan }) => 1 + 0.68 * fan],
+  ['After booster', ({ fan }) => 15 + 105 * fan, ({ fan }) => 1 + 1.7 * fan],
+  // The overall pressure ratio of the prototype is about 28 (fan 1.7, booster
+  // 1.5, HPC 11), not 40-50 as on next-generation engines.
+  ['After HPC', ({ comp }) => 15 + 585 * comp, ({ comp }) => 1 + 27 * comp],
+  ['Combustor', ({ t4 }) => t4, ({ comp }) => 1 + 26 * comp],
+  ['After HPT', ({ t4 }) => t4 * 0.494, ({ comp }) => 1 + 6 * comp],
+  ['Nozzle exit', ({ t4 }) => t4 * 0.293, ({ fan }) => 1 + 0.65 * fan],
 ];
 
 const stationsEl = $('stations');
 stationsEl.innerHTML =
-  '<tr><td style="color:#5f6b7c">станция</td><td style="color:#5f6b7c">T, °C</td><td style="color:#5f6b7c">P, бар</td></tr>' +
+  '<tr><td style="color:#5f6b7c">station</td><td style="color:#5f6b7c">T, °C</td><td style="color:#5f6b7c">P, bar</td></tr>' +
   STATIONS.map(([n]) => `<tr><td>${n}</td><td class="t"></td><td class="p"></td></tr>`).join('');
 
 let gaugeShown = -1;
 function updateGauges(keff) {
-  // хэш состояния, чтобы не трогать DOM на каждом кадре без нужды
+  // hash of the state, so the DOM is not touched every frame without need
   const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001;
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
 
-  // взлётная тяга прототипа: CFM56-7B27, 27 300 lbf = 121.4 кН
+  // take-off thrust of the prototype: CFM56-7B27, 27 300 lbf = 121.4 kN
   const thrust = eng.fuel ? 121.4 * Math.pow(keff, 1.45) : 0;
   $('val-n1').textContent = `${(eng.n1 * 100).toFixed(0)} %`;
   $('val-n2').textContent = `${(eng.n2 * 100).toFixed(0)} %`;
   $('val-t4').textContent = `${eng.t4.toFixed(0)} °C`;
-  $('val-thrust').textContent = `${thrust.toFixed(0)} кН`;
+  $('val-thrust').textContent = `${thrust.toFixed(0)} kN`;
 
   const v = { fan: eng.n1 * eng.n1, comp: Math.pow(eng.n2, 2.5), t4: eng.t4 };
   const rows = stationsEl.querySelectorAll('tr');
@@ -399,7 +402,7 @@ function updateGauges(keff) {
   });
 }
 
-/* --------------------------- выбор узлов ----------------------------- */
+/* -------------------------- module picking --------------------------- */
 const ray = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let hovered = null;
@@ -413,7 +416,7 @@ function moduleOf(obj) {
 canvas.addEventListener('pointermove', (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  // при прозрачных/вырезанных корпусах даём выбирать то, что под ними
+  // with transparent or cut-away casings, let the user pick what is beneath
   const seeThrough = state.xray || state.cutaway || !engine.parts.mNac.visible;
   const targets = seeThrough ? engine.pickables.filter((p) => !p.userData.shell) : engine.pickables;
   const hits = ray.intersectObjects(targets, false);
@@ -438,7 +441,7 @@ canvas.addEventListener('click', () => {
   info.classList.remove('hidden');
 });
 
-/* ============================== анимация ============================== */
+/* ============================= animation ============================= */
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3();
 
@@ -446,32 +449,33 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
 
-  // ускорение времени влияет только на процессы в двигателе: запуск и выбег
-  // идут в натуральном темпе (десятки секунд), и ждать их не всегда уместно
+  // the time scale affects the engine processes only: start and rundown run at
+  // their natural pace (tens of seconds), and waiting them out is not always
+  // appropriate
   const keff = eng.update(dt * state.timeScale, state.throttle);
   if (eng.mode !== shownMode) refreshModeUI();
   updateGauges(keff);
 
-  // роторы: N1 (вентилятор/КНД/ТНД) и N2 (КВД/ТВД) вращаются независимо
+  // rotors: N1 (fan/booster/LPT) and N2 (HPC/HPT) turn independently
   if (state.spin) {
     n1Angle += dt * 13.7 * eng.n1;
     n2Angle -= dt * 23.0 * eng.n2;
   }
   engine.n1Rotors.forEach((g) => (g.rotation.x = n1Angle));
   engine.n2Rotors.forEach((g) => (g.rotation.x = n2Angle));
-  // спираль на коке смазывается с оборотами; при выключенном вращении смаза нет
+  // the spinner spiral smears with speed; with rotation off there is no smear
   engine.setSpiralBlur(state.spin ? keff : 0);
 
-  // разнесение узлов
+  // exploded view
   engine.modules.forEach((m) => {
     tmp.copy(m.userData.explode).multiplyScalar(state.explode);
     m.position.copy(m.userData.base).add(tmp);
   });
 
-  // горение и подсветка горячей части: гаснут вместе с пламенем,
-  // но металл остывает медленнее - за это отвечает eng.t4
+  // combustion and the glow of the hot section: they die with the flame, but
+  // the metal cools more slowly - that is what eng.t4 accounts for
   const burn = eng.burn;
-  const glow = THREE.MathUtils.clamp((eng.t4 - 250) / 1500, 0, 1); // накал металла
+  const glow = THREE.MathUtils.clamp((eng.t4 - 250) / 1500, 0, 1); // incandescence of the metal
   engine.flameMat.uniforms.uTime.value = t;
   engine.flameMat.uniforms.uPower.value = burn * 0.7;
   MATS.turbineHot.emissive.setRGB(0.55 * glow * glow, 0.13 * glow * glow, 0.02 * glow * glow);
@@ -482,7 +486,7 @@ function animate() {
   airflow.update(dt, eng.n1, burn);
   haze.update(dt, burn, eng.n1);
 
-  // звук: панорама и громкость следуют за положением камеры
+  // sound: panning and loudness follow the camera position
   if (state.sound) {
     tmp.set(-0.3, 0, 0);
     const dist = camera.position.distanceTo(tmp);
@@ -490,7 +494,7 @@ function animate() {
     sound.update(eng.n1, eng.n2, burn, tmp.x, THREE.MathUtils.clamp(1 - (dist - 3) / 16, 0, 1));
   }
 
-  // камера
+  // camera
   if (camTween > 0) {
     camera.position.lerp(camTargetPos, 0.07);
     controls.target.lerp(camTargetLook, 0.07);
@@ -514,7 +518,7 @@ addEventListener('resize', () => {
   labelRenderer.setSize(innerWidth, innerHeight);
 });
 
-/* --------------------------- инициализация --------------------------- */
+/* ---------------------------- initialisation ------------------------- */
 updateClip(state.cutHalf, state.cutRot);
 setCutaway(false);
 $('cut-opts').style.opacity = 0.35;

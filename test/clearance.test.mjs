@@ -2,13 +2,13 @@ import * as THREE from 'three';
 import { buildEngine, ST } from '../src/engine.js';
 
 /* ------------------------------------------------------------------ *
- *  Компоновочные зазоры. Габариты прототипа втрое поджали осевую
- *  длину газогенератора, и лопатки прежних «плакатных» хорд после
- *  этого входили бы друг в друга: венец занимает по оси
- *  chord * cos(угол установки), а шаг ступени в КВД - всего 0.13 у.е.
+ *  Layout clearances. The prototype dimensions squeezed the axial length
+ *  of the core, and blades with the earlier poster-sized chords would
+ *  then run into each other: a row occupies chord * cos(stagger) along
+ *  the axis, while the stage pitch in the HPC is only 0.13 units.
  *
- *  Тест ловит именно это: венцы, перекрытые и по оси, и по радиусу,
- *  и концы лопаток, вылезшие за обечайку своего канала.
+ *  This test catches exactly that: rows overlapping both axially and
+ *  radially, and blade tips poking out through the wall of their duct.
  * ------------------------------------------------------------------ */
 
 let failures = 0;
@@ -19,7 +19,7 @@ const check = (name, cond, detail = '') => {
 
 const engine = buildEngine();
 
-// Венец лопаток: осевой и радиальный габарит одной лопатки.
+// Blade row: axial and radial extent of a single blade.
 function bladeRows(module) {
   const rows = [];
   module.traverse((o) => {
@@ -36,13 +36,13 @@ function bladeRows(module) {
   return rows.sort((a, b) => a.x0 - b.x0);
 }
 
-console.log('\n=== ВЕНЦЫ НЕ ВХОДЯТ ДРУГ В ДРУГА ===');
+console.log('\n=== BLADE ROWS DO NOT INTERSECT ===');
 
 const MODULES = [
-  ['КНД', engine.parts.mBoost],
-  ['КВД', engine.parts.mHpc],
-  ['ТВД', engine.parts.mHpt],
-  ['ТНД', engine.parts.mLpt],
+  ['Booster', engine.parts.mBoost],
+  ['HP compressor', engine.parts.mHpc],
+  ['HP turbine', engine.parts.mHpt],
+  ['LP turbine', engine.parts.mLpt],
 ];
 
 for (const [name, mod] of MODULES) {
@@ -54,42 +54,41 @@ for (const [name, mod] of MODULES) {
       const b = rows[j];
       const axial = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
       const radial = Math.min(a.r1, b.r1) - Math.max(a.r0, b.r0);
-      // перекрытие считаем только заметное: доли от касания дают шум
-      if (axial > 0.005 && radial > 0.02) clashes.push(`${axial.toFixed(3)} у.е.`);
+      // only count a noticeable overlap: grazing contact is just noise
+      if (axial > 0.005 && radial > 0.02) clashes.push(`${axial.toFixed(3)} units`);
     }
   }
-  check(`${name}: ${rows.length} венцов`, clashes.length === 0, clashes.length ? `перекрытий ${clashes.length}: ${clashes.slice(0, 3).join(', ')}` : 'зазоры чистые');
+  check(`${name}: ${rows.length} rows`, clashes.length === 0, clashes.length ? `${clashes.length} overlaps: ${clashes.slice(0, 3).join(', ')}` : 'clearances are clean');
 }
 
-console.log('\n=== КОНЦЫ ЛОПАТОК ПОД ОБЕЧАЙКОЙ ===');
+console.log('\n=== BLADE TIPS STAY UNDER THEIR WALL ===');
 
 
-// внутренний тракт гондолы (см. nacInner в engine.js) у плоскости вентилятора
+// the nacelle inner gas path (see nacInner in engine.js) at the fan plane
 const nacInnerAtFan = 1.58;
 check(
-  'Вентилятор: зазор до обечайки',
+  'Fan: clearance to the casing',
   nacInnerAtFan > ST.fanTip,
-  `${((nacInnerAtFan - ST.fanTip) * 500).toFixed(0)} мм по радиусу`
+  `${((nacInnerAtFan - ST.fanTip) * 500).toFixed(0)} mm radially`
 );
 check(
-  'Вентилятор: обечайка под корпусом вентилятора',
+  'Fan: gas path stays inside the fan case',
   nacInnerAtFan < ST.caseR,
-  `тракт ${nacInnerAtFan}, корпус ${ST.caseR} у.е.`
+  `gas path ${nacInnerAtFan}, case ${ST.caseR} units`
 );
 
-// Спрямляющий аппарат стоит в наружном контуре: комель на капоте
-// газогенератора, конец - под обечайкой гондолы.
+// The outlet guide vanes sit in the bypass duct: root on the core cowl, tip
+// under the nacelle wall.
 const ogv = bladeRows(engine.parts.mFan).find((r) => r.r0 > 0.9);
-check('Спрямляющий аппарат: конец под обечайкой', ogv && ogv.r1 <= 1.7, `конец ${ogv?.r1.toFixed(2)} у.е.`);
-check('Спрямляющий аппарат: комель на капоте', ogv && ogv.r0 >= 0.95, `комель ${ogv?.r0.toFixed(2)} у.е.`);
+check('OGV: tip stays under the nacelle wall', ogv && ogv.r1 <= 1.7, `tip ${ogv?.r1.toFixed(2)} units`);
+check('OGV: root sits on the core cowl', ogv && ogv.r0 >= 0.95, `root ${ogv?.r0.toFixed(2)} units`);
 
-console.log('\n=== АГРЕГАТЫ ПОД КАПОТОМ ===');
+console.log('\n=== ACCESSORIES STAY UNDER THE COWL ===');
 
-// Коробка приводов и агрегаты уведены на бок и должны остаться между
-// корпусом вентилятора и обшивкой гондолы.
-// Узел повёрнут вокруг оси двигателя на 62°, поэтому охватывающий
-// параллелепипед в мировых осях сильно завышает вылет: считаем радиус
-// по самим вершинам.
+// The gearbox and the accessories are swung to the side and must stay between
+// the fan case and the nacelle skin.
+// The module is rotated 62° about the engine axis, so a world-axis bounding box
+// grossly overstates the reach: the radius is computed from the vertices.
 const acc = { r: 0, x0: Infinity, x1: -Infinity };
 const v = new THREE.Vector3();
 engine.parts.mAcc.updateWorldMatrix(true, true);
@@ -103,13 +102,13 @@ engine.parts.mAcc.traverse((o) => {
     acc.x1 = Math.max(acc.x1, v.x);
   }
 });
-check('Агрегаты не пробивают обшивку', acc.r < ST.nacelleR, `вылет ${acc.r.toFixed(2)} из ${ST.nacelleR} у.е.`);
+check('Accessories do not pierce the skin', acc.r < ST.nacelleR, `reach ${acc.r.toFixed(2)} of ${ST.nacelleR} units`);
 check(
-  'Габарит по агрегатам держит ширину двигателя',
+  'Accessories set the overall engine width',
   Math.abs(acc.r - ST.accR) < 0.03,
-  `${acc.r.toFixed(3)} против ${ST.accR} у.е.`
+  `${acc.r.toFixed(3)} against ${ST.accR} units`
 );
-check('Агрегаты в пределах длины гондолы', acc.x0 > ST.lip && acc.x1 < ST.coreExit, `${acc.x0.toFixed(2)}…${acc.x1.toFixed(2)}`);
+check('Accessories fit within the nacelle length', acc.x0 > ST.lip && acc.x1 < ST.coreExit, `${acc.x0.toFixed(2)}…${acc.x1.toFixed(2)}`);
 
-console.log(failures ? `\n${failures} провалов` : '\nВсе проверки пройдены');
+console.log(failures ? `\n${failures} failures` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

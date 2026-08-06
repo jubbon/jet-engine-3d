@@ -3,8 +3,9 @@ import * as THREE from 'three';
 const lerp = (a, b, t) => a + (b - a) * t;
 
 /**
- * Профиль лопатки (NACA-подобный) в долях хорды.
- * Возвращает замкнутый контур: [c, n], где c - доля хорды 0..1, n - смещение по нормали.
+ * Blade section (NACA-like) in fractions of chord.
+ * Returns a closed contour: [c, n], where c is chord fraction 0..1 and n is the
+ * offset along the normal.
  */
 function airfoilSection(n, thickness, camber, camberPos) {
   const upper = [];
@@ -12,7 +13,7 @@ function airfoilSection(n, thickness, camber, camberPos) {
   const p = Math.max(0.05, Math.min(0.95, camberPos));
 
   for (let i = 0; i <= n; i++) {
-    // косинусное сгущение точек у передней/задней кромки
+    // cosine clustering of points towards the leading and trailing edges
     const x = 0.5 * (1 - Math.cos((Math.PI * i) / n));
     const yt =
       5 *
@@ -37,16 +38,16 @@ function airfoilSection(n, thickness, camber, camberPos) {
     lower.push([x + yt * Math.sin(th), yc - yt * Math.cos(th)]);
   }
 
-  // замкнутый контур: верх LE->TE, низ TE->LE (без дублей на кромках)
+  // closed contour: upper LE->TE, lower TE->LE (no duplicates at the edges)
   const pts = upper.slice(0, upper.length - 1);
   for (let i = lower.length - 1; i > 0; i--) pts.push(lower[i]);
   return pts;
 }
 
 /**
- * Геометрия одной лопатки: профиль «протягивается» по радиусу
- * с закруткой (stagger), изменением хорды, толщины и кривизны.
- * Ось двигателя - X, лопатка строится в плоскости phi = 0 (радиально вверх, +Y).
+ * Geometry of a single blade: the section is lofted along the radius with twist
+ * (stagger) and with varying chord, thickness and camber.
+ * The engine axis is X; the blade is built in the plane phi = 0 (radially up, +Y).
  */
 export function makeBladeGeometry(opt = {}) {
   const o = {
@@ -61,8 +62,8 @@ export function makeBladeGeometry(opt = {}) {
     rootCamber: 0.06,
     tipCamber: 0.02,
     camberPos: 0.45,
-    sweep: 0, // осевое смещение конца лопатки (- вперёд)
-    lean: 0, // окружной наклон конца лопатки
+    sweep: 0, // axial offset of the blade tip (- forward)
+    lean: 0, // circumferential lean of the blade tip
     radialSegments: 12,
     chordSegments: 16,
     x: 0,
@@ -94,7 +95,7 @@ export function makeBladeGeometry(opt = {}) {
       const dn = prof[j][1] * chord;
       const ax = axOff + dx * cs - dn * sn;
       const tg = tgOff + dx * sn + dn * cs;
-      const ang = tg / r; // «обёртка» профиля по окружности
+      const ang = tg / r; // wrapping the section around the circumference
       ring.push(positions.length / 3);
       positions.push(ax, r * Math.cos(ang), r * Math.sin(ang));
     }
@@ -113,7 +114,7 @@ export function makeBladeGeometry(opt = {}) {
     }
   }
 
-  // торцы (комель и периферия)
+  // end caps (root and tip)
   const capRing = (ring, flip) => {
     let cx = 0;
     let cy = 0;
@@ -145,7 +146,7 @@ export function makeBladeGeometry(opt = {}) {
 }
 
 /**
- * Венец лопаток: InstancedMesh с count лопатками по окружности.
+ * Blade row: an InstancedMesh with `count` blades around the circumference.
  */
 export function bladeRow(geometry, material, count, phase = 0) {
   const mesh = new THREE.InstancedMesh(geometry, material, count);

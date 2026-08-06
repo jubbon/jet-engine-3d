@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 
-/* Порт зафиксирован: он указан в README и docs/08-development, и на него же
-   настроены закладки у тех, кому модель показывают по локальной сети.
-   strictPort не даёт Vite молча переехать на соседний порт, если 5188 занят, -
-   лучше явная ошибка, чем страница, открывающаяся не там, где обещано. */
+/* The port is pinned: it is quoted in README and docs/08-development, and it is
+   what people have bookmarked when the model is shown to them over the local
+   network. strictPort stops Vite from silently moving to the next port if 5188
+   is taken - an explicit error beats a page that opens somewhere other than
+   where it was promised. */
 export default defineConfig({
   server: {
     host: '0.0.0.0',

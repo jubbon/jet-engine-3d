@@ -2,13 +2,13 @@ import { spiralBlur, SPIRAL_GHOSTS } from '../src/engine.js';
 import { createEngineState } from '../src/engineState.js';
 
 /* ------------------------------------------------------------------ *
- *  Спираль на коке должна читаться на малом газе и полностью
- *  размазываться к взлётному режиму. Проверяем saму кривую смаза и
- *  то, что копии не расходятся дальше толщины спирали, - иначе вместо
- *  ровного кольца получатся отдельные полосы.
+ *  The spinner spiral must read clearly at idle and smear away
+ *  completely by take-off power. We check the smear curve itself and
+ *  that the copies never spread further apart than the thickness of the
+ *  spiral - otherwise separate stripes appear instead of an even ring.
  * ------------------------------------------------------------------ */
 
-const SPIRAL_WIDTH = 0.13; // должно совпадать с константой в engine.js
+const SPIRAL_WIDTH = 0.13; // must match the constant in engine.js
 const DT = 1 / 60;
 let failures = 0;
 const check = (name, cond, detail = '') => {
@@ -16,31 +16,31 @@ const check = (name, cond, detail = '') => {
   if (!cond) failures++;
 };
 
-console.log('\n=== СМАЗ СПИРАЛИ НА КОКЕ ===');
+console.log('\n=== SPINNER SPIRAL SMEAR ===');
 
-/* --------------------------- крайние точки --------------------------- */
+/* ---------------------------- extreme points -------------------------- */
 {
   const stopped = spiralBlur(0);
   check(
-    'на стоянке спираль резкая и непрозрачная',
+    'at rest the spiral is sharp and opaque',
     stopped.ghosts === 1 && stopped.opacity === 1 && stopped.spread === 0
   );
 
   const takeoff = spiralBlur(1);
   check(
-    'на взлётном режиме спираль заметает полный круг',
+    'at take-off power the spiral sweeps a full circle',
     takeoff.spread >= Math.PI * 2 - 1e-9,
-    `${takeoff.spread.toFixed(2)} рад`
+    `${takeoff.spread.toFixed(2)} rad`
   );
   check(
-    'на взлётном режиме её практически не видно',
+    'at take-off power it is practically invisible',
     takeoff.opacity < 0.03,
-    `прозрачность ${takeoff.opacity.toFixed(3)}`
+    `opacity ${takeoff.opacity.toFixed(3)}`
   );
-  check('копий не больше заявленного максимума', takeoff.ghosts === SPIRAL_GHOSTS);
+  check('no more copies than the declared maximum', takeoff.ghosts === SPIRAL_GHOSTS);
 }
 
-/* ------------------- монотонность и отсутствие полос ------------------ */
+/* ------------------ monotonicity and absence of stripes --------------- */
 {
   let monotone = true;
   let gapless = true;
@@ -60,15 +60,15 @@ console.log('\n=== СМАЗ СПИРАЛИ НА КОКЕ ===');
     }
   }
 
-  check('с ростом режима спираль только размазывается, без скачков назад', monotone);
+  check('with rising power the spiral only smears, never jumps back', monotone);
   check(
-    'копии нигде не расходятся дальше толщины спирали',
+    'copies never spread further apart than the spiral thickness',
     gapless,
-    `худший шаг ${worstStep.toFixed(3)} при толщине ${SPIRAL_WIDTH}`
+    `worst step ${worstStep.toFixed(3)} against a thickness of ${SPIRAL_WIDTH}`
   );
 }
 
-/* ----------------- поведение на настоящих режимах -------------------- */
+/* ------------------- behaviour at real engine regimes ----------------- */
 {
   const eng = createEngineState(0);
   eng.setMode('off');
@@ -77,23 +77,23 @@ console.log('\n=== СМАЗ СПИРАЛИ НА КОКЕ ===');
   eng.burn = 0;
   eng.fuel = 0;
   const stopped = spiralBlur(eng.update(DT, 0));
-  check('на выключенном двигателе спираль резкая', stopped.opacity === 1);
+  check('on a shut-down engine the spiral is sharp', stopped.opacity === 1);
 
-  // малый газ
+  // idle
   const idle = createEngineState(0);
   for (let i = 0; i < 60 * 40; i++) idle.update(DT, 0);
   const atIdle = spiralBlur(idle.keff);
-  console.log(`  малый газ: N1=${(idle.n1 * 100).toFixed(0)} %, keff=${idle.keff.toFixed(2)}, прозрачность ${atIdle.opacity.toFixed(2)}`);
-  check('на малом газе спираль ещё читается', atIdle.opacity > 0.9, atIdle.opacity.toFixed(2));
+  console.log(`  idle: N1=${(idle.n1 * 100).toFixed(0)} %, keff=${idle.keff.toFixed(2)}, opacity ${atIdle.opacity.toFixed(2)}`);
+  check('at idle the spiral still reads', atIdle.opacity > 0.9, atIdle.opacity.toFixed(2));
 
-  // взлётный режим
+  // take-off power
   const max = createEngineState(1);
   for (let i = 0; i < 60 * 40; i++) max.update(DT, 1);
   const atMax = spiralBlur(max.keff);
-  console.log(`  взлётный: N1=${(max.n1 * 100).toFixed(0)} %, keff=${max.keff.toFixed(2)}, прозрачность ${atMax.opacity.toFixed(3)}`);
-  check('на взлётном режиме спираль пропадает', atMax.opacity < 0.03, atMax.opacity.toFixed(3));
+  console.log(`  take-off: N1=${(max.n1 * 100).toFixed(0)} %, keff=${max.keff.toFixed(2)}, opacity ${atMax.opacity.toFixed(3)}`);
+  check('at take-off power the spiral disappears', atMax.opacity < 0.03, atMax.opacity.toFixed(3));
 
-  // и снова появляется на выбеге
+  // and comes back during rundown
   max.setMode('stop');
   let t = 0;
   let backAt = null;
@@ -103,9 +103,9 @@ console.log('\n=== СМАЗ СПИРАЛИ НА КОКЕ ===');
     if (backAt === null && spiralBlur(max.keff).opacity === 1) backAt = t;
     if (backAt !== null) break;
   }
-  console.log(`  на выбеге спираль снова резкая через ${backAt?.toFixed(1)} с`);
-  check('на выбеге спираль возвращается', backAt !== null, `${backAt?.toFixed(1)} с`);
+  console.log(`  during rundown the spiral is sharp again after ${backAt?.toFixed(1)} s`);
+  check('the spiral returns during rundown', backAt !== null, `${backAt?.toFixed(1)} s`);
 }
 
-console.log(failures ? `\n${failures} проверок провалено\n` : '\nвсе проверки пройдены\n');
+console.log(failures ? `\n${failures} checks failed\n` : '\nall checks passed\n');
 process.exit(failures ? 1 : 0);

@@ -2,9 +2,10 @@ import { createEngineState } from '../src/engineState.js';
 import { hazePower } from '../src/heathaze.js';
 
 /* ------------------------------------------------------------------ *
- *  Тепловое искажение струи должно жить вместе с двигателем:
- *  на холодном двигателе прохода нет вообще, на взлётном режиме
- *  искажение максимально, после останова оно обязано уйти в ноль.
+ *  The jet heat haze must live together with the engine: on a cold
+ *  engine the pass does not run at all, at take-off power the
+ *  distortion is at its maximum, and after shutdown it must fall to
+ *  zero.
  * ------------------------------------------------------------------ */
 
 const DT = 1 / 60;
@@ -14,23 +15,23 @@ const check = (name, cond, detail = '') => {
   if (!cond) failures++;
 };
 
-console.log('\n=== ТЕПЛОВОЕ ИСКАЖЕНИЕ СТРУИ ===');
+console.log('\n=== JET HEAT HAZE ===');
 
-/* ------------------------- граничные значения ------------------------- */
-check('холодный двигатель не искажает кадр', hazePower(0, 0) === 0);
-check('искажение не выходит за 1.15', hazePower(1, 1) <= 1.15, hazePower(1, 1).toFixed(3));
+/* ---------------------------- boundary values ------------------------- */
+check('a cold engine does not distort the frame', hazePower(0, 0) === 0);
+check('distortion never exceeds 1.15', hazePower(1, 1) <= 1.15, hazePower(1, 1).toFixed(3));
 check(
-  'малый газ заметно слабее взлётного',
+  'idle is markedly weaker than take-off',
   hazePower(0.1, 0.18) < hazePower(1, 1) * 0.3,
-  `${hazePower(0.1, 0.18).toFixed(3)} против ${hazePower(1, 1).toFixed(3)}`
+  `${hazePower(0.1, 0.18).toFixed(3)} against ${hazePower(1, 1).toFixed(3)}`
 );
 check(
-  'горение важнее оборотов',
+  'combustion matters more than rotor speed',
   hazePower(0.5, 0) > hazePower(0, 0.5),
-  `${hazePower(0.5, 0).toFixed(3)} против ${hazePower(0, 0.5).toFixed(3)}`
+  `${hazePower(0.5, 0).toFixed(3)} against ${hazePower(0, 0.5).toFixed(3)}`
 );
 
-/* ------------------- запуск: искажение растёт с нуля ------------------- */
+/* ---------------- start: the distortion grows from zero --------------- */
 {
   const eng = createEngineState(0);
   eng.setMode('off');
@@ -39,7 +40,7 @@ check(
   eng.burn = 0;
   eng.fuel = 0;
   eng.update(DT, 0);
-  check('на выключенном двигателе искажения нет', hazePower(eng.burn, eng.n1) === 0);
+  check('a shut-down engine produces no distortion', hazePower(eng.burn, eng.n1) === 0);
 
   eng.setMode('start');
   let t = 0;
@@ -52,18 +53,18 @@ check(
     if (firstAt === null && p > 0.05) firstAt = t;
     peak = Math.max(peak, p);
   }
-  console.log(`  запуск: искажение появилось на ${firstAt?.toFixed(1)} с, малый газ достигнут на ${t.toFixed(1)} с`);
-  check('при запуске искажение появляется после розжига', firstAt !== null && firstAt > 1, `${firstAt?.toFixed(1)} с`);
-  check('на малом газе искажение слабое', hazePower(eng.burn, eng.n1) < 0.35, hazePower(eng.burn, eng.n1).toFixed(3));
+  console.log(`  start: distortion appeared at ${firstAt?.toFixed(1)} s, idle reached at ${t.toFixed(1)} s`);
+  check('during start the distortion appears after light-off', firstAt !== null && firstAt > 1, `${firstAt?.toFixed(1)} s`);
+  check('at idle the distortion is weak', hazePower(eng.burn, eng.n1) < 0.35, hazePower(eng.burn, eng.n1).toFixed(3));
 }
 
-/* ------------------- взлётный режим и полный останов ------------------- */
+/* ----------------- take-off power and full shutdown ------------------- */
 {
   const eng = createEngineState(1.0);
   for (let i = 0; i < 60 * 30; i++) eng.update(DT, 1.0);
   const takeoff = hazePower(eng.burn, eng.n1);
-  console.log(`  взлётный режим: N1=${(eng.n1 * 100).toFixed(0)} %, горение=${eng.burn.toFixed(2)}, искажение=${takeoff.toFixed(3)}`);
-  check('на взлётном режиме искажение почти максимально', takeoff > 0.9, takeoff.toFixed(3));
+  console.log(`  take-off power: N1=${(eng.n1 * 100).toFixed(0)} %, burn=${eng.burn.toFixed(2)}, distortion=${takeoff.toFixed(3)}`);
+  check('at take-off power the distortion is near maximum', takeoff > 0.9, takeoff.toFixed(3));
 
   eng.setMode('stop');
   let t = 0;
@@ -74,10 +75,10 @@ check(
     if (zeroAt === null && hazePower(eng.burn, eng.n1) === 0) zeroAt = t;
     if (zeroAt !== null) break;
   }
-  console.log(`  после останова искажение обнулилось на ${zeroAt?.toFixed(1)} с`);
-  check('после останова искажение уходит в ноль', zeroAt !== null, `${zeroAt?.toFixed(1)} с`);
-  check('искажение переживает пламя (горячая струя ещё идёт)', zeroAt !== null && zeroAt > 6, `${zeroAt?.toFixed(1)} с`);
+  console.log(`  after shutdown the distortion reached zero at ${zeroAt?.toFixed(1)} s`);
+  check('after shutdown the distortion falls to zero', zeroAt !== null, `${zeroAt?.toFixed(1)} s`);
+  check('distortion outlives the flame (hot gas is still flowing)', zeroAt !== null && zeroAt > 6, `${zeroAt?.toFixed(1)} s`);
 }
 
-console.log(failures ? `\n${failures} проверок провалено\n` : '\nвсе проверки пройдены\n');
+console.log(failures ? `\n${failures} checks failed\n` : '\nall checks passed\n');
 process.exit(failures ? 1 : 0);

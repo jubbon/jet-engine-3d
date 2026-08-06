@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ *
- *  Визуализация потоков: наружный (холодный) контур и внутренний
- *  (горячий) контур. Частицы движутся по каналам, меняя цвет
- *  в соответствии с температурой газа на данной станции.
+ *  Flow visualisation: the bypass (cold) duct and the core (hot) duct.
+ *  Particles travel along the ducts, changing colour according to the
+ *  gas temperature at the station they are passing.
  * ------------------------------------------------------------------ */
 
-// кусочно-линейная интерполяция по таблице [[x, value], ...]
+// piecewise-linear interpolation over a table of [[x, value], ...]
 function pw(table, x) {
   if (x <= table[0][0]) return table[0][1];
   const n = table.length;
@@ -25,18 +25,18 @@ function pw(table, x) {
 const X_START = -7.6;
 const X_END = 8.6;
 
-// плавное появление/затухание частиц и линий тока на границах области
+// smooth fade-in/fade-out of particles and streamlines at the domain edges
 function edgeFade(x) {
   const inF = THREE.MathUtils.smoothstep(x, X_START, X_START + 1.6);
   const outF = 1 - THREE.MathUtils.smoothstep(x, X_END - 3.2, X_END);
   return inF * outF;
 }
 
-/* Границы каналов идут по станциям из src/engine.js: кромка -5.20,
-   плоскость вентилятора -3.22, разделитель -2.86, срез сопла наружного
-   контура 1.16, внутреннего 2.90, конец центрального тела 4.80. */
+/* Duct boundaries follow the stations from src/engine.js: intake lip -5.20,
+   fan plane -3.22, splitter -2.86, fan nozzle exit 1.16, core nozzle exit
+   2.90, plug tip 4.80. */
 
-// Наружный контур: внутренняя и наружная границы канала
+// Bypass duct: inner and outer boundaries of the channel
 const BYPASS_IN = [
   [X_START, 0.6], [-5.2, 0.66], [-3.22, 0.98], [-2.86, 1.0], [-1.86, 1.1],
   [-0.76, 1.14], [1.16, 1.26], [1.4, 1.26], [1.9, 1.18], [2.5, 0.96], [2.9, 0.86], [4.8, 0.86], [X_END, 0.84],
@@ -58,7 +58,7 @@ const CORE_OUT = [
   [6.5, 0.95], [X_END, 1.25],
 ];
 
-// осевая скорость (усл. ед./с при 100 % режима)
+// axial velocity (model units per second at 100 % power)
 const BYPASS_V = [
   [X_START, 2.4], [-5.2, 2.3], [-3.22, 2.5], [-2.66, 2.7], [0.7, 2.9],
   [1.16, 4.4], [2.6, 4.2], [X_END, 3.4],
@@ -69,7 +69,7 @@ const CORE_V = [
   [5.5, 4.6], [X_END, 3.4],
 ];
 
-// закрутка потока (рад/с)
+// flow swirl (rad/s)
 const CORE_SWIRL = [
   [X_START, 0], [-3.26, 0], [-3.18, 2.6], [-2.26, 2.2], [-1.06, 1.6], [-0.81, 0.6],
   [-0.21, 1.0], [-0.06, 3.4], [1.14, 2.6], [1.44, 0.3], [X_END, 0.1],
@@ -78,7 +78,7 @@ const BYPASS_SWIRL = [
   [X_START, 0], [-3.26, 0], [-3.18, 2.4], [-2.81, 1.9], [-2.66, 0.35], [X_END, 0.2],
 ];
 
-// относительная температура 0..1
+// relative temperature 0..1
 const CORE_T = [
   [X_START, 0.02], [-3.22, 0.04], [-2.74, 0.09], [-2.38, 0.14], [-2.18, 0.16],
   [-1.04, 0.44], [-0.84, 0.46], [-0.66, 0.96], [-0.43, 1.0], [-0.18, 0.92],
@@ -88,7 +88,7 @@ const BYPASS_T = [
   [X_START, 0.0], [-3.22, 0.01], [-2.76, 0.08], [1.16, 0.09], [3.2, 0.05], [X_END, 0.02],
 ];
 
-// шкала «температурного» цвета
+// temperature colour ramp
 const RAMP = [
   [0.0, 0x2f6bff], [0.12, 0x39b7ff], [0.28, 0x63efe2], [0.42, 0xffe066],
   [0.6, 0xff9b3d], [0.78, 0xff4f1a], [1.0, 0xfff4d2],
@@ -108,7 +108,7 @@ export function tempColor(t, out = _c0) {
   return out.copy(rampColors[rampColors.length - 1][1]);
 }
 
-/* --------------------------- линии тока ---------------------------- */
+/* --------------------------- streamlines --------------------------- */
 
 function streamTube(inTable, outTable, tTable, lane, phase, swirlTable, radius) {
   const pts = [];
@@ -131,7 +131,7 @@ function streamTube(inTable, outTable, tTable, lane, phase, swirlTable, radius) 
   const c = new THREE.Color();
   const seg = N;
   for (let i = 0; i < geo.attributes.position.count; i++) {
-    const ring = Math.min(seg, Math.floor(i / 7)); // (radialSegments+1) вершин на кольцо
+    const ring = Math.min(seg, Math.floor(i / 7)); // (radialSegments+1) vertices per ring
     tempColor(cols[ring], c);
     const f = edgeFade(THREE.MathUtils.lerp(X_START, X_END, ring / seg));
     colors[i * 3] = c.r * f;
@@ -142,7 +142,7 @@ function streamTube(inTable, outTable, tTable, lane, phase, swirlTable, radius) 
   return geo;
 }
 
-/* ---------------------------- система ------------------------------ */
+/* ----------------------------- system ------------------------------ */
 
 export function createAirflow() {
   const group = new THREE.Group();
@@ -213,7 +213,7 @@ export function createAirflow() {
   points.renderOrder = 5;
   group.add(points);
 
-  /* ---- линии тока ---- */
+  /* ---- streamlines ---- */
   const lineMat = new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
@@ -233,7 +233,7 @@ export function createAirflow() {
   linesGroup.renderOrder = 4;
   group.add(linesGroup);
 
-  /* ---- реактивная струя ---- */
+  /* ---- exhaust plume ---- */
   const plumeMat = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -261,7 +261,7 @@ export function createAirflow() {
   });
   const plumeGeo = new THREE.CylinderGeometry(0.8, 1.5, 5.0, 40, 12, true);
   plumeGeo.rotateZ(-Math.PI / 2);
-  plumeGeo.translate(5.4, 0, 0); // от среза сопла внутреннего контура (2.90)
+  plumeGeo.translate(5.4, 0, 0); // measured from the core nozzle exit (2.90)
   const plume = new THREE.Mesh(plumeGeo, plumeMat);
   plume.renderOrder = 6;
   group.add(plume);
@@ -271,8 +271,8 @@ export function createAirflow() {
 
   /**
    * @param {number} dt
-   * @param {number} level - обороты вентилятора 0..1 (расход воздуха)
-   * @param {number} burn  - интенсивность горения 0..1 (нагрев внутреннего контура)
+   * @param {number} level - fan speed 0..1 (airflow)
+   * @param {number} burn  - combustion intensity 0..1 (heating of the core duct)
    */
   function update(dt, level, burn = 1) {
     if (!group.visible) return;
@@ -280,7 +280,7 @@ export function createAirflow() {
     plumeMat.uniforms.uTime.value = time;
     plumeMat.uniforms.uPower.value = 0.15 + burn * 1.1;
 
-    // без горения внутренний контур - это просто прокачиваемый холодный воздух
+    // without combustion the core duct is just cold air being pumped through
     const heat = Math.max(level * 0.22, burn);
     const speedK = 0.06 + 1.05 * level;
     for (let i = 0; i < N; i++) {

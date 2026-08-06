@@ -2,47 +2,47 @@ import * as THREE from 'three';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 /* ------------------------------------------------------------------ *
- *  Тепловое искажение реактивной струи (heat haze / schlieren).
+ *  Heat haze of the exhaust jet (schlieren effect).
  *
- *  Горячий газ за соплом имеет другую плотность, а значит и другой
- *  показатель преломления, чем окружающий воздух. Турбулентные вихри
- *  струи непрерывно перемешивают горячее и холодное - луч света,
- *  проходящий сквозь струю, гуляет, и всё, что видно СКВОЗЬ струю,
- *  дрожит и размывается. Когда смотришь двигателю в сопло, толща
- *  газа набирается вдоль всего луча, и «плывёт» весь экран.
+ *  Hot gas aft of the nozzle has a different density, and therefore a
+ *  different refractive index, than the surrounding air. Turbulent eddies
+ *  in the jet keep mixing hot and cold, so a light ray crossing the jet
+ *  wanders about, and everything seen THROUGH the jet shimmers and
+ *  smears. Look into the nozzle and the optical depth accumulates along
+ *  the whole ray, so the entire screen swims.
  *
- *  Эффект экранный: для каждого пикселя строится луч из камеры,
- *  он трассируется сквозь конус струи, и по набранной «оптической
- *  толщине» пиксель смещается и подмыливается.
+ *  The effect is screen-space: a ray is built from the camera through
+ *  each pixel, traced through the jet cone, and the pixel is displaced
+ *  and blurred according to the accumulated optical depth.
  *
- *  Ось двигателя - X, поток идёт в +X (см. src/engine.js).
+ *  The engine axis is X, the flow goes towards +X (see src/engine.js).
  * ------------------------------------------------------------------ */
 
-// Габариты факела: от среза сопла наружного контура до размытия струи.
-// 1 условная единица = 0.50 м.
+// Plume extents: from the fan nozzle exit to where the jet has dissolved.
+// 1 model unit = 0.50 m.
 const PLUME = {
-  x0: 1.6, // начало (срез наружного контура 1.16; ядро горячей струи - дальше)
-  x1: 18.0, // хвост, где струя размешивается с атмосферой
-  r0: 1.45, // радиус струи у сопла
-  r1: 4.0, // радиус размытой струи в хвосте
+  x0: 1.6, // start (fan nozzle exit is at 1.16; the hot core begins further aft)
+  x1: 18.0, // tail, where the jet has mixed into the atmosphere
+  r0: 1.45, // jet radius at the nozzle
+  r1: 4.0, // radius of the dissolved jet at the tail
 };
 
-// Корпус двигателя, которым струя закрыта: смотришь спереди - между
-// глазом и струёй стоит мотогондола, и дрожать ничего не должно.
-// Три цилиндра: мотогондола (Ø 2.44 м), внутренний капот, центральное тело.
+// Engine bodies that occlude the jet: seen from the front, the nacelle stands
+// between the eye and the jet, and nothing there should shimmer.
+// Three cylinders: nacelle (Ø 2.44 m), core cowl, exhaust plug.
 const OCCLUDERS = [
   [2.44, -5.35, 1.16],
   [1.2, 1.16, 2.9],
   [0.56, 2.9, 4.85],
 ];
 
-// Сила эффекта. amp - смещение в пикселах, blur - радиус подмыливания в них же,
-// gas - плотность видимой струи.
+// Effect strength. amp is displacement in pixels, blur is the smear radius in
+// pixels as well, gas is the density of the visible jet.
 const LOOK = { amp: 13.0, blur: 5.5, gas: 0.95 };
 
-// Режим «Потоки воздуха» - схема: там важно видеть частицы, линии тока и
-// температурную раскраску струи, а плотный белый выхлоп их просто закрашивает.
-// Поэтому в схеме от эффекта остаётся лёгкое марево.
+// The "Air flows" mode is a diagram: there the particles, streamlines and the
+// temperature colouring of the jet matter, and a dense white exhaust simply
+// paints over them. So in diagram mode only a faint shimmer is left.
 const FLOW_LOOK = { amp: 0.55, blur: 0.5, gas: 0.2 };
 
 const vertexShader = /* glsl */ `
@@ -55,28 +55,28 @@ const vertexShader = /* glsl */ `
 
 const fragmentShader = /* glsl */ `
   uniform sampler2D tDiffuse;
-  uniform vec3 uCam;          // положение камеры в мире
-  uniform mat4 uInvVP;        // обратная матрица проекции*вида
-  uniform vec2 uInvRes;       // 1 / размер кадра, пикселы -> UV
+  uniform vec3 uCam;          // camera position in world space
+  uniform mat4 uInvVP;        // inverse of projection * view
+  uniform vec2 uInvRes;       // 1 / frame size, pixels -> UV
   uniform float uTime;
-  uniform float uPower;       // 0..1.15, интенсивность (горение + обороты)
-  uniform float uFlow;        // скорость сноса вихрей вниз по потоку, ед./с
-  uniform float uAmp;         // максимальное смещение, пикселы
-  uniform float uBlur;        // радиус подмыливания, пикселы
-  uniform float uGas;         // плотность видимого газа 0..1
-  uniform float uGasMax;      // потолок непрозрачности струи
-  uniform vec3 uGasNear;      // цвет струи у сопла (линейный, до тонкомпрессии)
-  uniform vec3 uGasFar;       // цвет размытого хвоста
+  uniform float uPower;       // 0..1.15, intensity (combustion + fan speed)
+  uniform float uFlow;        // convection speed of the eddies downstream, units/s
+  uniform float uAmp;         // maximum displacement, pixels
+  uniform float uBlur;        // smear radius, pixels
+  uniform float uGas;         // density of the visible gas 0..1
+  uniform float uGasMax;      // opacity ceiling of the jet
+  uniform vec3 uGasNear;      // jet colour at the nozzle (linear, before tone mapping)
+  uniform vec3 uGasFar;       // colour of the dissolved tail
   uniform vec4 uPlume;        // x0, x1, r0, r1
-  uniform vec3 uOcc[${OCCLUDERS.length}]; // радиус, x от, x до
+  uniform vec3 uOcc[${OCCLUDERS.length}]; // radius, x from, x to
   varying vec2 vUv;
 
   const int STEPS = 16;
-  const float EXT = 0.62;     // ослабление для искажения
-  const float GAS_EXT = 1.0;  // ослабление для видимого газа
+  const float EXT = 0.62;     // extinction used for the distortion
+  const float GAS_EXT = 1.0;  // extinction used for the visible gas
 
-  /* Пересечение луча с цилиндром по оси X.
-     Возвращает (t вход, t выход); если t выход < t вход - промах. */
+  /* Ray/cylinder intersection, cylinder aligned with the X axis.
+     Returns (t enter, t exit); if t exit < t enter the ray misses. */
   vec2 cylinder(vec3 ro, vec3 rd, float R, float xa, float xb) {
     float t0 = -1e9;
     float t1 = 1e9;
@@ -90,7 +90,7 @@ const fragmentShader = /* glsl */ `
       t0 = (-b - h) / a;
       t1 = (-b + h) / a;
     } else if (c > 0.0) {
-      return vec2(1.0, -1.0); // луч параллелен оси и идёт мимо
+      return vec2(1.0, -1.0); // ray is parallel to the axis and passes outside
     }
     if (abs(rd.x) > 1e-9) {
       float ta = (xa - ro.x) / rd.x;
@@ -103,8 +103,8 @@ const fragmentShader = /* glsl */ `
     return vec2(t0, t1);
   }
 
-  /* Ближайшая точка, где луч упирается в корпус двигателя.
-     Если камера уже внутри цилиндра (t входа < 0) - не заслоняем. */
+  /* Nearest point where the ray runs into an engine body.
+     If the camera is already inside the cylinder (t enter < 0) - no occlusion. */
   float occlusion(vec3 ro, vec3 rd) {
     float best = 1e9;
     for (int i = 0; i < ${OCCLUDERS.length}; i++) {
@@ -114,29 +114,29 @@ const fragmentShader = /* glsl */ `
     return best;
   }
 
-  /* Плотность горячего газа в точке: конус, расширяющийся вниз по потоку,
-     с мягким краем, затуханием к хвосту и более плотным ядром у сопла.
+  /* Hot gas density at a point: a cone spreading downstream, with a soft edge,
+     decay towards the tail and a denser core near the nozzle.
 
-     Возвращает две величины. x - для искажения: хвост затухает медленно,
-     потому что даже сильно разбавленный горячий газ ещё гуляет лучом.
-     y - для видимого газа: затухает гораздо круче, иначе разреженный хвост
-     набирается вдоль луча и при взгляде сзади заливает белым весь кадр,
-     хотя видимой струёй там уже давно не пахнет. */
+     Returns two values. x is for the distortion: its tail decays slowly,
+     because even heavily diluted hot gas still bends the ray.
+     y is for the visible gas: it decays much more steeply, otherwise the thin
+     tail accumulates along the ray and floods the whole frame with white when
+     viewed from behind, long after there is any visible jet left. */
   vec2 density(vec3 p) {
     float t = (p.x - uPlume.x) / (uPlume.y - uPlume.x);
     if (t < 0.0 || t > 1.0) return vec2(0.0);
     float R = mix(uPlume.z, uPlume.w, pow(t, 0.7));
     float rr = length(p.yz);
     float radial = 1.0 - smoothstep(R * 0.35, R, rr);
-    float core = 1.0 - smoothstep(0.0, 0.5, t); // ядро горячей струи у сопла
+    float core = 1.0 - smoothstep(0.0, 0.5, t); // hot core of the jet near the nozzle
     float base = radial * (0.45 + 0.8 * core) * smoothstep(0.0, 0.05, t);
     float tail = 1.0 - t;
     return vec2(base * pow(tail, 1.25), base * pow(tail, 2.6));
   }
 
-  /* Клубы газа. Синусные поля ниже на мелком масштабе выдают свою решётку -
-     струя покрывается регулярным «рубчиком», поэтому здесь настоящий
-     хеш-шум. Считается один раз на пиксель, две октавы. */
+  /* Billows of gas. At small scales the sine fields below give away their
+     lattice - the jet gets covered in a regular corduroy pattern - so this is
+     real hash noise. Evaluated once per pixel, two octaves. */
   float hash13(vec3 p) {
     p = fract(p * 0.1031);
     p += dot(p, p.yzx + 33.33);
@@ -159,8 +159,8 @@ const fragmentShader = /* glsl */ `
     return vnoise(p) * 0.62 + vnoise(p * 2.1 + 19.7) * 0.30;
   }
 
-  /* Турбулентность струи: два независимых поля на «синусах от синусов».
-     Дёшево, не имеет видимой сетки и сносится вниз по потоку вместе с газом. */
+  /* Jet turbulence: two independent fields built from sines of sines.
+     Cheap, free of a visible grid, and convected downstream with the gas. */
   vec2 turbulence(vec3 p) {
     float x = p.x - uTime * uFlow;
     float a = sin(x * 3.10 + sin(p.y * 2.30 - uTime * 1.3) * 1.7);
@@ -174,28 +174,29 @@ const fragmentShader = /* glsl */ `
     vec4 src = texture2D(tDiffuse, vUv);
     if (uPower < 0.004) { gl_FragColor = src; return; }
 
-    // луч из камеры через пиксель
+    // ray from the camera through the pixel
     vec4 far = uInvVP * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
     vec3 rd = normalize(far.xyz / far.w - uCam);
     vec3 ro = uCam;
 
-    // грубая отсечка: габаритный цилиндр факела
+    // coarse rejection: bounding cylinder of the plume
     vec2 span = cylinder(ro, rd, uPlume.w, uPlume.x, uPlume.y);
     float tIn = max(span.x, 0.0);
     float tOut = min(span.y, occlusion(ro, rd));
     if (tOut <= tIn + 1e-3) { gl_FragColor = src; return; }
 
-    // Шаги берём без случайного сдвига: «центр преломления» ниже считается
-    // по этим же точкам, и любой пиксельный джиттер превратил бы гладкое
-    // искажение в кашу из отдельных точек.
+    // Steps are taken without a random offset: the "refraction centroid" below
+    // is computed from these same points, and any per-pixel jitter would turn
+    // the smooth distortion into a mush of isolated dots.
     float step = (tOut - tIn) / float(STEPS);
     float t = tIn + step * 0.5;
 
-    // Набираем оптическую толщину вдоль луча и заодно «центр преломления» -
-    // взвешенную середину горячего газа. Ближние вихри искажают картинку
-    // сильнее дальних, поэтому вес падает вместе с прозрачностью.
-    float trans = 1.0; // сколько света ещё не «перемешано» струёй
-    float transGas = 1.0; // сколько света ещё не рассеяно ею же
+    // Accumulate optical depth along the ray and, at the same time, the
+    // "refraction centroid" - the weighted middle of the hot gas. Near eddies
+    // distort the image more than distant ones, so the weight falls off with
+    // transmittance.
+    float trans = 1.0; // how much light the jet has not yet stirred
+    float transGas = 1.0; // how much light it has not yet scattered
     float wSum = 0.0;
     vec3 pc = vec3(0.0);
     for (int i = 0; i < STEPS; i++) {
@@ -214,48 +215,50 @@ const fragmentShader = /* glsl */ `
     float cover = (1.0 - trans) * uPower;
     if (cover < 0.002) { gl_FragColor = src; return; }
 
-    // Турбулентность считаем один раз - в центре преломления. Если брать её
-    // на каждом шаге и усреднять, разнознаковый шум вдоль луча взаимно
-    // гасится и искажение вырождается в еле заметную рябь.
+    // Turbulence is evaluated once, at the refraction centroid. Sampling it at
+    // every step and averaging would let the signed noise cancel along the ray,
+    // degrading the distortion into a barely visible ripple.
     pc /= max(wSum, 1e-4);
     vec2 n = turbulence(pc) * 0.70 + turbulence(pc * 2.6 + vec3(9.3, 4.1, 7.7)) * 0.36;
 
     vec2 off = n * cover * uAmp * uInvRes;
     float br = cover * uBlur;
 
-    // подмыливание: центр + четыре луча, радиус растёт с толщиной струи
+    // smear: centre plus four taps, radius grows with the optical depth
     vec3 acc = texture2D(tDiffuse, vUv + off).rgb * 0.32;
     acc += texture2D(tDiffuse, vUv + off + vec2( 0.95,  0.31) * br * uInvRes).rgb * 0.17;
     acc += texture2D(tDiffuse, vUv + off + vec2(-0.59,  0.81) * br * uInvRes).rgb * 0.17;
     acc += texture2D(tDiffuse, vUv + off + vec2(-0.81, -0.59) * br * uInvRes).rgb * 0.17;
     acc += texture2D(tDiffuse, vUv + off + vec2( 0.45, -0.89) * br * uInvRes).rgb * 0.17;
 
-    // слабая дисперсия: разные длины волн преломляются немного по-разному
+    // weak dispersion: different wavelengths refract slightly differently
     float ca = cover * 0.35;
     acc.r = mix(acc.r, texture2D(tDiffuse, vUv + off * 1.14).r, ca);
     acc.b = mix(acc.b, texture2D(tDiffuse, vUv + off * 0.86).b, ca);
 
-    /* --------------------------- видимый газ ---------------------------- *
-     *  Та же набранная толщина, но уже как непрозрачность: струя не только
-     *  преломляет свет, но и рассеивает его - выхлоп видно белёсым облаком.
-     *  Композитим спереди назад, поэтому за струёй всё честно блёкнет.
+    /* --------------------------- visible gas ---------------------------- *
+     *  The same accumulated depth, now used as opacity: the jet does not only
+     *  refract light but also scatters it - the exhaust is seen as a whitish
+     *  cloud. Composited front to back, so everything behind the jet fades
+     *  honestly.
      * -------------------------------------------------------------------- */
-    // на малом газе струя должна быть видна, а не только на взлётном режиме,
-    // поэтому зависимость от режима более пологая, чем у искажения
+    // the jet has to be visible at idle, not only at take-off power, so the
+    // dependence on regime is flatter here than for the distortion
     float gp = pow(clamp(uPower / 1.15, 0.0, 1.0), 0.6);
     float gas = (1.0 - transGas) * uGas * gp;
-    // Клубы. Крупный масштаб берём из той же турбулентности, что и искажение,
-    // - газ и дрожание дышат в такт; мелкий даёт хеш-шум, снесённый вниз
-    // по потоку, иначе струя выглядит не турбулентной, а ватной.
+    // Billows. The large scale comes from the same turbulence as the
+    // distortion, so gas and shimmer breathe together; the small scale comes
+    // from hash noise convected downstream, otherwise the jet looks like
+    // cotton wool rather than turbulence.
     float lumps = fbm(vec3(pc.x - uTime * uFlow, pc.yz) * 1.15);
     gas *= clamp(0.52 + 0.26 * (n.x * 0.6 + n.y * 0.4) + 1.05 * lumps, 0.2, 1.7);
 
-    // у сопла газ ещё горячий и отдаёт в тёплое, дальше остывает и сереет
+    // near the nozzle the gas is still hot and reads warm, further aft it cools and greys
     float aft = smoothstep(uPlume.x + 1.0, uPlume.x + 9.0, pc.x);
     vec3 gasCol = mix(uGasNear, uGasFar, aft);
 
-    // Потолок непрозрачности: даже в самой гуще струи двигатель должен
-    // просвечивать, иначе вид сзади превращается в белый лист.
+    // Opacity ceiling: even in the thickest part of the jet the engine must
+    // show through, otherwise the rear view turns into a blank white sheet.
     acc = mix(acc, gasCol, clamp(gas, 0.0, uGasMax));
 
     gl_FragColor = vec4(acc, src.a);
@@ -263,11 +266,11 @@ const fragmentShader = /* glsl */ `
 `;
 
 /**
- * Интенсивность искажения по состоянию двигателя.
- * Основной вклад даёт горение (плотность/температура струи),
- * небольшой - расход воздуха: на выбеге струя ещё есть, но холодная.
- * @param {number} burn интенсивность горения 0..1
- * @param {number} n1 обороты вентилятора 0..1
+ * Distortion intensity as a function of engine state.
+ * Combustion contributes most (jet density and temperature); airflow adds a
+ * little: during rundown there is still a jet, but a cold one.
+ * @param {number} burn combustion intensity 0..1
+ * @param {number} n1 fan speed 0..1
  * @returns {number} 0..1.15
  */
 export function hazePower(burn, n1) {
@@ -293,8 +296,8 @@ export function createHeatHaze(camera, width, height) {
       uBlur: { value: LOOK.blur },
       uGas: { value: LOOK.gas },
       uGasMax: { value: 0.72 },
-      // Значения линейные, до тональной компрессии: ACES с экспозицией 0.82
-      // прижимает единицу примерно к 0.8, поэтому «белый» здесь больше 1.
+      // Values are linear, before tone mapping: ACES at exposure 0.82 pulls
+      // 1.0 down to roughly 0.8, so "white" here is greater than 1.
       uGasNear: { value: new THREE.Color(1.55, 1.45, 1.3) },
       uGasFar: { value: new THREE.Color(1.24, 1.3, 1.4) },
       uPlume: { value: new THREE.Vector4(PLUME.x0, PLUME.x1, PLUME.r0, PLUME.r1) },
@@ -303,22 +306,22 @@ export function createHeatHaze(camera, width, height) {
     vertexShader,
     fragmentShader,
   });
-  // ShaderPass делает глубокую копию переданных uniform'ов, поэтому дальше
-  // работаем только с теми, что реально попали в материал
+  // ShaderPass deep-copies the uniforms it is given, so from here on we work
+  // only with the ones that actually ended up in the material
   const uniforms = pass.uniforms;
 
   let time = 0;
   let enabled = true;
 
   /**
-   * @param {number} dt секунды
-   * @param {number} burn интенсивность горения 0..1
-   * @param {number} n1 обороты вентилятора 0..1
+   * @param {number} dt seconds
+   * @param {number} burn combustion intensity 0..1
+   * @param {number} n1 fan speed 0..1
    */
   function update(dt, burn, n1) {
     time += dt;
     const power = hazePower(burn, n1);
-    // пока двигатель холодный, проход можно вообще не считать
+    // while the engine is cold the pass need not run at all
     pass.enabled = enabled && power > 0.004;
     if (!pass.enabled) return;
 
@@ -342,8 +345,8 @@ export function createHeatHaze(camera, width, height) {
       enabled = v;
       if (!v) pass.enabled = false;
     },
-    /** Схематический режим «Потоки воздуха»: приглушить выхлоп, чтобы он не
-     *  закрашивал частицы и линии тока. */
+    /** Diagram mode "Air flows": damp the exhaust down so that it does not
+     *  paint over the particles and streamlines. */
     setFlowMode(on) {
       const k = on ? FLOW_LOOK : { amp: 1, blur: 1, gas: 1 };
       uniforms.uAmp.value = LOOK.amp * k.amp;
