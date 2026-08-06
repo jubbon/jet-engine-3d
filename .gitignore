@@ -5,5 +5,6 @@ dist/
 *.log
 test/audio/*.mp3
 test/audio/*.wav
+__pycache__/
 synth.json
 demo.json
