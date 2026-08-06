@@ -161,12 +161,16 @@ console.log('\n=== CONTRAIL ===');
 
   const v = createContrail();
   settle(v, FORMS, 1);
-  check('a trail that forms is drawn', v.group.visible && v.material.uniforms.uDensity.value > 0.5);
+  // the densities themselves are a matter of taste and get retuned; what has
+  // to hold is that there is a trail and that the short-lived one is the
+  // fainter and shorter of the two
+  const dense = v.material.uniforms.uDensity.value;
+  check('a trail that forms is drawn', v.group.visible && dense > 0.2, `density ${dense.toFixed(2)}`);
   check('a persistent one runs the whole length', v.material.uniforms.uEnd.value > 0.95);
 
   settle(v, SHORT, 1);
   check('a short-lived one breaks off early', v.material.uniforms.uEnd.value < 0.4, `at ${(100 * v.material.uniforms.uEnd.value).toFixed(0)} % of the length`);
-  check('and it is fainter', v.material.uniforms.uDensity.value < 0.6);
+  check('and it is fainter', v.material.uniforms.uDensity.value < dense * 0.8, `density ${v.material.uniforms.uDensity.value.toFixed(2)} against ${dense.toFixed(2)}`);
 
   settle(v, NONE, 1);
   check('with no trail nothing is drawn', !v.group.visible);

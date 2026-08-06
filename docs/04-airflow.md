@@ -208,23 +208,36 @@ it — how dense the trail is and how far along it survives.
 **One strip along the axis**, turned to face the camera in the vertex shader by
 extruding each point along `cross(axis, toCamera)`. A flat ribbon would collapse
 into a line seen from directly behind — which is exactly where view `0` and the
-rear view look from. The fragment shader is the same kind of value noise as the
-plume, three octaves of it, drifting slowly backwards: the trail is *left
-behind*, it does not stream like the jet.
+rear view look from.
 
-Three things carry the meaning rather than the looks:
+**Shaped as a spindle**, thin at both ends and thickest past the middle:
+`0.14 + 0.86·sin(πt)^0.75` of a maximum half-width of 3.6 units. The first
+version simply widened towards the edge of the scene, and it read as a flat
+ribbon however it was shaded — a band with one end is a band, a body with two
+ends is a body.
+
+The volume comes from three things, none of them geometry:
+
+* the alpha follows `√(1 − v²)` across the width — the depth of gas a ray meets
+  crossing a cylinder, thick in the middle and vanishing at the edges. A
+  plateau with soft edges is what made it look painted on;
+* the normal of that imaginary tube is reconstructed **per pixel** from the same
+  `v` (the strip has two vertices across, so it cannot come from the mesh) and
+  lit by the scene's key light, which shades the trail across its width;
+* the noise is mottling rather than lumps — one slow, coarse, shallow octave.
+  Heavier noise ate the outline and the cigar turned back into a cloud of blobs.
+
+Two things carry the meaning rather than the looks:
 
 * **The gap.** The trail begins 20 units — ten metres — behind the nozzle, where
   the jet has had time to mix and cool. That gap is the most recognisable thing
   about a contrail after its colour, and it is the reason the strip does not
   start at the nozzle.
-* **The length.** A persistent trail runs the full 90 units (45 m) to the edge
-  of the scene and fades there; a short-lived one breaks off at about a third of
-  that. A real trail is kilometres long, hundreds of times past the far plane —
-  the model shows the near end of it and lets the fog take the rest.
-* **The spreading.** The half-width grows from 0.6 to 9 units along the strip,
-  and the density falls as it goes: a persistent trail opens out, a short-lived
-  one barely does.
+* **The length.** A persistent trail is the full spindle, 76 units (38 m); a
+  short-lived one is a shorter and thinner cigar, a third of the length —
+  shortened rather than clipped, so it keeps both its ends. A real trail is
+  kilometres long, hundreds of times past the far plane; the model shows the
+  near end of it and leaves the eye to continue it.
 
 The material ignores the scene fog and fades on its own — with the camera pulled
 back far enough to take the trail in, the fog would otherwise swallow it whole.

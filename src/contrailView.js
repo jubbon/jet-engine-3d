@@ -19,12 +19,16 @@ import * as THREE from 'three';
 // gap is the most recognisable thing about a contrail after its colour.
 const X_START = 22.9;
 // A real trail is kilometres long, which is hundreds of times past the far
-// plane. It runs 45 m - to the edge of the scene - and fades there instead.
-const X_END = 112.9;
+// plane. It runs 38 m - the far tip still inside the frame of view 0 - and the
+// eye is left to continue it.
+const X_END = 98.9;
 const SEGMENTS = 140;
 
-const HALF_WIDTH_START = 0.6; // units, i.e. 0.6 m across at birth
-const HALF_WIDTH_END = 9.0; // spread by the end of the visible stretch
+// The trail is a spindle: thin at both ends, thickest a little past the middle.
+// A band that simply widened to the edge of the scene read as a flat ribbon
+// however it was shaded - a body with two ends reads as a body.
+const HALF_WIDTH_MAX = 3.6; // units at the fattest, i.e. 3.6 m across
+const HALF_WIDTH_TIP = 0.14; // fraction of that left at the ends
 
 export function createContrail() {
   const positions = new Float32Array(SEGMENTS * 2 * 3);
@@ -67,23 +71,43 @@ export function createContrail() {
       attribute float aSide;
       attribute float aU;
       uniform float uSpread;
+      uniform float uEnd; // the spindle is shaped here, so the length is needed here too
       varying vec2 vUv;
+      varying vec3 vSideDir;
+      varying vec3 vToCam;
       void main(){
         vec4 wp = modelMatrix * vec4(position, 1.0);
+
         // turn the strip to face the camera around the engine axis, so it
         // never collapses into a line
         vec3 axis = normalize((modelMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
         vec3 toCam = normalize(cameraPosition - wp.xyz);
         vec3 side = normalize(cross(axis, toCam));
-        float w = mix(${HALF_WIDTH_START.toFixed(2)}, ${HALF_WIDTH_END.toFixed(2)} * uSpread, aU);
-        wp.xyz += side * aSide * w;
-        vUv = vec2(aU, aSide * 0.5 + 0.5);
+
+        // The spindle. uEnd sets how far along the strip the trail lives, so a
+        // short-lived one is a shorter cigar rather than a clipped band, and
+        // both ends taper. The 0.75 power fattens the middle and keeps the
+        // ends from drawing out into needles.
+        float t = clamp(aU / uEnd, 0.0, 1.0);
+        float shape = ${HALF_WIDTH_TIP.toFixed(2)} + (1.0 - ${HALF_WIDTH_TIP.toFixed(2)}) * pow(sin(3.14159 * t), 0.75);
+        wp.xyz += side * aSide * ${HALF_WIDTH_MAX.toFixed(2)} * uSpread * shape;
+
+        vUv = vec2(t, aSide * 0.5 + 0.5);
+        vSideDir = side;
+        vToCam = toCam;
         gl_Position = projectionMatrix * viewMatrix * wp;
       }
     `,
     fragmentShader: `
       uniform float uTime, uDensity, uEnd;
       varying vec2 vUv;
+      varying vec3 vSideDir;
+      varying vec3 vToCam;
+
+      // the key light of the scene, so the trail is lit from where everything
+      // else is lit from
+      const vec3 LIGHT = normalize(vec3(-6.0, 9.0, 8.0));
+
       float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
       float noise(vec2 p){
         vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -93,17 +117,30 @@ export function createContrail() {
         return 0.55 * noise(p) + 0.28 * noise(p * 2.1) + 0.17 * noise(p * 4.3);
       }
       void main(){
-        float u = vUv.x;
+        float t = vUv.x;                 // 0 at the near tip, 1 at the far one
         float v = vUv.y * 2.0 - 1.0;
-        // the puffs drift slowly backwards: the trail is left behind, it does
-        // not stream like the jet
-        float n = fbm(vec2(u * 13.0 - uTime * 0.06, v * 1.7 + u * 2.6));
-        float body = smoothstep(1.0, 0.15, abs(v));
-        float head = smoothstep(0.0, 0.05, u);          // born just behind the nozzle
-        float tail = 1.0 - smoothstep(uEnd - 0.28, uEnd, u);
-        float thin = mix(1.0, 0.45, u);                  // spreading costs density
-        float a = body * head * tail * thin * uDensity * (0.30 + 0.85 * n);
-        gl_FragColor = vec4(vec3(0.93, 0.95, 1.0), clamp(a, 0.0, 1.0));
+
+        // The strip stands in for a tube of cloud, so the alpha follows the
+        // depth of gas a ray meets crossing a cylinder - sqrt(1 − v²), thick
+        // in the middle and vanishing at the edges. A flat plateau with soft
+        // edges is what made it read as a painted band.
+        float round = sqrt(max(0.0, 1.0 - v * v));
+
+        // the normal of that imaginary tube, reconstructed per pixel: the
+        // strip has only two vertices across, so it cannot come from the mesh
+        vec3 n = normalize(vSideDir * v + vToCam * round);
+        float lambert = 0.55 + 0.45 * max(0.0, dot(n, LIGHT));
+        // ice scatters forward: the far side of the tube glows a little
+        float rim = pow(1.0 - round, 2.0) * 0.25;
+
+        // Mottling only, not lumps: a cigar is a body, and heavy noise ate its
+        // outline. Slow, coarse and shallow - enough to say it is cloud.
+        float mottle = 0.86 + 0.28 * (fbm(vec2(t * 5.0 - uTime * 0.03, v * 0.9)) - 0.5);
+
+        // the tips are ends of the body, not cuts
+        float ends = smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.93, 1.0, t));
+        float a = round * ends * uDensity * mottle;
+        gl_FragColor = vec4(vec3(0.93, 0.95, 1.0) * (lambert + rim), clamp(a, 0.0, 1.0));
       }
     `,
   });
@@ -130,9 +167,9 @@ export function createContrail() {
      */
     update(dt, verdict, burn) {
       const forms = enabled && verdict !== null && verdict.forms && burn > 0.02;
-      target.density = forms ? (verdict.persistent ? 0.85 : 0.55) * Math.min(1, burn * 1.6) : 0;
-      // a short-lived trail breaks off not far behind, a persistent one runs
-      // out to the edge of the scene and spreads as it goes
+      target.density = forms ? (verdict.persistent ? 0.5 : 0.32) * Math.min(1, burn * 1.6) : 0;
+      // a short-lived trail is a shorter and thinner cigar, ending not far
+      // behind the engine; a persistent one runs to the edge of the scene
       target.end = verdict && verdict.persistent ? 1.0 : 0.34;
       target.spread = verdict && verdict.persistent ? 1.0 : 0.45;
 

@@ -37,7 +37,7 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 1.5;
-// far enough to take in the contrail, which runs 45 m aft of the nozzle
+// far enough to take in the contrail, which runs 38 m aft of the nozzle
 controls.maxDistance = 120;
 controls.target.set(-0.3, 0, 0);
 
@@ -237,7 +237,7 @@ const VIEWS = [
   { name: 'From behind, in the gas stream', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
   // far enough back for the trail to have somewhere to run: the engine is
   // small in the frame, which is the point
-  { name: 'Contrail', pos: [-38, 19, 72], target: [10, 0, 0] },
+  { name: 'Contrail', pos: [-44, 22, 84], target: [14, 0, 0] },
 ];
 
 // the tenth view is reached by the zero key, the other nine by their own digit
@@ -693,7 +693,7 @@ function animate() {
   controls.update();
 
   // The fog gives the close-up views their depth, but the contrail runs off to
-  // 45 m and pulling the camera back that far would drown the engine in it.
+  // 38 m and pulling the camera back that far would drown the engine in it.
   // The far edge follows the camera distance and leaves the near view alone.
   const camDist = camera.position.distanceTo(controls.target);
   scene.fog.far = Math.max(60, camDist * 2.2);

@@ -391,9 +391,9 @@ are from the threshold and what would have to change.
 
 **What is left, and why.** One trail along the axis rather than the two ropes
 wound up by the wingtip vortices: that needs an aircraft in the frame, and there
-is none in the model. The trail runs 45 m and fades at the edge of the scene
-rather than to the horizon — a real one is kilometres long, hundreds of times
-past the far plane. The ice crystals are not modelled as such, only the verdict
+is none in the model. The trail is a 38 m spindle rather than a band running to
+the horizon — a real one is kilometres long, hundreds of times past the far
+plane. The ice crystals are not modelled as such, only the verdict
 on their fate.
 
 ### BL-05. Thrust reverser
