@@ -28,7 +28,7 @@ scene.background = new THREE.Color(0x0b0e13);
 scene.fog = new THREE.Fog(0x0b0e13, 26, 60);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 200);
-camera.position.set(-10.5, 4.4, 12.5);
+camera.position.set(-11.6, 4.8, 13.8);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -200,14 +200,14 @@ const info = $('info');
 const tip = $('tip');
 
 const VIEWS = [
-  { name: 'Общий вид', pos: [-10.5, 4.4, 12.5], target: [-0.3, 0, 0] },
-  { name: 'В разрезе', pos: [-7.5, 5.4, 9.5], target: [-0.4, 0, 0], cut: true },
-  { name: 'Спереди', pos: [-13.5, 1.0, 3.0], target: [-3.6, 0, 0] },
-  { name: 'Вентилятор', pos: [-8.6, 2.2, 4.6], target: [-3.9, 0, 0] },
-  { name: 'Компрессор ВД', pos: [-4.4, 2.1, 4.3], target: [-1.4, 0, 0], cut: true },
-  { name: 'Камера сгорания', pos: [-1.0, 2.0, 4.2], target: [0.15, 0, 0], cut: true },
-  { name: 'Турбина', pos: [2.6, 2.2, 4.8], target: [1.7, 0, 0], cut: true },
-  { name: 'Сопло и струя', pos: [8.2, 2.8, 7.0], target: [3.4, 0, 0] },
+  { name: 'Общий вид', pos: [-11.6, 4.8, 13.8], target: [-0.3, 0, 0] },
+  { name: 'В разрезе', pos: [-8.2, 5.8, 10.4], target: [-0.5, 0, 0], cut: true },
+  { name: 'Спереди', pos: [-13.5, 1.0, 3.0], target: [-4.4, 0, 0] },
+  { name: 'Вентилятор', pos: [-8.2, 2.2, 4.6], target: [-3.22, 0, 0] },
+  { name: 'Компрессор ВД', pos: [-4.6, 2.1, 4.0], target: [-1.61, 0, 0], cut: true },
+  { name: 'Камера сгорания', pos: [-1.6, 1.9, 3.8], target: [-0.56, 0, 0], cut: true },
+  { name: 'Турбина', pos: [1.5, 2.1, 4.4], target: [0.44, 0, 0], cut: true },
+  { name: 'Сопло и струя', pos: [7.6, 2.8, 7.0], target: [3.0, 0, 0] },
   // камера стоит вплотную к границе конуса струи: сама струя идёт на зрителя,
   // но двигатель не тонет в ней целиком, как это было бы на оси
   { name: 'Сзади, в потоке газов', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
@@ -363,9 +363,11 @@ const STATIONS = [
   ['Вход', () => 15, () => 1.0],
   ['Наружный контур', ({ fan }) => 15 + 34 * fan, ({ fan }) => 1 + 0.68 * fan],
   ['За КНД', ({ fan }) => 15 + 105 * fan, ({ fan }) => 1 + 1.7 * fan],
-  ['За КВД', ({ comp }) => 15 + 620 * comp, ({ comp }) => 1 + 42 * comp],
-  ['Камера сгорания', ({ t4 }) => t4, ({ comp }) => 1 + 40 * comp],
-  ['За ТВД', ({ t4 }) => t4 * 0.494, ({ comp }) => 1 + 9 * comp],
+  // Суммарная степень сжатия прототипа около 28 (вентилятор 1.7, КНД 1.5,
+  // КВД 11), не 40-50, как у двигателей следующего поколения.
+  ['За КВД', ({ comp }) => 15 + 585 * comp, ({ comp }) => 1 + 27 * comp],
+  ['Камера сгорания', ({ t4 }) => t4, ({ comp }) => 1 + 26 * comp],
+  ['За ТВД', ({ t4 }) => t4 * 0.494, ({ comp }) => 1 + 6 * comp],
   ['Срез сопла', ({ t4 }) => t4 * 0.293, ({ fan }) => 1 + 0.65 * fan],
 ];
 
@@ -381,7 +383,8 @@ function updateGauges(keff) {
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
 
-  const thrust = eng.fuel ? 132 * Math.pow(keff, 1.45) : 0;
+  // взлётная тяга прототипа: CFM56-7B27, 27 300 lbf = 121.4 кН
+  const thrust = eng.fuel ? 121.4 * Math.pow(keff, 1.45) : 0;
   $('val-n1').textContent = `${(eng.n1 * 100).toFixed(0)} %`;
   $('val-n2').textContent = `${(eng.n2 * 100).toFixed(0)} %`;
   $('val-t4').textContent = `${eng.t4.toFixed(0)} °C`;

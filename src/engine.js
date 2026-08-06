@@ -3,31 +3,55 @@ import { makeBladeGeometry, bladeRow } from './blade.js';
 
 /* ------------------------------------------------------------------ *
  *  Геометрическая схема ТРДД (турбовентиляторного двигателя большой
- *  степени двухконтурности, типа CFM LEAP / GE90 / Trent).
+ *  степени двухконтурности). Прототип - CFM56-7B в мотогондоле Boeing
+ *  737NG; все габариты взяты из docs/engines/cfm56-7b-nacelle.json.
  *  Ось двигателя - X, поток идёт в направлении +X.
- *  1 условная единица = 0.50 м (вентилятор Ø 3.12 у.е. = 1.56 м, CFM56-7B).
+ *
+ *  1 условная единица = 0.50 м. Из-за этого множителя РАДИУС в условных
+ *  единицах численно равен ДИАМЕТРУ в метрах: fanTip = 1.549 у.е. - это
+ *  вентилятор Ø 1.549 м, nacelleR = 2.44 у.е. - гондола Ø 2.44 м.
+ *
+ *  Продольные станции отсчитываются от кромки воздухозаборника: она
+ *  стоит в x = -5.2 у.е., так что станция в метрах от кромки равна
+ *  (x + 5.2) / 2. Опорные значения справочника - срез сопла наружного
+ *  контура 3.18 м, срез сопла внутреннего контура 4.05 м, конец
+ *  центрального тела 5.00 м, длина «голого» двигателя 2.508 м.
+ *
+ *  Продольное положение двигателя внутри гондолы габаритами НЕ задано:
+ *  сумма «вход + двигатель + сопло» сойдётся при любом делении. Поэтому
+ *  оно привязано к отдельному показателю - отношению длины входа (от
+ *  кромки до передней кромки конца лопатки) к диаметру вентилятора. У
+ *  классической гондолы оно около 0.5, здесь 0.498; на воздухозаборник
+ *  уходит 0.83 м, на выходное сопло за задним фланцем - 0.71 м.
+ *  Ошибка тут не ловится габаритами, только глазом или тестом: занизишь
+ *  сопло - вентилятор провалится вглубь входного канала, а все размеры
+ *  справочника при этом останутся верными. Проверяет geometry.test.mjs.
  * ------------------------------------------------------------------ */
 
 export const ST = {
-  lip: -5.2, // передняя кромка воздухозаборника
-  fan: -3.95, // плоскость вентилятора
-  splitter: -3.55, // разделитель контуров
-  boosterIn: -3.35,
-  boosterOut: -2.6,
-  hpcIn: -2.3,
-  hpcOut: -0.55,
-  combIn: -0.28,
-  combOut: 0.55,
-  hptIn: 0.62,
-  hptOut: 1.15,
-  lptIn: 1.42,
-  lptOut: 2.78,
-  frame: 2.98,
-  bypassExit: 1.6,
-  coreExit: 4.05,
-  plugTip: 4.75,
-  fanTip: 1.56,
-  caseR: 1.62,
+  lip: -5.2, // передняя кромка (highlight) воздухозаборника, 0 м
+  throat: -4.94, // горло воздухозаборника, 0.13 м
+  a1: -3.54, // фланец A1: стык воздухозаборника с корпусом вентилятора, 1.04 м
+  fan: -3.22, // плоскость вентилятора, 1.20 м
+  splitter: -2.86, // разделитель контуров, 1.38 м
+  boosterIn: -2.74, // 3 подпорные ступени
+  boosterOut: -2.38,
+  hpcIn: -2.18, // 9 ступеней КВД
+  hpcOut: -1.04,
+  combIn: -0.84,
+  combOut: -0.28,
+  hptIn: -0.18, // 1 ступень ТВД
+  hptOut: 0.12,
+  lptIn: 0.36, // 4 ступени ТНД
+  lptOut: 1.11,
+  frame: 1.48, // задняя опора, она же задний фланец двигателя, 3.55 м
+  bypassExit: 1.16, // срез сопла наружного контура, 3.18 м
+  coreExit: 2.9, // срез сопла внутреннего контура, 4.05 м
+  plugTip: 4.8, // конец центрального тела, 5.00 м
+  fanTip: 1.549, // вентилятор Ø 1.549 м (61 in)
+  caseR: 1.829, // корпус вентилятора снаружи: высота двигателя 1.829 м
+  accR: 2.118, // агрегаты на боку: ширина двигателя 2.118 м
+  nacelleR: 2.44, // наибольший габарит гондолы Ø 2.44 м (APPROX 8 FT)
 };
 
 /* -------------------- смаз спирали на коке -------------------------- *
@@ -167,22 +191,27 @@ function lathe(points, material, segments = 96) {
  *  чтобы вместо острого угла получился скруглённый переход в борта.
  * -------------------------------------------------------------------- */
 
-// на сколько условных единиц срезан низ гондолы
-const BELLY = 0.2;
+/* Глубина среза взята из справочника через ширину плоского участка: при
+   наружном радиусе 2.44 у.е. хорда шириной 1.2 м (2.4 у.е., «hamster pouch»
+   на виде спереди) отсекается на глубине 0.16 м. Высота гондолы получается
+   2.44 - 0.16 = 2.28 м - в пределах допуска обмеренных 2.40 ± 0.2 м, а
+   недостающее до 2.40 добирает обтекатель пилона сверху, который на виде
+   спереди и мешал обмерить верх гондолы. */
+const BELLY = 0.32; // 0.16 м
 
 // Снаружи гондола плоская от губы через капоты вентилятора и круглеет к соплу.
-const outerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -1.6, 1.0));
+const outerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -0.8, 1.16));
 
 // А внутри воздухозаборник обязан прийти к кругу уже к плоскости вентилятора:
 // зазор до концов лопаток здесь меньше десятой доли единицы, и сплющенный
 // тракт просто срезал бы их.
-const innerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -4.95, -4.1));
+const innerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -4.94, -3.6));
 
 // Угол, на который коробка приводов с агрегатами уведена от низа двигателя
 // на бок. Он же задаёт направление разнесения узла и место подписи.
 const AGB_TILT = THREE.MathUtils.degToRad(62);
 const AGB_AXIS = new THREE.Vector3(1, 0, 0);
-const AGB_EXPLODE = new THREE.Vector3(0, -3.4, 0).applyAxisAngle(AGB_AXIS, AGB_TILT);
+const AGB_EXPLODE = new THREE.Vector3(0, -4.4, 0).applyAxisAngle(AGB_AXIS, AGB_TILT);
 
 // плавный минимум: скругляет стык плоского низа с бортами
 function smoothMin(a, b, k) {
@@ -314,37 +343,46 @@ export function buildEngine() {
   const mNac = module(
     'nacelle',
     'Мотогондола и воздухозаборник',
-    'Обечайка воздухозаборника с противообледенительной системой, капоты вентилятора и наружный контур. Формирует равномерный поток на входе в вентилятор и сопло наружного контура.',
-    new THREE.Vector3(0, 3.4, 0)
+    'Обечайка воздухозаборника с противообледенительной системой, капоты вентилятора и наружный контур. Наибольший габарит 2.44 м, длина до среза сопла наружного контура 3.18 м. Низ и губа уплощены («hamster pouch»): крыло 737 низко над землёй.',
+    new THREE.Vector3(0, 4.4, 0)
   );
 
   // Профиль капота разбит на две половины: наружная обшивка идёт назад,
   // внутренняя возвращается вперёд. Вместе они дают ту же замкнутую
   // оболочку, что и раньше, но сплющиваются по-разному - снаружи гондола
   // плоская почти по всей длине, внутри только у губы (см. flattenBelly).
+  // Наружная обшивка: губа Ø 1.70 м, максимум Ø 2.44 м у стыка воздухозаборника
+  // с капотами вентилятора, дальше плавный поджим к соплу наружного контура.
   const nacOuter = [
-    [1.62, ST.lip],
-    [1.86, -4.85],
-    [1.97, -4.3],
-    [2.0, -3.4],
-    [1.99, -1.6],
-    [1.94, 0.2],
-    [1.82, 1.0],
-    [1.6, ST.bypassExit],
-    [1.52, ST.bypassExit],
+    [1.7, ST.lip],
+    [1.86, -5.1],
+    [2.02, -4.8],
+    [2.2, -4.4],
+    [2.36, -3.9],
+    [ST.nacelleR, ST.a1],
+    [ST.nacelleR, -1.6],
+    [2.36, -0.8],
+    [2.2, 0.0],
+    [1.98, 0.6],
+    [1.78, 1.0],
+    [1.7, ST.bypassExit],
+    [1.62, ST.bypassExit],
   ];
+  // Внутренний тракт: горло Ø 1.52 м, диффузор до Ø 1.58 м над концами лопаток
+  // (зазор 15 мм) и наружный контур до среза сопла.
   const nacInner = [
-    [1.52, ST.bypassExit],
-    [1.66, 1.0],
-    [1.74, 0.2],
-    [1.76, -1.6],
-    [1.74, -3.2],
-    [1.68, ST.fan],
-    [1.62, ST.fan],
-    [1.62, -4.25],
-    [1.55, -4.72],
-    [1.53, -5.0],
-    [1.62, ST.lip],
+    [1.62, ST.bypassExit],
+    [1.64, 1.0],
+    [1.68, 0.3],
+    [1.7, -0.6],
+    [1.68, -1.6],
+    [1.64, -2.82],
+    [1.58, ST.fan],
+    [1.58, ST.a1],
+    [1.55, -4.1],
+    [1.53, -4.62],
+    [1.52, ST.throat],
+    [1.7, ST.lip],
   ];
   mNac.add(flattenBelly(lathe(nacOuter, MATS.nacelle, 120), outerBelly));
   mNac.add(flattenBelly(lathe(nacInner, MATS.nacelle, 120), innerBelly));
@@ -354,14 +392,14 @@ export function buildEngine() {
     flattenBelly(
       lathe(
         [
-          [1.62, ST.lip], // нос кромки
-          [1.8, -5.06],
-          [1.9, -4.75],
-          [1.945, -4.45], // наружная часть уходит далеко назад, вровень с капотом
-          [1.6, -4.45], // задний торец кольца, спрятан внутри обшивки
-          [1.53, -4.72], // внутренняя часть идёт обратно к носу, чуть утоплена
-          [1.5, -4.95], // в тракт: горло, самое узкое место, чуть позади носа
-          [1.62, ST.lip],
+          [1.7, ST.lip], // нос кромки
+          [1.86, -5.1],
+          [1.98, -4.92],
+          [2.02, -4.8], // наружная часть уходит назад, вровень с обшивкой
+          [1.58, -4.8], // задний торец кольца, спрятан внутри обшивки
+          [1.51, -4.86], // внутренняя часть идёт обратно к носу, чуть утоплена
+          [1.5, ST.throat], // в тракт: горло, самое узкое место, чуть позади носа
+          [1.7, ST.lip],
         ],
         MATS.nacelleLip,
         120
@@ -370,13 +408,20 @@ export function buildEngine() {
     )
   );
 
-  // пилон крепления к крылу
+  /* Пилон крепления к крылу. Двигатель установлен с наклоном 5° носом вверх
+     относительно самолёта, поэтому клин пилона несимметричен: снизу он лежит
+     на гондоле (ось двигателя), сверху уходит по хорде крыла. Вперёд эти две
+     линии сходятся - спереди пилон тоньше. Наклон отдан пилону, а не всей
+     модели: иначе пришлось бы разворачивать вместе с ним визуализацию
+     потоков и экранное марево, которые живут в мировых осях. */
+  const TILT = Math.tan(THREE.MathUtils.degToRad(5));
+  const pylonTop = (x) => 0.72 + (x + 1.9) * TILT;
   const pylonShape = new THREE.Shape();
   pylonShape.moveTo(-2.9, 0);
   pylonShape.lineTo(1.7, 0);
-  pylonShape.lineTo(1.9, 0.9);
-  pylonShape.lineTo(-1.9, 0.9);
-  pylonShape.quadraticCurveTo(-2.7, 0.55, -2.9, 0);
+  pylonShape.lineTo(1.9, pylonTop(1.9));
+  pylonShape.lineTo(-1.9, pylonTop(-1.9));
+  pylonShape.quadraticCurveTo(-2.7, 0.44, -2.9, 0);
   const pylon = new THREE.Mesh(
     new THREE.ExtrudeGeometry(pylonShape, {
       depth: 0.3,
@@ -388,28 +433,31 @@ export function buildEngine() {
     }),
     MATS.pylon
   );
-  pylon.position.set(0, 1.84, -0.15);
+  pylon.name = 'pylon';
+  pylon.position.set(0, 2.28, -0.15);
   mNac.add(pylon);
 
   /* ===================== 2. Вентилятор =============================== */
   const mFan = module(
     'fan',
     'Вентилятор (N1)',
-    '24 широкохордные лопатки из композита с титановой кромкой. Диаметр ~1.55 м, 5175 об/мин на взлётном режиме. Создаёт до 80 % тяги, прогоняя воздух в наружный контур. Степень двухконтурности ≈ 9:1.',
+    '24 широкохордные лопатки, наибольшая хорда 0.279 м. Диаметр 1.549 м, 5175 об/мин на взлётном режиме. Создаёт до 80 % тяги, прогоняя воздух в наружный контур. Степень двухконтурности 5.1.',
     new THREE.Vector3(-2.6, 0, 0)
   );
 
-  // корпус вентилятора (с кевларовым бронекольцом)
+  // Корпус вентилятора с бронекольцом. Наружный радиус - габаритная высота
+  // «голого» двигателя 1.829 м; на этот корпус спереди по фланцу A1 садится
+  // воздухозаборник, а сбоку навешена коробка приводов.
   mFan.add(
     lathe(
       [
-        [1.62, -4.2],
-        [1.7, -4.2],
-        [1.72, -3.75],
-        [1.7, -3.3],
-        [1.64, -3.3],
-        [1.62, -3.75],
-        [1.62, -4.2],
+        [1.6, ST.a1],
+        [ST.caseR, ST.a1],
+        [ST.caseR, -3.11],
+        [1.74, -2.92],
+        [1.66, -2.92],
+        [1.6, -3.11],
+        [1.6, ST.a1],
       ],
       MATS.fanCase,
       96
@@ -418,23 +466,27 @@ export function buildEngine() {
 
   const fanRot = rotor(mFan, 1);
 
-  // кок (обтекатель втулки)
+  // Кок (обтекатель втулки). Длина 0.50 м, наибольший радиус - втулка
+  // вентилятора: относительный диаметр втулки 0.32 от диаметра вентилятора.
+  // Нос кока оказывается в метре за кромкой воздухозаборника - на 737 он и
+  // правда сидит глубоко в утопленном канале.
+  const SPINNER_R = 0.5;
   const spinnerPts = [];
   for (let i = 0; i <= 16; i++) {
     const t = i / 16;
-    const x = THREE.MathUtils.lerp(-4.78, ST.fan, t);
-    const r = 0.54 * Math.pow(t, 0.72);
+    const x = THREE.MathUtils.lerp(ST.fan - 1.0, ST.fan, t);
+    const r = SPINNER_R * Math.pow(t, 0.72);
     spinnerPts.push([r, x]);
   }
-  spinnerPts.push([0.54, ST.fan + 0.12]);
+  spinnerPts.push([SPINNER_R, ST.fan + 0.12]);
   fanRot.add(lathe(spinnerPts, MATS.paint, 64));
 
   // спираль на коке (см. spiralBlur: на оборотах размазывается в кольцо)
   const spiralCurve = new THREE.CatmullRomCurve3(
     Array.from({ length: 60 }, (_, i) => {
       const t = i / 59;
-      const x = THREE.MathUtils.lerp(-4.76, ST.fan - 0.04, t);
-      const r = 0.545 * Math.pow(t, 0.72) + 0.004;
+      const x = THREE.MathUtils.lerp(ST.fan - 0.98, ST.fan - 0.04, t);
+      const r = (SPINNER_R + 0.005) * Math.pow(t, 0.72) + 0.004;
       const a = t * Math.PI * 2.4;
       return new THREE.Vector3(x, r * Math.cos(a), r * Math.sin(a));
     })
@@ -450,12 +502,13 @@ export function buildEngine() {
   fanRot.add(spiral);
 
   // диск и замки лопаток
-  fanRot.add(drum(ST.fan - 0.12, ST.fan + 0.3, 0.54, 0.56, MATS.disk));
+  fanRot.add(drum(ST.fan - 0.12, ST.fan + 0.3, SPINNER_R, SPINNER_R + 0.02, MATS.disk));
+  // Наибольшая хорда - 0.279 м (11 in) у периферии, отсюда и «широкохордная».
   const fanBlade = makeBladeGeometry({
-    hubRadius: 0.55,
+    hubRadius: SPINNER_R + 0.01,
     tipRadius: ST.fanTip,
-    rootChord: 0.66,
-    tipChord: 0.78,
+    rootChord: 0.47,
+    tipChord: 0.558,
     rootStagger: 16,
     tipStagger: 61,
     rootThickness: 0.17,
@@ -472,10 +525,10 @@ export function buildEngine() {
 
   // спрямляющий аппарат наружного контура (OGV)
   const ogv = makeBladeGeometry({
-    hubRadius: 1.06,
-    tipRadius: 1.66,
-    rootChord: 0.36,
-    tipChord: 0.34,
+    hubRadius: 1.03,
+    tipRadius: 1.64,
+    rootChord: 0.3,
+    tipChord: 0.28,
     rootStagger: 34,
     tipStagger: 26,
     rootThickness: 0.12,
@@ -484,7 +537,7 @@ export function buildEngine() {
     tipCamber: 0.07,
     radialSegments: 8,
     chordSegments: 14,
-    x: -3.2,
+    x: -2.78,
   });
   mFan.add(bladeRow(ogv, MATS.titanium, 44));
 
@@ -501,15 +554,15 @@ export function buildEngine() {
     lathe(
       [
         [0.96, ST.splitter],
-        [1.02, ST.splitter + 0.18],
-        [1.04, -2.9],
-        [0.98, -2.45],
-        [0.9, -2.32],
-        [0.86, -2.32],
-        [0.93, -2.5],
-        [0.97, -2.95],
-        [0.95, ST.splitter + 0.2],
-        [0.9, ST.splitter + 0.05],
+        [1.02, ST.splitter + 0.1],
+        [1.04, -2.64],
+        [0.98, -2.3],
+        [0.9, -2.16],
+        [0.86, -2.16],
+        [0.93, -2.34],
+        [0.97, -2.68],
+        [0.95, ST.splitter + 0.12],
+        [0.9, ST.splitter + 0.03],
         [0.96, ST.splitter],
       ],
       MATS.casing,
@@ -518,18 +571,23 @@ export function buildEngine() {
   );
 
   const boostRot = rotor(mBoost, 1);
-  boostRot.add(drum(-3.5, -2.45, 0.56, 0.62, MATS.disk));
+  boostRot.add(drum(-2.86, -2.28, 0.56, 0.62, MATS.disk));
   const boostStages = [
-    { x: -3.32, hub: 0.58, tip: 0.94, n: 34 },
-    { x: -3.02, hub: 0.6, tip: 0.92, n: 40 },
-    { x: -2.72, hub: 0.62, tip: 0.9, n: 46 },
+    { x: ST.boosterIn, hub: 0.58, tip: 0.94, n: 34 },
+    { x: -2.56, hub: 0.6, tip: 0.92, n: 40 },
+    { x: ST.boosterOut, hub: 0.62, tip: 0.9, n: 46 },
   ];
+  /* Хорды лопаток компрессоров и турбин заданы натурными: подпорная ступень
+     ~50 мм, ступень КВД от 39 до 24 мм, лопатка ТВД ~55 мм, ТНД ~70 мм. Это
+     не косметика - венец занимает по оси хорда × cos(угол установки), а шаг
+     ступени тут 0.14…0.25 у.е. (70…125 мм), и лопатки прежних, «плакатных»
+     хорд просто входили бы друг в друга. */
   boostStages.forEach((s, i) => {
     const g = makeBladeGeometry({
       hubRadius: s.hub,
       tipRadius: s.tip,
-      rootChord: 0.2,
-      tipChord: 0.17,
+      rootChord: 0.1,
+      tipChord: 0.092,
       rootStagger: 26 + i * 3,
       tipStagger: 52 + i * 3,
       rootThickness: 0.13,
@@ -547,8 +605,8 @@ export function buildEngine() {
     const g = makeBladeGeometry({
       hubRadius: s.hub + 0.02,
       tipRadius: s.tip,
-      rootChord: 0.17,
-      tipChord: 0.15,
+      rootChord: 0.085,
+      tipChord: 0.08,
       rootStagger: 30,
       tipStagger: 22,
       rootThickness: 0.11,
@@ -557,7 +615,7 @@ export function buildEngine() {
       tipCamber: 0.08,
       radialSegments: 5,
       chordSegments: 10,
-      x: s.x + 0.15,
+      x: s.x + 0.09,
     });
     mBoost.add(bladeRow(g, MATS.steel, s.n + 8, 0.05));
   });
@@ -566,11 +624,11 @@ export function buildEngine() {
   const mHpc = module(
     'hpc',
     'Компрессор высокого давления (N2)',
-    '10 ступеней. Сжимает воздух в ~22 раза (суммарно до 40-50 бар), нагревая его до 550-650 °C. Часть воздуха отбирается на охлаждение турбины и кондиционирование.',
+    '9 ступеней. Сжимает воздух примерно в 11 раз; вместе с вентилятором и КНД это даёт суммарную степень сжатия около 28 и нагрев до 550-600 °C. Часть воздуха отбирается на охлаждение турбины и кондиционирование.',
     new THREE.Vector3(-0.8, 0, 0)
   );
 
-  const hpcStages = 10;
+  const hpcStages = 9;
   const hpcX = (i) => THREE.MathUtils.lerp(ST.hpcIn, ST.hpcOut, i / (hpcStages - 1));
   const hpcTip = (i) => THREE.MathUtils.lerp(0.78, 0.55, i / (hpcStages - 1));
   const hpcHub = (i) => THREE.MathUtils.lerp(0.5, 0.44, i / (hpcStages - 1));
@@ -591,11 +649,11 @@ export function buildEngine() {
   mHpc.add(
     lathe(
       [
-        [0.9, -2.42],
-        [0.86, -2.42],
-        [0.8, ST.hpcIn - 0.12],
-        [0.84, ST.hpcIn - 0.12],
-        [0.9, -2.42],
+        [0.9, ST.boosterOut + 0.04],
+        [0.86, ST.boosterOut + 0.04],
+        [0.8, ST.hpcIn - 0.04],
+        [0.84, ST.hpcIn - 0.04],
+        [0.9, ST.boosterOut + 0.04],
       ],
       MATS.casing,
       96
@@ -613,8 +671,8 @@ export function buildEngine() {
     const g = makeBladeGeometry({
       hubRadius: hpcHub(i),
       tipRadius: hpcTip(i),
-      rootChord: THREE.MathUtils.lerp(0.16, 0.09, i / 9),
-      tipChord: THREE.MathUtils.lerp(0.14, 0.08, i / 9),
+      rootChord: THREE.MathUtils.lerp(0.078, 0.048, i / (hpcStages - 1)),
+      tipChord: THREE.MathUtils.lerp(0.07, 0.044, i / (hpcStages - 1)),
       rootStagger: 24 + i * 2,
       tipStagger: 48 + i * 1.5,
       rootThickness: 0.12,
@@ -631,8 +689,8 @@ export function buildEngine() {
     const sg = makeBladeGeometry({
       hubRadius: hpcHub(i) + 0.01,
       tipRadius: hpcTip(i) + 0.01,
-      rootChord: THREE.MathUtils.lerp(0.14, 0.08, i / 9),
-      tipChord: THREE.MathUtils.lerp(0.13, 0.075, i / 9),
+      rootChord: THREE.MathUtils.lerp(0.068, 0.042, i / (hpcStages - 1)),
+      tipChord: THREE.MathUtils.lerp(0.062, 0.04, i / (hpcStages - 1)),
       rootStagger: 30,
       tipStagger: 20,
       rootThickness: 0.11,
@@ -641,7 +699,8 @@ export function buildEngine() {
       tipCamber: 0.07,
       radialSegments: 5,
       chordSegments: 10,
-      x: hpcX(i) + 0.09,
+      // направляющий аппарат ровно посередине между ступенями
+      x: hpcX(i) + (ST.hpcOut - ST.hpcIn) / (hpcStages - 1) / 2,
     });
     mHpc.add(bladeRow(sg, MATS.steel, n + 10, 0.04));
   }
@@ -780,7 +839,7 @@ export function buildEngine() {
   const mHpt = module(
     'hpt',
     'Турбина высокого давления (N2)',
-    '2 ступени. Монокристаллические лопатки с внутренним воздушным охлаждением и керамическим покрытием работают в газе 1500 °C - выше температуры плавления сплава. Вращает КВД со скоростью ~12 000 об/мин.',
+    '1 ступень. Монокристаллические лопатки с внутренним воздушным охлаждением и керамическим покрытием работают в газе 1500 °C - выше температуры плавления сплава. Одной ступени хватает потому, что она срабатывает большой перепад при высокой окружной скорости: КВД она вращает со скоростью ~14 500 об/мин.',
     new THREE.Vector3(0.9, 0, 0)
   );
   mHpt.add(
@@ -798,17 +857,15 @@ export function buildEngine() {
   );
 
   const hptRot = rotor(mHpt, 2);
-  const hptStages = [
-    { x: 0.78, hub: 0.46, tip: 0.83, n: 62, ngv: 0.62 },
-    { x: 1.08, hub: 0.45, tip: 0.88, n: 74, ngv: 0.93 },
-  ];
+  // Одна ступень: сопловой аппарат и рабочее колесо.
+  const hptStages = [{ x: 0.02, hub: 0.46, tip: 0.86, n: 62, ngv: -0.12 }];
   hptStages.forEach((s, i) => {
     // сопловой аппарат
     const ngv = makeBladeGeometry({
       hubRadius: s.hub,
       tipRadius: s.tip + 0.02,
-      rootChord: 0.24,
-      tipChord: 0.22,
+      rootChord: 0.14,
+      tipChord: 0.13,
       rootStagger: 52,
       tipStagger: 44,
       rootThickness: 0.26,
@@ -824,8 +881,8 @@ export function buildEngine() {
     const g = makeBladeGeometry({
       hubRadius: s.hub,
       tipRadius: s.tip,
-      rootChord: 0.2,
-      tipChord: 0.18,
+      rootChord: 0.12,
+      tipChord: 0.11,
       rootStagger: 32,
       tipStagger: 52,
       rootThickness: 0.24,
@@ -837,26 +894,26 @@ export function buildEngine() {
       x: s.x,
     });
     hptRot.add(bladeRow(g, MATS.turbineHot, s.n, i * 0.05));
-    hptRot.add(drum(s.x - 0.09, s.x + 0.09, s.hub, s.hub, MATS.diskHot));
+    hptRot.add(drum(s.x - 0.07, s.x + 0.07, s.hub, s.hub, MATS.diskHot));
   });
-  hptRot.add(drum(0.7, 1.16, 0.44, 0.44, MATS.diskHot));
+  hptRot.add(drum(ST.hptIn + 0.04, ST.hptOut - 0.02, 0.44, 0.44, MATS.diskHot));
 
   /* ===================== 7. Турбина низкого давления ================= */
   const mLpt = module(
     'lpt',
     'Турбина низкого давления (N1)',
-    '5 ступеней большого диаметра. Срабатывает оставшуюся энергию газа и через длинный вал приводит вентилятор и КНД (~3000 об/мин).',
+    '4 ступени большого диаметра. Срабатывает оставшуюся энергию газа и через длинный вал приводит вентилятор и КНД (5175 об/мин на взлётном режиме).',
     new THREE.Vector3(1.9, 0, 0)
   );
 
   const lptCase = [];
   for (let i = 0; i <= 8; i++) {
     const t = i / 8;
-    lptCase.push([THREE.MathUtils.lerp(0.99, 1.16, t), THREE.MathUtils.lerp(ST.lptIn - 0.16, ST.lptOut + 0.14, t)]);
+    lptCase.push([THREE.MathUtils.lerp(0.99, 1.12, t), THREE.MathUtils.lerp(ST.lptIn - 0.16, ST.lptOut + 0.14, t)]);
   }
   for (let i = 8; i >= 0; i--) {
     const t = i / 8;
-    lptCase.push([THREE.MathUtils.lerp(0.95, 1.12, t), THREE.MathUtils.lerp(ST.lptIn - 0.16, ST.lptOut + 0.14, t)]);
+    lptCase.push([THREE.MathUtils.lerp(0.95, 1.08, t), THREE.MathUtils.lerp(ST.lptIn - 0.16, ST.lptOut + 0.14, t)]);
   }
   lptCase.push([0.99, ST.lptIn - 0.16]);
   mLpt.add(lathe(lptCase, MATS.casingHot, 96));
@@ -876,7 +933,7 @@ export function buildEngine() {
   );
 
   const lptRot = rotor(mLpt, 1);
-  const lptN = 5;
+  const lptN = 4;
   for (let i = 0; i < lptN; i++) {
     const t = i / (lptN - 1);
     const x = THREE.MathUtils.lerp(ST.lptIn, ST.lptOut, t);
@@ -886,8 +943,8 @@ export function buildEngine() {
     const ngv = makeBladeGeometry({
       hubRadius: hub,
       tipRadius: tip + 0.02,
-      rootChord: 0.2,
-      tipChord: 0.18,
+      rootChord: 0.13,
+      tipChord: 0.12,
       rootStagger: 48,
       tipStagger: 40,
       rootThickness: 0.2,
@@ -896,15 +953,15 @@ export function buildEngine() {
       tipCamber: 0.12,
       radialSegments: 6,
       chordSegments: 12,
-      x: x - 0.14,
+      x: x - 0.105,
     });
     mLpt.add(bladeRow(ngv, MATS.nickel, 68 + i * 4, 0.02));
 
     const g = makeBladeGeometry({
       hubRadius: hub,
       tipRadius: tip,
-      rootChord: 0.17,
-      tipChord: 0.15,
+      rootChord: 0.14,
+      tipChord: 0.13,
       rootStagger: 30,
       tipStagger: 56,
       rootThickness: 0.18,
@@ -916,7 +973,7 @@ export function buildEngine() {
       x,
     });
     lptRot.add(bladeRow(g, MATS.turbineHot, 82 + i * 6, i * 0.04));
-    lptRot.add(drum(x - 0.08, x + 0.08, hub, hub, MATS.diskHot));
+    lptRot.add(drum(x - 0.07, x + 0.07, hub, hub, MATS.diskHot));
   }
   lptRot.add(drum(ST.lptIn - 0.1, ST.lptOut + 0.1, 0.46, 0.5, MATS.diskHot));
 
@@ -930,8 +987,8 @@ export function buildEngine() {
   const strut = makeBladeGeometry({
     hubRadius: 0.56,
     tipRadius: 1.12,
-    rootChord: 0.42,
-    tipChord: 0.4,
+    rootChord: 0.26,
+    tipChord: 0.24,
     rootStagger: 6,
     tipStagger: 2,
     rootThickness: 0.2,
@@ -940,17 +997,17 @@ export function buildEngine() {
     tipCamber: 0.01,
     radialSegments: 5,
     chordSegments: 12,
-    x: ST.frame,
+    x: ST.frame + 0.04,
   });
   mExh.add(bladeRow(strut, MATS.nickel, 10));
   mExh.add(
     lathe(
       [
-        [1.16, ST.lptOut + 0.12],
         [1.12, ST.lptOut + 0.12],
-        [0.86, ST.coreExit],
-        [0.9, ST.coreExit],
-        [1.16, ST.lptOut + 0.12],
+        [1.08, ST.lptOut + 0.12],
+        [0.74, ST.coreExit],
+        [0.78, ST.coreExit],
+        [1.12, ST.lptOut + 0.12],
       ],
       MATS.casingHot,
       96
@@ -972,24 +1029,32 @@ export function buildEngine() {
     'Стенка, разделяющая холодный наружный и горячий внутренний контуры. Внутри - агрегаты, трубопроводы и теплоизоляция.',
     new THREE.Vector3(0, -3.4, 0)
   );
+  // Наружная поверхность капота - внутренняя стенка наружного контура. Её
+  // радиус вместе с обечайкой гондолы задаёт площадь сопла наружного контура:
+  // при 1.62 и 1.14 у.е. на срезе это 1.04 м² - столько и нужно наружному
+  // контуру при m = 5.1 и расходе порядка 355 кг/с на взлётном режиме.
   const cowlPts = [
     [0.95, ST.splitter],
-    [1.05, -3.2],
-    [1.08, -2.0],
-    [1.07, 0.2],
-    [1.02, 1.1],
-    [0.95, ST.bypassExit],
-    [0.92, 2.4],
-    [0.86, 3.2],
+    [1.05, -2.61],
+    [1.1, -1.86],
+    [1.14, -0.76],
+    [1.16, -0.02],
+    [1.18, 0.48],
+    [1.22, 0.88],
+    [1.22, 1.28],
+    [1.14, 1.9],
+    [0.92, 2.5],
+    [0.82, ST.coreExit],
     [0.78, ST.coreExit],
-    [0.74, ST.coreExit],
-    [0.82, 3.2],
-    [0.88, 2.4],
-    [0.9, ST.bypassExit],
-    [0.98, 1.1],
-    [1.03, 0.2],
-    [1.04, -2.0],
-    [1.01, -3.2],
+    [0.88, 2.5],
+    [1.1, 1.9],
+    [1.18, 1.28],
+    [1.18, 0.88],
+    [1.14, 0.48],
+    [1.12, -0.02],
+    [1.1, -0.76],
+    [1.06, -1.86],
+    [1.01, -2.61],
     [0.92, ST.splitter],
     [0.95, ST.splitter],
   ];
@@ -1003,12 +1068,12 @@ export function buildEngine() {
     new THREE.Vector3(0, 0, 0)
   );
   const lpShaftRot = rotor(mShaft, 1);
-  const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 7.0, 24), MATS.shaft);
+  const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.8, 24), MATS.shaft);
   lp.rotation.z = -Math.PI / 2;
-  lp.position.x = -0.6;
+  lp.position.x = -1.01;
   lpShaftRot.add(lp);
   // шлицы/фланцы вала НД
-  [-3.9, 2.7].forEach((x) => {
+  [-3.16, 1.24].forEach((x) => {
     const f = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.12, 24), MATS.shaft);
     f.rotation.z = -Math.PI / 2;
     f.position.x = x;
@@ -1016,14 +1081,14 @@ export function buildEngine() {
   });
 
   const hpShaftRot = rotor(mShaft, 2);
-  hpShaftRot.add(tube(-2.45, 1.2, 0.24, 0.3, MATS.shaft, 32));
+  hpShaftRot.add(tube(-2.31, 0.1, 0.24, 0.3, MATS.shaft, 32));
 
   // подшипниковые опоры
   [
-    [-3.7, 0.34],
-    [-2.5, 0.36],
-    [1.3, 0.36],
-    [2.85, 0.3],
+    [-3.11, 0.34],
+    [-2.36, 0.36],
+    [0.22, 0.36],
+    [1.38, 0.3],
   ].forEach(([x, r]) => {
     const b = new THREE.Mesh(new THREE.TorusGeometry(r, 0.05, 8, 32), MATS.steel);
     b.rotation.y = Math.PI / 2;
@@ -1043,47 +1108,57 @@ export function buildEngine() {
   accSide.rotation.x = AGB_TILT;
   mAcc.add(accSide);
 
-  const gearbox = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.42, 0.9), MATS.accessory);
-  gearbox.position.set(-1.3, -1.12, 0);
-  gearbox.rotation.z = 0.06;
+  // Коробка приводов сидит на корпусе вентилятора (радиус 1.829) и наружу
+  // доходит до 2.118 - это и есть габаритная ширина «голого» двигателя
+  // 2.118 м при высоте 1.829 м: разницу даёт как раз она. Дальше остаётся
+  // 0.16 м до обшивки гондолы - потому гондола 737 и такая полная при
+  // сравнительно небольшом вентиляторе.
+  const gearbox = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 0.7), MATS.accessory);
+  gearbox.position.set(-2.46, -1.92, 0);
+  gearbox.rotation.z = 0.03;
   accSide.add(gearbox);
-  [[-1.95, 0.26], [-1.35, 0.3], [-0.75, 0.24]].forEach(([x, r], i) => {
-    const acc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.5, 16), MATS.accessory);
+  // Агрегаты вынесены вбок от коробки, поэтому дальний угол у них дальше
+  // от оси, чем плоскость: на габарит 2.118 выводится именно он.
+  [[-2.96, 0.2], [-2.46, 0.22], [-1.96, 0.19]].forEach(([x, r], i) => {
+    const acc = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.44, 16), MATS.accessory);
     acc.rotation.x = Math.PI / 2;
-    acc.position.set(x, -1.32 - i * 0.02, 0.5);
+    // ступенька i * 0.02 уводит агрегаты внутрь, чтобы габарит держал
+    // первый из них, а не разъезжался по мелочи
+    acc.position.set(x, -(Math.sqrt(ST.accR ** 2 - 0.74 ** 2) - r) + i * 0.02, 0.52);
     accSide.add(acc);
   });
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.95, 12), MATS.steel);
-  tower.position.set(-1.55, -0.62, 0);
-  tower.rotation.z = 0.28;
+  // вертикальная передача от вала ВД к коробке приводов
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.15, 12), MATS.steel);
+  tower.position.set(-2.96, -1.3, 0);
+  tower.rotation.z = 0.2;
   accSide.add(tower);
-  // магистрали
+  // магистрали вдоль газогенератора
   [0.35, -0.35].forEach((z) => {
     const c = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-2.2, -0.95, z * 0.6),
-      new THREE.Vector3(-1.0, -1.25, z),
-      new THREE.Vector3(0.6, -1.1, z * 0.9),
-      new THREE.Vector3(1.6, -0.85, z * 0.5),
+      new THREE.Vector3(-2.66, -1.15, z * 0.6),
+      new THREE.Vector3(-1.96, -1.32, z),
+      new THREE.Vector3(-0.86, -1.28, z * 0.9),
+      new THREE.Vector3(-0.06, -1.15, z * 0.5),
     ]);
     accSide.add(new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.045, 8), MATS.steel));
   });
 
   /* ===================== метки узлов ================================= */
   const labels = [
-    { module: mNac, text: 'Мотогондола', pos: new THREE.Vector3(-4.6, 2.05, 0) },
-    { module: mFan, text: 'Вентилятор', pos: new THREE.Vector3(ST.fan, 1.62, 0) },
-    { module: mBoost, text: 'КНД', pos: new THREE.Vector3(-3.0, 1.0, 0) },
-    { module: mHpc, text: 'КВД', pos: new THREE.Vector3(-1.4, 0.85, 0) },
-    { module: mComb, text: 'Камера сгорания', pos: new THREE.Vector3(0.14, 0.95, 0) },
-    { module: mHpt, text: 'ТВД', pos: new THREE.Vector3(0.95, 1.0, 0) },
-    { module: mLpt, text: 'ТНД', pos: new THREE.Vector3(2.1, 1.2, 0) },
-    { module: mExh, text: 'Сопло', pos: new THREE.Vector3(3.6, 0.8, 0) },
-    { module: mShaft, text: 'Валы НД / ВД', pos: new THREE.Vector3(-0.2, -0.42, 0) },
+    { module: mNac, text: 'Мотогондола', pos: new THREE.Vector3(-4.0, 2.5, 0) },
+    { module: mFan, text: 'Вентилятор', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
+    { module: mBoost, text: 'КНД', pos: new THREE.Vector3(-2.56, 1.02, 0) },
+    { module: mHpc, text: 'КВД', pos: new THREE.Vector3(-1.61, 0.9, 0) },
+    { module: mComb, text: 'Камера сгорания', pos: new THREE.Vector3(-0.56, 0.98, 0) },
+    { module: mHpt, text: 'ТВД', pos: new THREE.Vector3(-0.03, 1.02, 0) },
+    { module: mLpt, text: 'ТНД', pos: new THREE.Vector3(0.74, 1.18, 0) },
+    { module: mExh, text: 'Сопло', pos: new THREE.Vector3(3.2, 0.85, 0) },
+    { module: mShaft, text: 'Валы НД / ВД', pos: new THREE.Vector3(-0.96, -0.42, 0) },
     {
       module: mAcc,
       text: 'Коробка приводов',
       // подпись едет на бок вместе с самой коробкой
-      pos: new THREE.Vector3(-1.3, -1.45, 0).applyAxisAngle(AGB_AXIS, AGB_TILT),
+      pos: new THREE.Vector3(-2.46, -2.3, 0).applyAxisAngle(AGB_AXIS, AGB_TILT),
     },
   ];
 
@@ -1095,16 +1170,16 @@ export function buildEngine() {
   const pickMat = new THREE.MeshBasicMaterial({ visible: false });
   const pickables = [];
   const PROXY = [
-    [mNac, ST.lip, ST.bypassExit, 1.92, true],
-    [mFan, -4.85, -3.3, 1.5, false],
-    [mBoost, ST.splitter, -2.5, 0.95, false],
-    [mHpc, -2.45, -0.5, 0.8, false],
-    [mComb, -0.5, 0.6, 0.88, false],
-    [mHpt, 0.6, 1.22, 0.95, false],
-    [mLpt, 1.28, 2.92, 1.12, false],
-    [mExh, 2.92, ST.plugTip, 0.9, false],
-    [mCowl, -3.5, ST.coreExit, 1.04, true],
-    [mShaft, -4.0, 2.8, 0.33, false],
+    [mNac, ST.lip, ST.bypassExit, 2.3, true],
+    [mFan, ST.fan - 1.05, -2.72, 1.55, false],
+    [mBoost, ST.splitter, -2.26, 0.95, false],
+    [mHpc, -2.26, -0.94, 0.8, false],
+    [mComb, -0.94, -0.22, 0.88, false],
+    [mHpt, -0.22, 0.24, 0.95, false],
+    [mLpt, 0.24, 1.24, 1.12, false],
+    [mExh, 1.24, ST.plugTip, 0.9, false],
+    [mCowl, -2.81, ST.coreExit, 1.15, true],
+    [mShaft, -3.26, 1.34, 0.33, false],
   ];
   PROXY.forEach(([mod, x0, x1, r, shell]) => {
     const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, x1 - x0, 20, 1, true), pickMat);
@@ -1115,8 +1190,8 @@ export function buildEngine() {
     pickables.push(mesh);
   });
   {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 1.4), pickMat);
-    box.position.set(-1.3, -1.16, 0);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.5, 1.4), pickMat);
+    box.position.set(-2.56, -1.5, 0);
     accSide.add(box); // прокси уезжает на бок вместе с агрегатами
     pickables.push(box);
   }
