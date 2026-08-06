@@ -38,13 +38,13 @@ check the rotor rundown other than watching the screen.
 
 | File | Lines | Responsibility |
 |---|---:|---|
-| `src/engine.js` | 1233 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 524 | Scene, lighting, post-processing, cutaway, UI, frame loop |
-| `src/heathaze.js` | 357 | Screen-space pass for the exhaust gas aft of the nozzle |
-| `src/sound.js` | 345 | Sound synthesis on Web Audio |
+| `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 528 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/sound.js` | 351 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/style.css` | 324 | Panel styling |
-| `src/blade.js` | 161 | Procedural geometry of blades and rows |
+| `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
 | `index.html` | 146 | Markup of the panel, the legend and the module card |
 
