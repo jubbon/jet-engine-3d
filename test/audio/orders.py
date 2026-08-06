@@ -1,8 +1,9 @@
-"""Раскладка тонов по порядкам вала и огибающая buzz-saw.
+"""Tones laid out by shaft order, and the buzz-saw envelope.
 
-Проверяем: если тоны стоят на гармониках частоты вала n·f0, то это buzz-saw.
-Заодно снимаем огибающую — как уровень тонов зависит от номера порядка.
-Эта огибающая напрямую переносится в синтез.
+What is being checked: if the tones sit on harmonics of the shaft frequency
+n·f0, then this is buzz-saw. The envelope is taken at the same time — how the
+level of the tones depends on the order number. That envelope carries straight
+over into the synthesis.
 """
 import wave, numpy as np
 from scipy import signal
@@ -23,7 +24,7 @@ def spectrum(seg):
     return ff, pp - bg, bg
 
 def fit_f0(ff, exc, f0lo=60, f0hi=100):
-    """Подбираем частоту вала так, чтобы максимум тонов попал на её гармоники."""
+    """Fit the shaft frequency so that the bulk of the tones lands on its harmonics."""
     idx, _ = signal.find_peaks(exc, prominence=4.0, distance=4)
     fr, am = ff[idx], exc[idx]
     best = (-1, 0)
@@ -37,9 +38,9 @@ def fit_f0(ff, exc, f0lo=60, f0hi=100):
             best = (s, f0)
     return best[1], fr, am
 
-# берём окна с наибольшей тональностью
+# take the windows with the strongest tonal content
 wins = [(t, x[int(t*sr):int(t*sr)+int(8*sr)]) for t in (60, 72, 24, 36)]
-print('### Раскладка тонов по порядкам вала (start.wav)\n')
+print('### Tones laid out by shaft order (start.wav)\n')
 env = {}
 for t, seg in wins:
     ff, exc, bg = spectrum(seg)
@@ -51,14 +52,14 @@ for t, seg in wins:
             hits.append((n, f, a))
             env.setdefault(n, []).append(a)
     frac = len(hits) / max(1, len(fr))
-    print(f'окно {t:3.0f} с: частота вала {f0:.2f} Гц ({f0*60:.0f} об/мин, {f0*60/5175*100:.0f}% N1), '
-          f'BPF = {f0*24:.0f} Гц')
-    print(f'   на гармониках вала: {len(hits)} из {len(fr)} тонов ({frac*100:.0f}%)')
+    print(f'window {t:3.0f} s: shaft frequency {f0:.2f} Hz ({f0*60:.0f} rpm, {f0*60/5175*100:.0f}% N1), '
+          f'BPF = {f0*24:.0f} Hz')
+    print(f'   on shaft harmonics: {len(hits)} of {len(fr)} tones ({frac*100:.0f}%)')
     top = sorted(hits, key=lambda h: -h[2])[:8]
-    print('   ' + '  '.join(f'{n}×({f:.0f}Гц,+{a:.0f}дБ)' for n, f, a in sorted(top)))
+    print('   ' + '  '.join(f'{n}×({f:.0f}Hz,+{a:.0f}dB)' for n, f, a in sorted(top)))
 
-print('\n### Огибающая по порядкам вала (среднее превышение над фоном, дБ)')
-print('  порядок  доля BPF   уровень')
+print('\n### Envelope by shaft order (mean excess over the background, dB)')
+print('    order  BPF frac   level')
 for n in sorted(env):
     if n <= 48:
         v = np.mean(env[n])

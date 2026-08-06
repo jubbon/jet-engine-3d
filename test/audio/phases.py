@@ -1,4 +1,4 @@
-"""Разбор записи по фазам: где доминирует тон вентилятора, где шум струи."""
+"""Break a recording into phases: where the fan tone dominates, where the jet noise does."""
 import sys, wave, numpy as np
 from scipy import signal
 
@@ -12,12 +12,12 @@ def analyse(seg, sr):
     pdb = 10 * np.log10(p + 1e-20)
     m = (f >= 30) & (f <= 9000)
     ff, pp = f[m], pdb[m]
-    bg = signal.medfilt(pp, kernel_size=151)          # широкополосный фон
-    exc = pp - bg                                      # тональное превышение
+    bg = signal.medfilt(pp, kernel_size=151)          # the broadband background
+    exc = pp - bg                                      # the tonal excess over it
     idx, _ = signal.find_peaks(exc, prominence=3.0, distance=4)
-    # частота максимума широкополосной части
+    # frequency at which the broadband part peaks
     fpeak = ff[np.argmax(bg)]
-    # наклон фона: уровень на характерных частотах относительно пика
+    # tilt of the background: level at characteristic frequencies relative to the peak
     def at(fr):
         return bg[np.argmin(np.abs(ff - fr))] - bg.max()
     return ff, pp, bg, exc, idx, fpeak, {k: at(k) for k in (100, 250, 500, 1000, 2000, 4000, 6000)}
@@ -27,8 +27,8 @@ nwin = int(sys.argv[2]) if len(sys.argv) > 2 else 10
 x, sr = load(name)
 dur = len(x) / sr
 win = int(sr * 5)
-print(f'\n### {name}   {dur:.0f} с, окна по 5 с\n')
-print(f'{"t, с":>6} {"ур., дБ":>8} {"пик фона":>9} | {"наклон фона относительно пика, дБ":^44}')
+print(f'\n### {name}   {dur:.0f} s, windows of 5 s\n')
+print(f'{"t, s":>6} {"lvl, dB":>8} {"bg peak":>9} | {"background tilt relative to the peak, dB":^44}')
 print(f'{"":>6} {"":>8} {"":>9} | ' + ' '.join(f'{k:>5}' for k in (100, 250, 500, 1000, 2000, 4000, 6000)))
 rows = []
 for i in range(nwin):
@@ -39,8 +39,8 @@ for i in range(nwin):
     print(f'{a/sr:6.0f} {lvl:8.1f} {fpeak:8.0f}  | ' + ' '.join(f'{tilt[k]:5.0f}' for k in (100,250,500,1000,2000,4000,6000)))
     rows.append((a/sr, ff, exc, idx, lvl))
 
-print('\nсамые заметные тоны по окнам (частота Гц / превышение дБ):')
+print('\nthe most prominent tones per window (frequency Hz / excess dB):')
 for t, ff, exc, idx, lvl in rows:
     top = sorted(idx, key=lambda j: -exc[j])[:6]
     s = '  '.join(f'{ff[j]:6.0f}/{exc[j]:.0f}' for j in sorted(top, key=lambda j: ff[j]))
-    print(f'{t:6.0f} с: {s}')
+    print(f'{t:6.0f} s: {s}')
