@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs && node test/spiral-blur.test.mjs"
+    "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs && node test/spiral-blur.test.mjs && node test/geometry.test.mjs && node test/clearance.test.mjs"
   },
   "keywords": [],
   "author": "",
