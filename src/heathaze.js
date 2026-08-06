@@ -38,12 +38,19 @@ const OCCLUDERS = [
 
 // Effect strength. amp is displacement in pixels, blur is the smear radius in
 // pixels as well, gas is the density of the visible jet.
-const LOOK = { amp: 13.0, blur: 5.5, gas: 0.95 };
+//
+// The gas is deliberately kept faint: hot exhaust is in fact nearly invisible -
+// what gives a jet away is the way it bends the view, not its own whiteness.
+// A dense white cone also competed with the contrail, which is the one thing
+// aft of the nozzle that really is a cloud.
+const LOOK = { amp: 13.0, blur: 5.5, gas: 0.2 };
 
 // The "Air flows" mode is a diagram: there the particles, streamlines and the
-// temperature colouring of the jet matter, and a dense white exhaust simply
-// paints over them. So in diagram mode only a faint shimmer is left.
-const FLOW_LOOK = { amp: 0.55, blur: 0.5, gas: 0.2 };
+// temperature colouring of the jet matter, and the exhaust simply paints over
+// them. So in diagram mode only a faint shimmer is left. These are multipliers
+// of LOOK, and since the gas itself became faint the damping here was eased -
+// 0.2 of it would have left nothing at all.
+const FLOW_LOOK = { amp: 0.55, blur: 0.5, gas: 0.6 };
 
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -295,7 +302,7 @@ export function createHeatHaze(camera, width, height) {
       uAmp: { value: LOOK.amp },
       uBlur: { value: LOOK.blur },
       uGas: { value: LOOK.gas },
-      uGasMax: { value: 0.72 },
+      uGasMax: { value: 0.22 }, // the jet never becomes opaque, only tinted
       // Values are linear, before tone mapping: ACES at exposure 0.82 pulls
       // 1.0 down to roughly 0.8, so "white" here is greater than 1.
       uGasNear: { value: new THREE.Color(1.55, 1.45, 1.3) },

@@ -129,7 +129,7 @@ The shader pass was checked by eye in the browser, from four views: from behind
 (key `9`) and from the nozzle — there the jet must be visible and shimmering;
 from the front — there the image must stay sharp, otherwise the occlusion by the
 bodies is broken; and with the air flows switched on — there the particles and
-streamlines must not drown in white gas.
+streamlines must not drown in the gas.
 
 ## Limitations of the model
 

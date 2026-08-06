@@ -117,11 +117,13 @@ compressor instead of the 600 °C and 28 bar of sea level.
 
 Separately from this schematic visualisation, the **exhaust gas** works: a
 screen-space pass traces a ray for every pixel through the cone of hot gas. The
-jet is visible in its own right — a whitish billowing cone, dense at the nozzle
+jet is faintly visible in its own right — an almost transparent billowing cone
 — and it refracts everything seen through it: the image shimmers and smears.
 Look into the nozzle and the whole screen swims; look from the side and the jet
-trails away as a white plume; look from the front and there is nothing, the
-nacelle blocking the exhaust. When the air flows are switched on the exhaust is
+trails away as a barely tinted shimmer; look from the front and there is
+nothing, the nacelle blocking the exhaust. The gas is kept nearly transparent on
+purpose: hot exhaust really is almost invisible, and a dense white cone competed
+with the contrail behind it. When the air flows are switched on the exhaust is
 damped down so as not to paint over the diagram. Details are in the
 [airflow document](docs/04-airflow.md#exhaust-gas).
 

@@ -114,8 +114,13 @@ cold, the light ray wanders — and everything seen **through** the jet shimmers
 and smears. Looking into the nozzle, the optical depth accumulates along the
 whole ray and the entire screen swims.
 
-**It scatters.** The jet is visible in its own right — a whitish billowing cone,
-dense at the nozzle and dissolving downstream.
+**It scatters** — but only just. The jet has a body of its own, a billowing cone
+warm-tinted at the nozzle and greying downstream, and it is deliberately kept
+almost transparent (`LOOK.gas = 0.2`, with the opacity ceiling `uGasMax` at
+0.22). Hot exhaust really is nearly invisible: what gives a jet away is the way
+it bends the view, not its own whiteness. A dense white cone also competed with
+the contrail, which is the one thing aft of the nozzle that genuinely is a
+cloud, and the two read as different phenomena only when the near one is faint.
 
 Implemented as a screen-space pass (`src/heathaze.js`) after `RenderPass`. For
 each pixel a ray is built from the camera, and the optical depth is accumulated
@@ -178,11 +183,12 @@ The eddies are convected downstream at a speed of `2 + 7·n1`, so at take-off
 power the exhaust is not only denser but also faster. Toggled by the "Exhaust
 gas" checkbox or the `H` key.
 
-When **"Air flows"** is switched on, the exhaust is damped down
-(`setFlowMode`). This is a deliberate compromise: in a diagram what matters is
-seeing the particles, the streamlines and the temperature colouring of the jet,
-and a dense white gas simply paints over them. In diagram mode only a faint
-shimmer remains.
+When **"Air flows"** is switched on, the exhaust is damped down further
+(`setFlowMode`, multipliers of `LOOK`). This is a deliberate compromise: in a
+diagram what matters is seeing the particles, the streamlines and the
+temperature colouring of the jet, and the gas paints over them. The damping of
+the gas was eased from 0.2 to 0.6 when the gas itself became faint — the two
+together would have left nothing at all.
 
 ## Contrail
 
