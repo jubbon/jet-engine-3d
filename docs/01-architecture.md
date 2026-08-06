@@ -39,7 +39,7 @@ check the rotor rundown other than watching the screen.
 | File | Lines | Responsibility |
 |---|---:|---|
 | `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 528 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/main.js` | 536 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |

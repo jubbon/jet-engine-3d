@@ -442,12 +442,20 @@ canvas.addEventListener('click', () => {
 });
 
 /* ============================= animation ============================= */
-const clock = new THREE.Clock();
+// Timer rather than Clock: the latter is deprecated in three 0.185, and it
+// recomputed the delta on every getDelta() call, so asking twice within one
+// frame gave two different answers. Timer takes its reading once in update().
+const timer = new THREE.Timer();
+// Page Visibility API: coming back to a hidden tab yields delta 0 instead of the
+// whole time away. The clamp below would have caught that too, but this way the
+// engine does not silently lose a step every time the tab is switched.
+timer.connect(document);
 const tmp = new THREE.Vector3();
 
 function animate() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+  timer.update();
+  const dt = Math.min(timer.getDelta(), 0.05);
+  const t = timer.getElapsed();
 
   // the time scale affects the engine processes only: start and rundown run at
   // their natural pace (tens of seconds), and waiting them out is not always
