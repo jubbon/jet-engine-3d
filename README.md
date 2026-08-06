@@ -71,7 +71,7 @@ to tip), and wrapped around the circumference — as real blades are
 | **Engine sound** | button or `S`, volume by slider |
 | **Exhaust gas** (visible jet and heat haze) | checkbox or `H` |
 | Engine power (throttle) | slider (changes N1/N2, flame brightness, flow speed, instruments and sound) |
-| **Ambient conditions** | altitude and deviation from standard by sliders, or the buttons 0 / 3 / 11 km |
+| **Ambient conditions** | altitude, deviation from standard and humidity by sliders, or the buttons 0 / 3 / 11 km |
 | Views | buttons `1…9` (`9` — the rear view, inside the gas stream) |
 | Module information | hover for a tooltip, click for a card with the description |
 | Camera | LMB — orbit, wheel — zoom, RMB — pan |

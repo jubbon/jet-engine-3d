@@ -239,6 +239,43 @@ temperature. Alongside the absolute values the module returns the relative ones,
 `θ = T/T₀`, `δ = P/P₀`, `σ = ρ/ρ₀`, in which the similarity relations of a full
 altitude recomputation are written; for now only `θ` is used.
 
+### Water vapour
+
+The standard atmosphere is dry, so humidity is kept apart from it — a property
+of the day rather than of the altitude. A third slider sets the relative
+humidity, and from it come the vapour pressure and the dew point through the
+Magnus formula in the Alduchov — Eskridge coefficients:
+
+```
+e_sat = 610.94 · exp(17.625·t / (243.04 + t))   Pa, over water
+e_sat = 611.21 · exp(22.587·t / (273.86 + t))   Pa, over ice
+```
+
+The formula is a fit to tabulated data, good to 0.4 % over water between −40 and
++50 °C and to 0.1 % over ice; the test compares it with the table at five points
+on one curve and three on the other. The dew point is the same formula solved
+for temperature, so it round-trips exactly: saturated air has its dew point at
+the air temperature.
+
+Relative humidity is counted **over water at any temperature**, as meteorology
+counts it — a hygrometer reads over water whether or not it is freezing outside.
+Below zero the second curve starts to matter, because the two diverge: at −40 °C
+ice saturates at 0.677 of the water value. Air that a hygrometer would call far
+from saturated is then already supersaturated over ice — at eleven kilometres
+60 % over water is 102 % over ice — and that is the state in which a contrail
+spreads into cirrus instead of evaporating. It is the one quantity in the block
+computed for a task not yet done ([BL-21](09-backlog.md#bl-21-contrail-behind-the-engine)).
+
+Above freezing the ice ratio is not reported at all. The formula continues to
+give numbers there — and runs *above* the water curve, so saturated air at
++15 °C would come out at 86 % "over ice" — but there is no ice to saturate over,
+and an extrapolation past the substance it describes is not a measurement.
+
+What humidity deliberately does **not** affect is density: moist air is lighter
+than dry air at the same pressure, by about 1 % at +30 °C and saturation and by
+nothing worth the name in the cold. The panel shows the dry-air density, and
+`σ = δ/θ` stays exact.
+
 ### How compression depends on speed
 
 From the Euler turbomachinery equation, the work of a stage is

@@ -12,7 +12,7 @@ import { createAirflow } from './airflow.js';
 import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
-import { atmosphere } from './atmosphere.js';
+import { atmosphere, humidity } from './atmosphere.js';
 
 /* =============================== scene =============================== */
 
@@ -145,10 +145,12 @@ const state = {
   timeScale: 1, // speed-up of the engine processes, ×1 or ×4
   altitude: 0, // m
   deltaISA: 0, // deviation of the day from standard, K
+  rh: 0.6, // relative humidity over water, 0..1
 };
 
 // ambient conditions; recomputed only when the sliders move
 let amb = atmosphere(state.altitude, state.deltaISA);
+let hum = humidity(amb.t, state.rh);
 
 let n1Angle = 0;
 let n2Angle = 0;
@@ -449,30 +451,47 @@ const ALT_PRESETS = [
   ['alt-11', 11000], // cruise, right at the tropopause
 ];
 
-function setAmbient(altitude, deltaISA) {
+// vapour pressure runs from thousands of pascals at the ground to units of
+// them at altitude, so the number of decimals follows the value
+const pascals = (e) => (e >= 100 ? e.toFixed(0) : e >= 10 ? e.toFixed(1) : e.toFixed(2));
+
+function setAmbient(altitude, deltaISA, rh) {
   state.altitude = altitude;
   state.deltaISA = deltaISA;
+  state.rh = rh;
   amb = atmosphere(altitude, deltaISA);
+  hum = humidity(amb.t, rh);
 
   // the sliders are also driven by the preset buttons, hence the write back
   $('alt').value = altitude / 100;
   $('isa').value = deltaISA;
+  $('rh').value = Math.round(rh * 100);
   $('val-alt').textContent = `${(altitude / 1000).toFixed(1)} km`;
   $('val-isa').textContent = `${deltaISA > 0 ? '+' : ''}${deltaISA} °C`;
+  $('val-rh').textContent = `${Math.round(rh * 100)} %`;
   $('val-amb-t').textContent = `${amb.t.toFixed(1)} °C`;
   $('val-amb-p').textContent = (amb.p / 1e5).toFixed(3);
   $('val-amb-rho').textContent = amb.rho.toFixed(3);
+  // perfectly dry air has no temperature at which it would condense
+  $('val-amb-td').textContent = hum.dewPoint === null ? '—' : `${hum.dewPoint.toFixed(1)} °C`;
+  $('val-amb-e').textContent = pascals(hum.e);
+  // above freezing there is no ice to saturate over, hence the dash
+  $('val-amb-rhi').textContent = hum.rhIce === null ? '—' : `${(100 * hum.rhIce).toFixed(0)} %`;
+  // above 100 % over ice a contrail would persist rather than evaporate - the
+  // one number in the block that is here for a task not yet done (BL-21)
+  $('val-amb-rhi').style.color = hum.rhIce > 1 ? 'var(--acc)' : '#7a8494';
   ALT_PRESETS.forEach(([id, h]) => $(id).classList.toggle('on', h === altitude));
 
   gaugeShown = -1; // the station table has to be redrawn, the engine has not moved
 }
 
 ALT_PRESETS.forEach(([id, h]) => {
-  $(id).onclick = () => setAmbient(h, state.deltaISA);
+  $(id).onclick = () => setAmbient(h, state.deltaISA, state.rh);
 });
-$('alt').oninput = (e) => setAmbient(+e.target.value * 100, state.deltaISA);
-$('isa').oninput = (e) => setAmbient(state.altitude, +e.target.value);
-setAmbient(state.altitude, state.deltaISA);
+$('alt').oninput = (e) => setAmbient(+e.target.value * 100, state.deltaISA, state.rh);
+$('isa').oninput = (e) => setAmbient(state.altitude, +e.target.value, state.rh);
+$('rh').oninput = (e) => setAmbient(state.altitude, state.deltaISA, e.target.value / 100);
+setAmbient(state.altitude, state.deltaISA, state.rh);
 
 /* -------------------------- module picking --------------------------- */
 const ray = new THREE.Raycaster();

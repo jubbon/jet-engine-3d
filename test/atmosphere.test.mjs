@@ -1,4 +1,4 @@
-import { atmosphere, H_TROPOPAUSE, P0, RHO0 } from '../src/atmosphere.js';
+import { atmosphere, humidity, eSatWater, eSatIce, H_TROPOPAUSE, P0, RHO0 } from '../src/atmosphere.js';
 
 /* ------------------------------------------------------------------ *
  *  The standard atmosphere is one of the few things in this model with
@@ -126,6 +126,96 @@ for (const [h, t, p, rho] of TABLE) {
     `θ=${sea.theta.toFixed(4)} δ=${sea.delta.toFixed(4)} σ=${sea.sigma.toFixed(4)}`
   );
   check('sea level agrees with the exported constants', sea.p === P0 && near(sea.rho, RHO0));
+}
+
+/* ---------------------------- water vapour ---------------------------- */
+// The Magnus formula is an approximation of tabulated data, and the table is
+// again the yardstick. The tolerance is 0.5 %: the Alduchov - Eskridge
+// coefficients claim 0.4 % over water, and the published values themselves
+// differ in the third digit from source to source.
+{
+  // temperature, °C | saturation over water, Pa
+  const WATER = [
+    [-20, 125.40],
+    [0, 611.21],
+    [10, 1228.1],
+    [20, 2338.8],
+    [30, 4245.5],
+  ];
+  for (const [t, e] of WATER) {
+    check(`saturation over water at ${t} °C is ${e} Pa`, near(eSatWater(t), e, 0.005), `${eSatWater(t).toFixed(1)} Pa`);
+  }
+
+  // temperature, °C | saturation over ice, Pa
+  const ICE = [
+    [0, 611.21],
+    [-20, 103.24],
+    [-40, 12.83],
+  ];
+  for (const [t, e] of ICE) {
+    check(`saturation over ice at ${t} °C is ${e} Pa`, near(eSatIce(t), e, 0.005), `${eSatIce(t).toFixed(2)} Pa`);
+  }
+
+  check('at zero the two curves meet', near(eSatIce(0), eSatWater(0), 0.001));
+
+  // The gap between the curves is what a contrail lives on, and it must widen
+  // monotonically as it gets colder - otherwise the ice supersaturation below
+  // would be an artefact of the fit rather than physics.
+  let widening = true;
+  let prev = 1;
+  for (let t = -1; t >= -70; t--) {
+    const ratio = eSatIce(t) / eSatWater(t);
+    if (ratio >= prev) widening = false;
+    prev = ratio;
+  }
+  check('below zero ice saturates lower, and ever lower with cold', widening, `at −40 °C the ratio is ${(eSatIce(-40) / eSatWater(-40)).toFixed(3)}`);
+}
+
+/* -------------------- humidity of the ambient air --------------------- */
+{
+  const dry = humidity(15, 0);
+  check('dry air has no vapour and no dew point', dry.e === 0 && dry.dewPoint === null);
+  check('in dry frost there is no vapour over ice either', humidity(-20, 0).rhIce === 0);
+
+  // Above zero the ice curve runs above the water one - it is a formula
+  // extrapolated past the substance it describes, and saturated air would come
+  // out at 86 % "over ice". The ratio must not be reported there at all.
+  check('above freezing there is no saturation over ice', humidity(15, 1).rhIce === null);
+  check(
+    'and the extrapolated curve is indeed the wrong way round',
+    eSatIce(15) > eSatWater(15),
+    `${eSatIce(15).toFixed(0)} against ${eSatWater(15).toFixed(0)} Pa`
+  );
+  check('just below zero it is reported again', humidity(-0.5, 1).rhIce > 1);
+
+  const sat = humidity(15, 1);
+  check('at 100 % the dew point is the air temperature', Math.abs(sat.dewPoint - 15) < 0.02, `${sat.dewPoint.toFixed(3)} °C`);
+
+  // the dew point is the Magnus formula inverted, so it must invert it
+  let roundTrip = true;
+  for (const t of [-40, -10, 0, 15, 35]) {
+    if (Math.abs(humidity(t, 1).dewPoint - t) > 0.02) roundTrip = false;
+  }
+  check('the dew point inverts the saturation curve at any temperature', roundTrip);
+
+  const damp = humidity(15, 0.6);
+  check('below saturation the dew point is lower than the air', damp.dewPoint < 15, `${damp.dewPoint.toFixed(1)} °C at 60 %`);
+  check(
+    'drying the air lowers the dew point',
+    humidity(15, 0.3).dewPoint < damp.dewPoint && damp.dewPoint < humidity(15, 0.9).dewPoint
+  );
+
+  // The point of carrying humidity at all: at cruise level, air that a
+  // hygrometer would call far from saturated is already supersaturated over
+  // ice - the condition in which a contrail spreads instead of evaporating.
+  const cruise = atmosphere(11000);
+  const h = humidity(cruise.t, 0.6);
+  console.log(
+    `  at 11 km and 60 % over water: vapour ${h.e.toFixed(2)} Pa, ` +
+      `dew point ${h.dewPoint.toFixed(1)} °C, over ice ${(100 * h.rhIce).toFixed(0)} %`
+  );
+  check('60 % over water at cruise level is supersaturation over ice', h.rhIce > 1, `${(100 * h.rhIce).toFixed(0)} %`);
+  check('and 50 % is not yet', humidity(cruise.t, 0.5).rhIce < 1, `${(100 * humidity(cruise.t, 0.5).rhIce).toFixed(0)} %`);
 }
 
 console.log(failures ? `\n${failures} checks failed\n` : '\nall checks passed\n');

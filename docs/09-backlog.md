@@ -401,15 +401,18 @@ crossed with bands one day and clear the next, and it is worth showing
 explicitly — by switching between "no trail forms", "short-lived" and
 "persistent".
 
-**A dependency, now largely satisfied.** There are no contrails near the ground,
-so the task needed the model to be able to leave the parking apron at all. The
-ambient part of BL-06 is done: `src/atmosphere.js` gives temperature, pressure
-and density for an altitude and a deviation from standard, and `P` enters the
-Schmidt — Appleman slope directly. What is still missing is humidity — it was
-deliberately not added while it had no consumer, and this task is that consumer:
-a relative-humidity slider next to the two existing ones, and from it the
-ambient vapour pressure. The engine characteristics themselves are still not
-recomputed for altitude, but the criterion does not need them.
+**The dependency is satisfied.** There are no contrails near the ground, so the
+task needed the model to be able to leave the parking apron at all. The ambient
+part of BL-06 is done: `src/atmosphere.js` gives temperature, pressure and
+density for an altitude and a deviation from standard — `P` enters the
+Schmidt — Appleman slope directly — and `humidity()` gives the ambient vapour
+pressure, the dew point and the saturation over ice, which is exactly the
+quantity the fate of the trail turns on. The panel already shows that the air at
+eleven kilometres and 60 % relative humidity is at 102 % over ice, that is,
+ice-supersaturated: a trail formed there would spread rather than evaporate.
+What is left for this task is the jet side — the mixture at the nozzle exit, the
+criterion itself, the verdict and the drawing. The engine characteristics are
+still not recomputed for altitude, but the criterion does not need them.
 
 **How to draw it.** The flow computation domain currently ends at 8.6 units —
 about four metres behind the exit. The trail needs a different scale: it has to
@@ -477,10 +480,11 @@ pressure — the altitude here is the pressure altitude — so the slider shows
 directly why an engine loses thrust in the heat: 15 °C above standard makes the
 air 4.9 % thinner at the same pressure.
 
-Two controls named in the original plan were deliberately left out. **Humidity**
-has no consumer until BL-21 and would be a dead slider; **Mach number** belongs
-with ram compression below, which is not done. What remains of the task is
-everything to do with the engine itself.
+**Humidity** followed, with its own consumer so as not to be a dead slider: the
+vapour pressure and the dew point on the panel, and the saturation over ice that
+BL-21 will read. The **Mach number** is still absent — it belongs with ram
+compression below, which is not done. What remains of the task is everything to
+do with the engine itself.
 
 **Ram compression.** At speed the air is decelerated in the intake, and the gas
 arriving at the fan has raised pressure and temperature:
@@ -533,8 +537,8 @@ similarity relations need), `index.html`. To be documented in
 [Physics of the model](03-physics.md#9-what-the-model-does-not-have), where the
 absence of the recomputation is now stated explicitly.
 
-Related: BL-21 (contrail) needed only the ambient part, which is done; what it
-still lacks is a humidity slider. BL-02 (limits) — at altitude the
+Related: BL-21 (contrail) needed only the ambient part, and that part is now
+complete, humidity included. BL-02 (limits) — at altitude the
 corrected-speed limit becomes the governing one. BL-03 (surge) — the stability
 margin depends on the corrected parameters.
 
@@ -924,7 +928,7 @@ What to do:
   README should state the origin of the recordings and their licence — they were
   used to tune the sound, and it is honest to say so.
 
-What to check after publishing: the transfer size (the 657 kB bundle compresses
+What to check after publishing: the transfer size (the 658 kB bundle compresses
 to about 174 kB, which is acceptable, though BL-15 would improve it), behaviour
 on a phone — almost certainly surfacing what BL-11 describes — and that the
 sound does not try to start before the screen is touched.
@@ -1060,7 +1064,7 @@ the description loader from BL-23. To be documented in
 
 ### BL-15. Bundle splitting and LOD for blade rows
 
-The build is 657 kB (174 kB gzip), almost all of it Three.js; the cure is
+The build is 658 kB (174 kB gzip), almost all of it Three.js; the cure is
 `manualChunks`. Separately: rows with small blades are built at maximum detail
 regardless of distance — levels of detail would take some of the load off weaker
 machines. Both parts are needed if BL-11 is taken on.

@@ -23,9 +23,9 @@ port is better closed.
 ## Build size
 
 ```
-dist/index.html                 6.6 kB  (2.0 kB gzip)
-dist/assets/index-*.css         7.7 kB  (2.3 kB gzip)
-dist/assets/index-*.js        657 kB  (174 kB gzip)
+dist/index.html                 8.2 kB  (2.3 kB gzip)
+dist/assets/index-*.css         7.8 kB  (2.3 kB gzip)
+dist/assets/index-*.js        658 kB  (174 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
@@ -59,7 +59,7 @@ which are checked directly.
 
 ## Tests
 
-Six files, 102 checks. There is no framework: each test is a plain Node script
+Six files, 123 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -82,12 +82,15 @@ returns. Separately it checks that the copies of the spiral never spread further
 apart than its angular thickness — otherwise a fan of stripes would appear
 instead of an even ring.
 
-`test/atmosphere.test.mjs` — 27 checks of the ambient conditions against the ISA
-table: temperature, pressure and density at 0, 1, 5, 11 and 12 km, the join of
-the two branches at the tropopause, and a real day — a deviation from standard
-must move the density while leaving the pressure alone. This is one of the few
-places in the model with a published answer, so the comparison is against the
-table rather than against the model itself.
+`test/atmosphere.test.mjs` — 48 checks of the ambient conditions against
+published tables: temperature, pressure and density at 0, 1, 5, 11 and 12 km,
+the join of the two branches at the tropopause, and a real day — a deviation
+from standard must move the density while leaving the pressure alone. The
+saturation vapour pressure is checked the same way, over water and over ice,
+along with the inversion of the curve that gives the dew point and the refusal
+to report saturation over ice above freezing. This is one of the few places in
+the model with a published answer, so the comparison is against the table rather
+than against the model itself.
 
 `test/geometry.test.mjs` — 24 checks of the dimensions against the
 [prototype reference data](engines/cfm56-7b-nacelle.json). The test reads the

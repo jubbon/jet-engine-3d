@@ -34,8 +34,8 @@ Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
   checked numerically (`npm test`);
-* **`atmosphere.js`** — the standard atmosphere, checked against the published
-  table for the same reason;
+* **`atmosphere.js`** — the standard atmosphere and water vapour, checked
+  against the published tables for the same reason;
 * **`sound.js`** — accepts a substitute audio context, so the graph can be
   rendered in an `OfflineAudioContext` and measured.
 
@@ -45,15 +45,15 @@ check the rotor rundown other than watching the screen.
 | File | Lines | Responsibility |
 |---|---:|---|
 | `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 608 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/main.js` | 627 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/style.css` | 327 | Panel styling |
-| `index.html` | 168 | Markup of the panel, the legend and the module card |
+| `index.html` | 173 | Markup of the panel, the legend and the module card |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
-| `src/atmosphere.js` | 81 | Standard atmosphere: ambient temperature, pressure, density |
+| `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
 
 ## Data flow within a frame
 
@@ -65,7 +65,7 @@ flowchart LR
   ES --> AF[airflow.update<br/>particle speed and colour]
   ES --> SND[sound.update<br/>frequencies and levels]
   ES --> UI[Instruments, station table,<br/>status line]
-  AMB[Altitude, deviation<br/>from standard] --> AT[atmosphere<br/>T, P, ρ] --> UI
+  AMB[Altitude, deviation<br/>from standard, humidity] --> AT[atmosphere, humidity<br/>T, P, ρ, dew point] --> UI
   CAM[Camera] --> SND
 ```
 
