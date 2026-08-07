@@ -184,36 +184,51 @@ therefore, one makes no sense without the other: the accessories are collected
 into a group and rotated 62° about the axis, and only then does the flat bottom
 stop contradicting the layout.
 
-The depth of the cut is no longer chosen by eye. It is set by the width of the
+Where the flat sits is no longer chosen by eye. It is set by the width of the
 flat from the reference: at an outer radius of 2.44 units a chord 1.2 m wide is
-cut off at a depth of 0.16 m, hence `BELLY` = 0.32 units. That gives a nacelle
-height of 2.44 − 0.16 = 2.28 m — within the tolerance of the measured
-2.40 ± 0.2 m. The shortfall to 2.40 is made up by the pylon fairing: head-on it
-is exactly what obscured the top, which is what the reference warns about
-(`derived_low`, "a lower-bound estimate").
+cut off at a depth of 0.16 m, which puts the underside at y = −2.12
+(`BELLY_FLOOR`). That gives a nacelle height of 2.44 − 0.16 = 2.28 m — within
+the tolerance of the measured 2.40 ± 0.2 m. The shortfall to 2.40 is made up by
+the pylon fairing: head-on it is exactly what obscured the top, which is what
+the reference warns about (`derived_low`, "a lower-bound estimate").
 
 Surfaces of revolution are built by `lathe()`, so the shape is produced by
 deforming vertices: the bottom of each section is trimmed to the level `r − d`
 with a smooth minimum.
 
 ```js
+d  = max(0, r(x) − 2.12)
 y' = −smoothMin(−y, max(0.4·r, r − d), 0.09·r)
 ```
 
 Three decisions without which the shape comes out wrong:
 
-**The cowl profile is split into an outer skin and an inner gas path.** It used
-to be a single closed generatrix. The split is needed because the two are
-flattened differently: outside, the nacelle is flat from the lip to the fan
-cowls and becomes round towards the nozzle, while inside the intake must be
-round by the time it reaches the fan plane. The clearance between the barrel and
-the blade tips there is under 0.1 model units, and a flattened duct would simply
-shave them off.
+**What is held constant is the height of the underside, not the depth of the
+cut.** The flat is a plane; the depth therefore has to be taken from the local
+radius, deepest at the barrel where the cowl is widest. This used to be the
+other way round — a constant depth of 0.32 units — and the result was that the
+underside followed the taper of the cowl and climbed 0.33 m over the length of
+the intake. It read as a bevel across the bottom front corner, and a flattening
+that rises towards the lip is not a flattening but a chamfer: the clearance it
+exists to buy is measured to the lowest point of the nacelle, and that point has
+to stay put. The underside is now level to within a millimetre from 0.6 m aft of
+the lip all the way to the aft cowl.
 
-**The cut level is computed from the radius of each vertex, not from an absolute
-height.** On a `lathe` ring the radius is constant, so the level is shared by the
-whole ring, and the outer and inner surfaces keep their gap. With an absolute cut
-they would meet and fight over the depth.
+The cut runs out on its own about 0.3 m short of the lip, where the intake
+narrows past the floor. Forward of that the nacelle is simply narrower than the
+flat and there is nothing left to trim: a body of revolution of radius 1.70
+cannot reach down to 2.12. Carrying the flat right out to the lip needs an
+intake that is not a surface of revolution at all — see BL-20 in the
+[Backlog](09-backlog.md).
+
+**The inner gas path is never trimmed.** It nowhere exceeds 1.70 units, so it
+sits entirely above the floor and the plane misses it. That is also what settles
+the requirement the split of the profile was made for: the duct has to be round
+by the fan plane, where the clearance to the blade tips is under 0.1 model units
+and a flattened duct would shave them off. With the floor it is round
+everywhere, and the fade that used to taper the inner cut away is gone. The
+split into an outer skin and an inner gas path stays, because the two still
+differ — one is flattened and the other is not.
 
 **The fillet at the joint is kept tight (0.09·r).** With a soft transition the
 flattening spreads out along the sides and the intake reads as an oval rather

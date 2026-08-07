@@ -181,7 +181,7 @@ to show the engine in its place under the wing.
 The pairs in `tau` are the time constants of the LP and HP rotors by phase; they
 are already split exactly that way in `src/engineState.js`. The flags in
 `features` are not invented either: the flat nacelle bottom and the accessories
-moved to the side already exist in the code (`BELLY` and `AGB_TILT` in
+moved to the side already exist in the code (`BELLY_FLOOR` and `AGB_TILT` in
 `src/engine.js`), and once parameterised they will simply take their value from
 the file instead of from a constant.
 

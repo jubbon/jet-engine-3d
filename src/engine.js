@@ -203,6 +203,18 @@ function smoothProfile(points, samples) {
   return curve.getSpacedPoints(samples).map((p) => [p.x, p.y]);
 }
 
+/* Radius of the outer skin at a station. Reads NAC_OUTER, which is declared
+   further down - safe because the only caller is outerBelly(), and that runs
+   inside buildEngine(). */
+function skinRadiusAt(x) {
+  for (let i = 1; i < NAC_OUTER.length; i++) {
+    const [r0, x0] = NAC_OUTER[i - 1];
+    const [r1, x1] = NAC_OUTER[i];
+    if (x <= x1) return x1 === x0 ? r1 : THREE.MathUtils.lerp(r0, r1, (x - x0) / (x1 - x0));
+  }
+  return NAC_OUTER[NAC_OUTER.length - 1][0];
+}
+
 /* ------------------- flat bottom of the nacelle --------------------- *
  *  The 737 nacelle is not round: the bottom and the intake lip are
  *  flattened - the "hamster pouch". The reason is not stylistic. The 737
@@ -217,22 +229,47 @@ function smoothProfile(points, samples) {
  *  corner there is a rounded transition into the sides.
  * -------------------------------------------------------------------- */
 
-/* The depth of the cut comes from the reference via the width of the flat: at
-   an outer radius of 2.44 units a chord 1.2 m wide (2.4 units, the "hamster
-   pouch" seen head-on) is cut off at a depth of 0.16 m. That gives a nacelle
-   height of 2.44 - 0.16 = 2.28 m - within the tolerance of the measured
-   2.40 ± 0.2 m, and the shortfall to 2.40 is made up by the pylon fairing on
-   top, which is exactly what obscured the top of the nacelle when measuring
-   the head-on view. */
-const BELLY = 0.32; // 0.16 m
+/* Where the flat sits comes from the reference via the width of the flat: at an
+   outer radius of 2.44 units a chord 1.2 m wide (2.4 units, the "hamster pouch"
+   seen head-on) is cut off at a depth of 0.16 m. That puts the underside at
+   y = -2.12 and gives a nacelle height of 2.44 - 0.16 = 2.28 m - within the
+   tolerance of the measured 2.40 ± 0.2 m, and the shortfall to 2.40 is made up
+   by the pylon fairing on top, which is exactly what obscured the top of the
+   nacelle when measuring the head-on view. */
+const BELLY_FLOOR = 2.12; // 1.06 m below the axis
 
-// Outside, the nacelle is flat from the lip through the fan cowls and becomes round towards the nozzle.
-const outerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -0.8, 1.16));
+/* The flat is a PLANE, so what is held constant along the nacelle is the height
+   of the underside, not the depth of the cut. That distinction is the whole
+   point of the feature and it used to be got wrong here: with a constant depth
+   of 0.32 the underside followed the taper of the cowl and climbed 0.33 m over
+   the length of the intake, which read as a bevel cut across the bottom front
+   corner - and a flattening that rises towards the lip is not a flattening, it
+   is a chamfer. The clearance it exists to buy is measured to the lowest point
+   of the nacelle from the ground, and that point has to stay put.
 
-// Inside, however, the intake must be round by the time it reaches the fan
-// plane: the clearance to the blade tips there is under a tenth of a unit, and
-// a flattened duct would simply shave them off.
-const innerBelly = (x) => BELLY * (1 - THREE.MathUtils.smoothstep(x, -4.94, -3.6));
+   Taking the depth from the local radius makes the cut deepest at the barrel,
+   where the cowl is widest, and fade out by itself where the intake narrows
+   past the floor - around 0.3 m short of the lip. Forward of that the nacelle
+   is simply narrower than the flat and there is nothing left to trim: a body of
+   revolution of radius 1.70 cannot reach down to 2.12. Carrying the flat right
+   out to the lip needs an intake that is not a surface of revolution at all,
+   which is a separate piece of work (BL-20).
+
+   The same argument disposes of the fade that used to taper the cut away
+   towards the nozzle. It was there to stop a constant depth from following the
+   cowl round as it narrows; a plane needs no help - the cut runs out on its own
+   where the radius drops back through the floor, about 0.5 m short of the fan
+   nozzle. Keeping the fade as well only pulled the underside 17 mm below the
+   floor over the aft cowl, which put the lowest point of the whole nacelle in
+   the one place it has no business being. */
+const outerBelly = (x) => Math.max(0, skinRadiusAt(x) - BELLY_FLOOR);
+
+/* The inner gas path is never trimmed. It nowhere exceeds 1.70 units, so it
+   sits entirely above the floor - the flat plane misses it. That also settles
+   what used to need a separate fade: the duct has to be round by the fan plane,
+   where the clearance to the blade tips is under a tenth of a unit and a
+   flattened duct would shave them off, and now it is round everywhere. */
+const innerBelly = () => 0;
 
 // The angle by which the accessory gearbox is swung from the bottom of the
 // engine round to the side. It also sets the explode direction of the module

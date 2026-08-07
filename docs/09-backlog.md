@@ -623,10 +623,11 @@ toggle), `index.html` (button, module card). To be documented in
 
 **The main part is already done.** The nacelle has stopped being a surface of
 revolution: `flattenBelly()` trims the bottom of each section with a smooth
-minimum by `BELLY` = 0.32 units, the cowl profile is split into an outer skin
-and an inner gas path (flattened differently: outside, flat from the lip to the
-fan cowls; inside, only near the lip, otherwise it would shave the blade tips
-off), and the normals are welded at the 0 / 2π joint. The accessories have moved
+minimum down to a floor at y = −2.12 (`BELLY_FLOOR`), the cowl profile is split
+into an outer skin and an inner gas path (the skin is flattened, the duct is
+not — it never reaches down to the floor, which is what keeps it round at the
+fan plane where it would otherwise shave the blade tips off), and the normals
+are welded at the 0 / 2π joint. The accessories have moved
 from six o'clock to the side by a 62° rotation of the group, together with the
 picking proxy, the label and the explode vector — without which the flat bottom
 would contradict the layout. Details are in [Geometry](02-geometry.md).
@@ -642,8 +643,19 @@ JSON) and `test/clearance.test.mjs` (rows do not intersect, accessories do not
 pierce the skin). Details and consequences are in
 [Geometry](02-geometry.md#dimensions-from-sources).
 
-Three things remain, and the first of them is not decoration but a visible
+Four things remain, and the first of them is not decoration but a visible
 defect.
+
+* **The flat stops 0.3 m short of the lip.** The underside is a plane at
+  y = −2.12, so the cut runs out by itself where the intake narrows past it —
+  forward of that the nacelle is simply thinner than the flat and there is
+  nothing to trim. On the prototype the flat reaches the lip, which means the
+  intake there is not a surface of revolution: its lower part is carried down
+  below a circle of the same radius. Doing it properly means giving the intake
+  profile a dependence on circumferential angle, not just trimming what `lathe()`
+  produced. That is also the point at which the flat bottom stops being a
+  deformation applied afterwards and becomes part of the shape, which is the
+  right end state — and it is what the flow path needs too (below).
 
 * **The flow path does not know about the flat bottom.** The duct boundaries in
   `src/airflow.js` are given by tables of "axial coordinate → radius", that is,
