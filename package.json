@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs && node test/spiral-blur.test.mjs && node test/atmosphere.test.mjs && node test/contrail.test.mjs && node test/geometry.test.mjs && node test/clearance.test.mjs"
+    "test": "node test/engine-state.test.mjs && node test/heat-haze.test.mjs && node test/spiral-blur.test.mjs && node test/atmosphere.test.mjs && node test/contrail.test.mjs && node test/geometry.test.mjs && node test/clearance.test.mjs && node test/i18n.test.mjs"
   },
   "keywords": [
     "three.js",

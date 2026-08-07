@@ -14,7 +14,10 @@ graph TD
   M --> AT[atmosphere.js<br/>ambient conditions]
   M --> CT[contrail.js<br/>Schmidt — Appleman criterion]
   M --> CV[contrailView.js<br/>the trail itself]
+  M --> L[i18n.js<br/>lookup, interpolation,<br/>number formatting]
+  L --> LOC[["locales/*.js<br/>eight dictionaries"]]
   E --> B[blade.js<br/>blade generator]
+  L -.checked by.-> T7[test/i18n.test.mjs]
   ST -.checked by.-> T[test/engine-state.test.mjs]
   ST -.checked by.-> T2[test/heat-haze.test.mjs]
   E -.checked by.-> T3[test/spiral-blur.test.mjs]
@@ -33,9 +36,11 @@ graph TD
   style T5 fill:#1c3a4d,stroke:#4fc3ff
   style CT fill:#1c3a4d,stroke:#4fc3ff
   style T6 fill:#1c3a4d,stroke:#4fc3ff
+  style L fill:#1c3a4d,stroke:#4fc3ff
+  style T7 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Dependencies run one way. Four modules deliberately know nothing about either
+Dependencies run one way. Five modules deliberately know nothing about either
 Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
@@ -45,25 +50,37 @@ Three.js or the DOM:
 * **`contrail.js`** — the formation criterion, separated from the drawing in
   `contrailView.js` for the same reason;
 * **`sound.js`** — accepts a substitute audio context, so the graph can be
-  rendered in an `OfflineAudioContext` and measured.
+  rendered in an `OfflineAudioContext` and measured;
+* **`i18n.js`** — lookup, `{placeholder}` interpolation, number formatting and
+  matching the reader's languages against the eight we have. Kept pure because
+  eight dictionaries drift apart in silence: a key added to the English and
+  forgotten elsewhere costs nothing at build time and surfaces as an English
+  word in the middle of a Japanese panel. Comparing them key by key is only
+  possible if nothing here needs a browser.
 
 This is not abstraction for its own sake: without it there would be no way to
 check the rotor rundown other than watching the screen.
 
 | File | Lines | Responsibility |
 |---|---:|---|
-| `src/engine.js` | 1243 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 726 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/locales/*.js` | 1355 | Eight dictionaries, 128 keys each |
+| `src/engine.js` | 1194 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 830 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/style.css` | 359 | Panel styling |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
-| `src/style.css` | 334 | Panel styling |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
-| `index.html` | 192 | Markup of the panel, the legend and the module card |
+| `index.html` | 219 | Markup of the panel, the legend and the module card |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
 | `src/contrailView.js` | 158 | The trail itself: a camera-facing strip along the axis |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
+| `src/i18n.js` | 96 | Lookup, interpolation, number formatting, locale matching |
+
+`engine.js` lost 49 lines to localisation and `main.js` gained 104: the module
+card prose moved out of the geometry into the dictionary, and the panel gained
+the switcher and the code that re-renders everything on a language change.
 
 ## Data flow within a frame
 

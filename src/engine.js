@@ -331,10 +331,14 @@ export function buildEngine() {
   const n1Rotors = [];
   const n2Rotors = [];
 
-  function module(name, title, info, explode) {
+  // The card text is not carried here any more: it lives in the dictionary
+  // under module.<name>.title and module.<name>.info, keyed off this name.
+  // That keeps this file about geometry, and it lets a card that is already
+  // open be re-rendered when the language changes.
+  function module(name, explode) {
     const g = new THREE.Group();
     g.name = name;
-    g.userData = { title, info, explode: explode || new THREE.Vector3(), base: new THREE.Vector3() };
+    g.userData = { explode: explode || new THREE.Vector3(), base: new THREE.Vector3() };
     root.add(g);
     modules.push(g);
     return g;
@@ -347,12 +351,7 @@ export function buildEngine() {
   }
 
   /* ===================== 1. Nacelle / intake ========================= */
-  const mNac = module(
-    'nacelle',
-    'Nacelle and air intake',
-    'Intake barrel with anti-icing, fan cowls and the bypass duct. Largest dimension 2.44 m, length to the fan nozzle exit 3.18 m. The bottom and the lip are flattened (the "hamster pouch"): the 737 wing sits low above the ground.',
-    new THREE.Vector3(0, 4.4, 0)
-  );
+  const mNac = module('nacelle', new THREE.Vector3(0, 4.4, 0));
 
   // The cowl profile is split into two halves: the outer skin runs aft, the
   // inner one comes back forward. Together they form one closed shell, but they
@@ -446,12 +445,7 @@ export function buildEngine() {
   mNac.add(pylon);
 
   /* ===================== 2. Fan ====================================== */
-  const mFan = module(
-    'fan',
-    'Fan (N1)',
-    '24 wide-chord blades, largest chord 0.279 m. Diameter 1.549 m, 5175 rpm at take-off power. Produces up to 80 % of the thrust by driving air into the bypass duct. Bypass ratio 5.1.',
-    new THREE.Vector3(-2.6, 0, 0)
-  );
+  const mFan = module('fan', new THREE.Vector3(-2.6, 0, 0));
 
   // Fan case with the containment ring. The outer radius is the overall height
   // of the bare engine, 1.829 m; the intake bolts onto this case at flange A1
@@ -550,12 +544,7 @@ export function buildEngine() {
   mFan.add(bladeRow(ogv, MATS.titanium, 44));
 
   /* ===================== 3. Booster (LP compressor) ================== */
-  const mBoost = module(
-    'booster',
-    'Booster, LP compressor (N1)',
-    'Low-pressure compressor: 3 stages on the fan shaft. It raises the core air to about 2.5 bar ahead of the HP compressor.',
-    new THREE.Vector3(-1.7, 0, 0)
-  );
+  const mBoost = module('booster', new THREE.Vector3(-1.7, 0, 0));
 
   // flow splitter and booster casing
   mBoost.add(
@@ -629,12 +618,7 @@ export function buildEngine() {
   });
 
   /* ===================== 4. HP compressor ============================ */
-  const mHpc = module(
-    'hpc',
-    'High-pressure compressor (N2)',
-    '9 stages. It compresses the air by a factor of about 11; together with the fan and the booster that gives an overall pressure ratio of about 28 and heating to 550-600 °C. Some of the air is bled off for turbine cooling and air conditioning.',
-    new THREE.Vector3(-0.8, 0, 0)
-  );
+  const mHpc = module('hpc', new THREE.Vector3(-0.8, 0, 0));
 
   const hpcStages = 9;
   const hpcX = (i) => THREE.MathUtils.lerp(ST.hpcIn, ST.hpcOut, i / (hpcStages - 1));
@@ -714,12 +698,7 @@ export function buildEngine() {
   }
 
   /* ===================== 5. Combustor ================================ */
-  const mComb = module(
-    'combustor',
-    'Combustor',
-    'Annular chamber with 20 fuel nozzles. Fuel burns at 1800-2000 °C; air from the HP compressor film-cools the flame tube. Only about 25 % of the air takes part in combustion, the rest is cooling and dilution.',
-    new THREE.Vector3(0, 0, 0)
-  );
+  const mComb = module('combustor', new THREE.Vector3(0, 0, 0));
 
   // diffuser
   mComb.add(
@@ -844,12 +823,7 @@ export function buildEngine() {
   mComb.add(flame);
 
   /* ===================== 6. HP turbine =============================== */
-  const mHpt = module(
-    'hpt',
-    'High-pressure turbine (N2)',
-    '1 stage. Single-crystal blades with internal air cooling and a ceramic coating work in gas at 1500 °C - above the melting point of the alloy. One stage is enough because it takes a large pressure drop at a high blade speed: it drives the HP compressor at about 14 500 rpm.',
-    new THREE.Vector3(0.9, 0, 0)
-  );
+  const mHpt = module('hpt', new THREE.Vector3(0.9, 0, 0));
   mHpt.add(
     lathe(
       [
@@ -907,12 +881,7 @@ export function buildEngine() {
   hptRot.add(drum(ST.hptIn + 0.04, ST.hptOut - 0.02, 0.44, 0.44, MATS.diskHot));
 
   /* ===================== 7. LP turbine =============================== */
-  const mLpt = module(
-    'lpt',
-    'Low-pressure turbine (N1)',
-    '4 large-diameter stages. It extracts the remaining energy from the gas and drives the fan and the booster through a long shaft (5175 rpm at take-off power).',
-    new THREE.Vector3(1.9, 0, 0)
-  );
+  const mLpt = module('lpt', new THREE.Vector3(1.9, 0, 0));
 
   const lptCase = [];
   for (let i = 0; i <= 8; i++) {
@@ -986,12 +955,7 @@ export function buildEngine() {
   lptRot.add(drum(ST.lptIn - 0.1, ST.lptOut + 0.1, 0.46, 0.5, MATS.diskHot));
 
   /* ===================== 8. Rear frame and nozzle ==================== */
-  const mExh = module(
-    'exhaust',
-    'Turbine rear frame and core nozzle',
-    'The struts of the rear frame carry the LP shaft bearing and straighten the swirl out of the gas. The plug shapes the nozzle; the jet leaves at 400-500 m/s and 550-600 °C.',
-    new THREE.Vector3(2.9, 0, 0)
-  );
+  const mExh = module('exhaust', new THREE.Vector3(2.9, 0, 0));
   const strut = makeBladeGeometry({
     hubRadius: 0.56,
     tipRadius: 1.12,
@@ -1031,12 +995,7 @@ export function buildEngine() {
   mExh.add(plug);
 
   /* ===================== 9. Core cowl ================================ */
-  const mCowl = module(
-    'cowl',
-    'Inner wall of the bypass duct',
-    'The wall separating the cold bypass duct from the hot core. Inside it sit the accessories, the pipework and the thermal insulation.',
-    new THREE.Vector3(0, -3.4, 0)
-  );
+  const mCowl = module('cowl', new THREE.Vector3(0, -3.4, 0));
   // The outer surface of the cowl is the inner wall of the bypass duct. Its
   // radius, together with the nacelle barrel, sets the fan nozzle area: at 1.62
   // and 1.14 units at the exit that is 1.04 m² - which is what the bypass duct
@@ -1069,12 +1028,7 @@ export function buildEngine() {
   mCowl.add(lathe(cowlPts, MATS.coreCowl, 96));
 
   /* ===================== 10. Shafts and accessories ================== */
-  const mShaft = module(
-    'shafts',
-    'Rotor shafts',
-    'Two coaxial shafts: the LP shaft (fan + booster + LP turbine) runs inside the hollow HP shaft (HP compressor + HP turbine). The rotors turn independently at different speeds.',
-    new THREE.Vector3(0, 0, 0)
-  );
+  const mShaft = module('shafts', new THREE.Vector3(0, 0, 0));
   const lpShaftRot = rotor(mShaft, 1);
   const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 4.8, 24), MATS.shaft);
   lp.rotation.z = -Math.PI / 2;
@@ -1104,12 +1058,7 @@ export function buildEngine() {
     mShaft.add(b);
   });
 
-  const mAcc = module(
-    'accessory',
-    'Accessory gearbox and accessories',
-    'A bevel drive off the HP shaft powers the fuel and oil pumps, the generators and the starter. The bleed air pipework and the FADEC units live here too. On the 737 the gearbox is moved from underneath the engine to the side - which is what allowed the bottom of the nacelle to be flattened.',
-    AGB_EXPLODE
-  );
+  const mAcc = module('accessory', AGB_EXPLODE);
   // Everything bolted on is laid out as if it hung underneath, then the whole
   // assembly is rotated to the side: that keeps the bottom of the engine clear
   // for the flat nacelle.
@@ -1154,19 +1103,21 @@ export function buildEngine() {
   });
 
   /* ===================== module labels =============================== */
+  // Keys rather than text, for the same reason as the module cards: main.js
+  // resolves them, and can re-resolve them when the language changes.
   const labels = [
-    { module: mNac, text: 'Nacelle', pos: new THREE.Vector3(-4.0, 2.5, 0) },
-    { module: mFan, text: 'Fan', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
-    { module: mBoost, text: 'Booster', pos: new THREE.Vector3(-2.56, 1.02, 0) },
-    { module: mHpc, text: 'HPC', pos: new THREE.Vector3(-1.61, 0.9, 0) },
-    { module: mComb, text: 'Combustor', pos: new THREE.Vector3(-0.56, 0.98, 0) },
-    { module: mHpt, text: 'HPT', pos: new THREE.Vector3(-0.03, 1.02, 0) },
-    { module: mLpt, text: 'LPT', pos: new THREE.Vector3(0.74, 1.18, 0) },
-    { module: mExh, text: 'Nozzle', pos: new THREE.Vector3(3.2, 0.85, 0) },
-    { module: mShaft, text: 'LP / HP shafts', pos: new THREE.Vector3(-0.96, -0.42, 0) },
+    { module: mNac, key: 'label.nacelle', pos: new THREE.Vector3(-4.0, 2.5, 0) },
+    { module: mFan, key: 'label.fan', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
+    { module: mBoost, key: 'label.booster', pos: new THREE.Vector3(-2.56, 1.02, 0) },
+    { module: mHpc, key: 'label.hpc', pos: new THREE.Vector3(-1.61, 0.9, 0) },
+    { module: mComb, key: 'label.combustor', pos: new THREE.Vector3(-0.56, 0.98, 0) },
+    { module: mHpt, key: 'label.hpt', pos: new THREE.Vector3(-0.03, 1.02, 0) },
+    { module: mLpt, key: 'label.lpt', pos: new THREE.Vector3(0.74, 1.18, 0) },
+    { module: mExh, key: 'label.nozzle', pos: new THREE.Vector3(3.2, 0.85, 0) },
+    { module: mShaft, key: 'label.shafts', pos: new THREE.Vector3(-0.96, -0.42, 0) },
     {
       module: mAcc,
-      text: 'Accessory gearbox',
+      key: 'label.accessory',
       // the label swings to the side together with the gearbox itself
       pos: new THREE.Vector3(-2.46, -2.3, 0).applyAxisAngle(AGB_AXIS, AGB_TILT),
     },

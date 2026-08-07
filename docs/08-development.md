@@ -23,13 +23,21 @@ port is better closed.
 ## Build size
 
 ```
-dist/index.html                 9.2 kB  (2.5 kB gzip)
-dist/assets/index-*.css         7.9 kB  (2.4 kB gzip)
-dist/assets/index-*.js        667 kB  (177 kB gzip)
+dist/index.html                12.3 kB  (3.5 kB gzip)
+dist/assets/index-*.css         8.1 kB  (2.4 kB gzip)
+dist/assets/index-*.js        731 kB  (198 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
 itself. It can be addressed with `manualChunks` if needed.
+
+Of the JS, 64 kB is the eight locale dictionaries — about 8 kB each, all of them
+bundled. Lazy loading them through dynamic `import()` would save some 19 kB
+gzipped on first load, at the cost of an async boundary at start-up and a flash
+of untranslated text; at 8 kB apiece that is a bad trade. It becomes worth
+revisiting if the teaching layer (BL-22) multiplies the text volume, and the
+change would be at the single point where a locale is loaded — no `t()` call
+site moves.
 
 ## Performance
 
@@ -54,12 +62,12 @@ If the scene needs lightening:
 A note on headless browsers: one renders this scene on a software rasteriser
 (SwiftShader) at about one frame per second. That says nothing about real
 hardware, but it does make checking long processes through a browser impossible
-— hence the extracted modules `engineState.js`, `atmosphere.js`, `contrail.js`
-and `sound.js`, which are checked directly.
+— hence the extracted modules `engineState.js`, `atmosphere.js`, `contrail.js`,
+`sound.js` and `i18n.js`, which are checked directly.
 
 ## Tests
 
-Seven files, 150 checks. There is no framework: each test is a plain Node script
+Eight files, 210 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -121,6 +129,20 @@ gearbox holds the overall engine width without piercing the nacelle skin. This
 is insurance against the main risk of a tight layout: the core is short, the
 stage pitch is small, and any addition to a blade chord drops the rows onto each
 other.
+
+`test/i18n.test.mjs` — 60 checks of the localisation, and most of them are about
+agreement rather than content. All eight dictionaries must carry exactly the key
+set of the English one, with the same `{placeholders}` in every value and
+nothing left empty: a key added to `en.js` and forgotten in the other seven
+costs nothing at build time and shows up as an English word in the middle of a
+Japanese panel, and a translator who drops `{margin}` leaves a hole in a
+sentence that nothing else would catch. The rest cover locale matching
+(`pt-PT` → `pt-BR`, `zh-TW` → `zh-Hans`, an unknown language → English), number
+formatting (the decimal comma in five of the eight, and no thousands separator
+anywhere — grouped, a T4 of 1604 °C reads as German "1.604 °C"), and the
+agreement between `index.html` and the dictionary: every `data-i18n` names a key
+that exists, no tagged element has child tags, and the English left in the
+markup still says what `en.js` says.
 
 The sound is checked separately, by rendering the graph into an
 `OfflineAudioContext` (method and results in the [sound document](06-sound.md)).
@@ -197,9 +219,11 @@ src/atmosphere.js       standard atmosphere and water vapour
 src/contrail.js         contrail formation criterion
 src/contrailView.js     the trail behind the engine
 src/sound.js            sound synthesis on Web Audio
+src/i18n.js             lookup, interpolation, number formatting, locale matching
+src/locales/            eight dictionaries; en.js is the source, the rest follow it
 src/style.css           panel styling
 test/                   state machine, exhaust gas, spiral smear, atmosphere,
-                        contrail, dimensions and layout clearances
+                        contrail, dimensions, layout clearances and localisation
 docs/                   this documentation
 docs/engines/           machine-readable reference data on prototypes (JSON)
 ```

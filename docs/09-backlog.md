@@ -722,13 +722,34 @@ needed is a compact layout, collapsible sections and a sensible response to
 touch. While at it, check that the scene runs at all on a mobile GPU — at 758
 thousand triangles that is not obvious, and here the task joins up with BL-15.
 
-### BL-12. Russian localisation
+### BL-12. Localisation — **done**
 
-All the terminology is now English. The strings from `index.html` and the
-modules would have to be moved into a dictionary and a language switch added.
-The size is mostly determined by the fact that the module labels and cards live
-in the code. The repository was originally written in Russian, so the wording
-for the second language already exists in the git history.
+Eight languages: English, Russian, Spanish, Chinese (Simplified), French,
+Portuguese (Brazilian), German and Japanese. The switcher is at the top of the
+panel, the choice is kept in `localStorage`, and a first visit is matched
+against the browser's own languages. See [`07-ui`](07-ui.md#interface-language).
+
+This entry used to say the task was Russian only, and that the wording for a
+second language was recoverable from the git history because the repository was
+originally written in Russian. That was wrong: a scan of every commit reachable
+from every ref finds no Cyrillic in any `.js` or `.html` file, including the
+initial commit. All eight dictionaries were written from scratch.
+
+Two things turned out to matter more than the volume of text, which is only
+about 5 kB per language:
+
+* The contrail explanation was assembled by concatenating clauses. Word order
+  differs across the eight, so the fragments became whole sentences with the one
+  remaining seam on a sentence boundary. The ceiling in "nowhere between the
+  ground and 12 km" was a copy of `H_MAX` from `contrail.js` and is now a
+  parameter, so eight translations cannot go stale if the search range moves.
+* `Intl.NumberFormat` localises the decimal separator, which is the point, but
+  it also groups thousands — and a T4 of 1604 °C printed as German `1.604 °C`
+  reads as a number with a decimal point. Grouping is off.
+
+What is left over and deliberately not done here: the language does not appear
+in the URL (that belongs to BL-10), and imperial units are a separate axis from
+language and would be their own task.
 
 ## Teaching layer
 
@@ -879,8 +900,8 @@ What to do:
   README should state the origin of the recordings and their licence — they were
   used to tune the sound, and it is honest to say so.
 
-What to check after publishing: the transfer size (the 667 kB bundle compresses
-to about 177 kB, which is acceptable, though BL-15 would improve it), behaviour
+What to check after publishing: the transfer size (the 731 kB bundle compresses
+to about 198 kB, which is acceptable, though BL-15 would improve it), behaviour
 on a phone — almost certainly surfacing what BL-11 describes — and that the
 sound does not try to start before the screen is touched.
 
@@ -1015,12 +1036,16 @@ the description loader from BL-23. To be documented in
 
 ### BL-15. Bundle splitting and LOD for blade rows
 
-The build is 667 kB (177 kB gzip), almost all of it Three.js; the cure is
-`manualChunks`. Separately: rows with small blades are built at maximum detail
-regardless of distance — levels of detail would take some of the load off weaker
-machines. Both parts are needed if BL-11 is taken on.
+The build is 731 kB (198 kB gzip), almost all of it Three.js; the cure is
+`manualChunks`. A further 64 kB is the eight locale dictionaries, which are all
+bundled: lazy-loading them through dynamic `import()` would save about 19 kB
+gzipped and belongs in this task rather than in BL-12, since it is the same
+splitting question. Separately: rows with small blades are built at maximum
+detail regardless of distance — levels of detail would take some of the load off
+weaker machines. Both parts are needed if BL-11 is taken on.
 
-Touches: the Vite configuration, `src/blade.js`, `src/engine.js`.
+Touches: the Vite configuration, `src/blade.js`, `src/engine.js`,
+`src/locales/index.js`.
 
 ### BL-16. Automated run of the sound test
 

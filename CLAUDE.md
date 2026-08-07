@@ -20,7 +20,7 @@ npm install
 npm run dev      # Vite on port 5188, listening on 0.0.0.0
 npm run build    # build into dist/
 npm run preview
-npm test         # all seven test files in sequence
+npm test         # all eight test files in sequence
 ```
 
 A single test runs directly, with no runner and no flags:
@@ -79,14 +79,16 @@ Dependencies run one way, and `main.js` is the only orchestrator:
 index.html → main.js → engine.js → blade.js
                      → airflow.js  heathaze.js  sound.js  engineState.js
                      → atmosphere.js → contrail.js → contrailView.js
+                     → i18n.js → locales/*.js
 ```
 
-**`engineState.js`, `atmosphere.js`, `contrail.js` and `sound.js` deliberately know nothing about Three.js or
+**`engineState.js`, `atmosphere.js`, `contrail.js`, `sound.js` and `i18n.js` deliberately know nothing about Three.js or
 the DOM.** This is not abstraction for its own sake: a headless browser renders
 this scene on a software rasteriser at about 1 fps, so a forty-second engine
 start simply cannot be checked through a browser. The regime state machine is
 run under Node, the sound graph in an `OfflineAudioContext`
-(`createEngineSound({ makeContext })`).
+(`createEngineSound({ makeContext })`), and the eight dictionaries are compared
+against each other key by key.
 
 Worth knowing before making changes:
 
@@ -108,6 +110,13 @@ Worth knowing before making changes:
   and raycasting them on every mouse move is unacceptable. Add a module and add
   a proxy for it to the `PROXY` array, otherwise it simply will not be
   selectable.
+* **Every user-visible string goes through `t(key)`**, and the dictionaries in
+  `src/locales/` are the authority — `index.html` keeps its English only so the
+  file stays readable, and a test fails if the two disagree. Module cards and
+  3D labels are keyed off the module name (`module.fan.title`), so adding a
+  module means adding its keys to all eight files; the parity test will say so.
+  Sentences assembled at run time are stored whole, never glued from fragments:
+  the word order that works in English has no counterpart in Japanese.
 * **The cutaway** is two `THREE.Plane`s with `clipIntersection = true`, assigned
   only to the shell materials (`getShellMaterials()`). Rotors and blades stay
   whole, giving the classic cutaway. A material added without the
@@ -137,6 +146,7 @@ failure. Write new ones in the same style.
 | `contrail.test.mjs` | The Schmidt — Appleman criterion, checked through tangency of the mixing line to the saturation curve rather than against its own fit |
 | `geometry.test.mjs` | Dimensions against the reference, stage counts, intake depth, station ordering |
 | `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin |
+| `i18n.test.mjs` | The eight dictionaries agree: same keys, same `{placeholders}`, nothing empty. Locale matching, number formatting, and that the English left in `index.html` still says what the dictionary says |
 
 `geometry` and `clearance` build the **real scene** through `buildEngine()`
 right under Node — Three.js allows that without a renderer. The envelopes are
@@ -178,8 +188,12 @@ rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
 The yardstick as of today (recount it, do not copy it): 758 thousand triangles,
-123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 150
-checks across seven test files. The build is 667 kB of JS, 177 kB gzipped.
+123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 210
+checks across eight test files. The build is 731 kB of JS, 198 kB gzipped.
+
+The bundle grew by 64 kB when the interface was localised into eight languages:
+the dictionaries are about 8 kB apiece and all of them ship, since lazy loading
+would buy back 19 kB gzipped at the cost of a flash of untranslated text.
 
 It has accumulated before: `01` and `08` promised ~850 thousand triangles and
 ~50 draw calls for a long time, and the draw calls were off by a factor of three

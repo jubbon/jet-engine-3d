@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Turbofan engine — interactive 3D model</title>
+    <!-- The English here is not the source of truth: src/locales/en.js is, and
+         applyStatic overwrites every data-i18n element on load. The words are
+         kept in the markup so this file stays readable and the panel is not
+         blank for the tick before the module graph evaluates; a test pins the
+         two copies together. -->
+    <title data-i18n="app.title">Turbofan engine — interactive 3D model</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b0e13' stroke='%234fc3ff' stroke-width='2'/%3E%3Cg stroke='%234fc3ff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M16 5v7M16 20v7M5 16h7M20 16h7M8.2 8.2l5 5M18.8 18.8l5 5M23.8 8.2l-5 5M13.2 18.8l-5 5'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='3.2' fill='%23ff7a2f'/%3E%3C/svg%3E"
@@ -18,34 +23,49 @@
       <!-- --------------------------- control panel --------------------------- -->
       <aside id="panel">
         <header>
-          <h1>Turbofan engine</h1>
-          <p class="sub">High-bypass turbofan · interactive model</p>
+          <h1 data-i18n="panel.h1">Turbofan engine</h1>
+          <p class="sub" data-i18n="panel.sub">High-bypass turbofan · interactive model</p>
+          <!-- Endonyms, so the list reads the same whatever the current
+               language is and a reader looks for their own script rather than
+               a translated language name. The aria-label stays English on
+               purpose: it names the control for a screen reader that has not
+               been switched yet. -->
+          <select id="lang" aria-label="Language">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="es">Español</option>
+            <option value="zh-Hans">中文</option>
+            <option value="fr">Français</option>
+            <option value="pt-BR">Português</option>
+            <option value="de">Deutsch</option>
+            <option value="ja">日本語</option>
+          </select>
         </header>
 
         <section class="block">
           <button id="btn-flow" class="big">
             <span class="ic">≋</span>
             <span>
-              <b>Air flows</b>
-              <small>cold bypass duct and hot jet</small>
+              <b data-i18n="panel.flow.title">Air flows</b>
+              <small data-i18n="panel.flow.hint">cold bypass duct and hot jet</small>
             </span>
           </button>
           <button id="btn-cut" class="big">
             <span class="ic">◐</span>
             <span>
-              <b>Look inside</b>
-              <small>cut-away casing, view of the rotor</small>
+              <b data-i18n="panel.cut.title">Look inside</b>
+              <small data-i18n="panel.cut.hint">cut-away casing, view of the rotor</small>
             </span>
           </button>
           <button id="btn-sound" class="big">
             <span class="ic">♪</span>
             <span>
-              <b>Engine sound</b>
-              <small>synthesised from N1 and N2</small>
+              <b data-i18n="panel.sound.title">Engine sound</b>
+              <small data-i18n="panel.sound.hint">synthesised from N1 and N2</small>
             </span>
           </button>
           <div id="vol-row" class="collapsed">
-            <label class="row"><span>Volume</span><b id="val-vol">50 %</b></label>
+            <label class="row"><span data-i18n="panel.volume">Volume</span><b id="val-vol">50 %</b></label>
             <input id="vol" type="range" min="0" max="100" value="50" />
           </div>
         </section>
@@ -59,11 +79,11 @@
             </span>
           </button>
           <div class="statusbar" id="mode-bar">
-            <span>State</span>
+            <span data-i18n="panel.state">State</span>
             <b id="val-mode">RUNNING</b>
           </div>
           <div class="statusbar" id="speed-bar">
-            <span>Time scale</span>
+            <span data-i18n="panel.timescale">Time scale</span>
             <span class="seg">
               <button id="ts-1" class="on" type="button">×1</button>
               <button id="ts-4" type="button">×4</button>
@@ -71,16 +91,17 @@
           </div>
           <div id="thr-wrap">
             <label class="row">
-              <span>Engine power (throttle)</span>
+              <span data-i18n="panel.throttle">Engine power (throttle)</span>
               <b id="val-thr">85 %</b>
             </label>
             <input id="thr" type="range" min="0" max="100" value="85" />
           </div>
+          <!-- N1, N2 and T4 are instrument markings, not words, and stay put -->
           <div class="gauges">
-            <div><i>N1</i><b id="val-n1">—</b><small>fan</small></div>
-            <div><i>N2</i><b id="val-n2">—</b><small>HP rotor</small></div>
-            <div><i>T4</i><b id="val-t4">—</b><small>ahead of HPT</small></div>
-            <div><i>Thrust</i><b id="val-thrust">—</b><small>computed</small></div>
+            <div><i>N1</i><b id="val-n1">—</b><small data-i18n="gauge.n1.sub">fan</small></div>
+            <div><i>N2</i><b id="val-n2">—</b><small data-i18n="gauge.n2.sub">HP rotor</small></div>
+            <div><i>T4</i><b id="val-t4">—</b><small data-i18n="gauge.t4.sub">ahead of HPT</small></div>
+            <div><i data-i18n="gauge.thrust.label">Thrust</i><b id="val-thrust">—</b><small data-i18n="gauge.thrust.sub">computed</small></div>
           </div>
         </section>
 
@@ -88,26 +109,27 @@
              air around it can be moved up to the cruise levels -->
         <section class="block" id="amb">
           <div class="statusbar">
-            <span>Ambient conditions</span>
+            <span data-i18n="amb.title">Ambient conditions</span>
             <span class="seg">
               <button id="alt-0" class="on" type="button">0 km</button>
               <button id="alt-3" type="button">3 km</button>
               <button id="alt-11" type="button">11 km</button>
             </span>
           </div>
-          <label class="row"><span>Altitude</span><b id="val-alt">0.0 km</b></label>
+          <label class="row"><span data-i18n="amb.altitude">Altitude</span><b id="val-alt">0.0 km</b></label>
           <input id="alt" type="range" min="0" max="120" value="0" />
-          <label class="row"><span>Deviation from standard</span><b id="val-isa">0 °C</b></label>
+          <label class="row"><span data-i18n="amb.isa">Deviation from standard</span><b id="val-isa">0 °C</b></label>
           <input id="isa" type="range" min="-30" max="30" value="0" />
-          <label class="row"><span>Relative humidity</span><b id="val-rh">60 %</b></label>
+          <label class="row"><span data-i18n="amb.rh">Relative humidity</span><b id="val-rh">60 %</b></label>
           <input id="rh" type="range" min="0" max="100" value="60" />
+          <!-- the bar and kg/m³ captions are unit symbols, not translatable -->
           <div class="gauges" id="amb-out">
-            <div><i>T</i><b id="val-amb-t">—</b><small>outside air</small></div>
+            <div><i>T</i><b id="val-amb-t">—</b><small data-i18n="amb.t.sub">outside air</small></div>
             <div><i>P</i><b id="val-amb-p">—</b><small>bar</small></div>
             <div><i>ρ</i><b id="val-amb-rho">—</b><small>kg/m³</small></div>
-            <div><i>Td</i><b id="val-amb-td">—</b><small>dew point</small></div>
-            <div><i>e</i><b id="val-amb-e">—</b><small>vapour, Pa</small></div>
-            <div><i>RHi</i><b id="val-amb-rhi">—</b><small>over ice</small></div>
+            <div><i>Td</i><b id="val-amb-td">—</b><small data-i18n="amb.td.sub">dew point</small></div>
+            <div><i>e</i><b id="val-amb-e">—</b><small data-i18n="amb.e.sub">vapour, Pa</small></div>
+            <div><i>RHi</i><b id="val-amb-rhi">—</b><small data-i18n="amb.rhi.sub">over ice</small></div>
           </div>
         </section>
 
@@ -115,65 +137,70 @@
              engine enters it only through the efficiency -->
         <section class="block" id="trail">
           <div class="statusbar off" id="trail-bar">
-            <span>Contrail</span>
+            <span data-i18n="trail.title">Contrail</span>
             <b id="val-trail">—</b>
           </div>
-          <label class="row"><span>Propulsive efficiency</span><b id="val-eta">0.30</b></label>
+          <label class="row"><span data-i18n="trail.eta">Propulsive efficiency</span><b id="val-eta">0.30</b></label>
           <input id="eta" type="range" min="0" max="50" value="30" />
           <div class="gauges" id="trail-out">
             <div><i>G</i><b id="val-g">—</b><small>Pa/K</small></div>
-            <div><i>T thr</i><b id="val-tform">—</b><small>forms below</small></div>
-            <div><i>T mix</i><b id="val-tmix">—</b><small>at the nozzle</small></div>
+            <div><i>T thr</i><b id="val-tform">—</b><small data-i18n="trail.tform.sub">forms below</small></div>
+            <div><i>T mix</i><b id="val-tmix">—</b><small data-i18n="trail.tmix.sub">at the nozzle</small></div>
           </div>
           <p class="hint" id="trail-hint"></p>
         </section>
 
         <section class="block" id="cut-opts">
-          <label class="row"><span>Cut-away angle</span><b id="val-cut">100°</b></label>
+          <label class="row"><span data-i18n="cut.angle">Cut-away angle</span><b id="val-cut">100°</b></label>
           <input id="cut" type="range" min="0" max="175" value="100" />
-          <label class="row"><span>Cut-away rotation</span><b id="val-cutrot">90°</b></label>
+          <label class="row"><span data-i18n="cut.rotation">Cut-away rotation</span><b id="val-cutrot">90°</b></label>
           <input id="cutrot" type="range" min="0" max="360" value="90" />
         </section>
 
         <section class="block">
-          <label class="row"><span>Explode modules</span><b id="val-exp">0 %</b></label>
+          <label class="row"><span data-i18n="explode.label">Explode modules</span><b id="val-exp">0 %</b></label>
           <input id="exp" type="range" min="0" max="100" value="0" />
         </section>
 
         <section class="block toggles">
-          <label><input type="checkbox" id="chk-xray" /><span>Transparent casings</span></label>
-          <label><input type="checkbox" id="chk-nac" checked /><span>Nacelle</span></label>
-          <label><input type="checkbox" id="chk-labels" checked /><span>Module labels</span></label>
-          <label><input type="checkbox" id="chk-lines" checked /><span>Streamlines</span></label>
-          <label><input type="checkbox" id="chk-haze" checked /><span>Exhaust gas</span></label>
-          <label><input type="checkbox" id="chk-trail" checked /><span>Contrail</span></label>
-          <label><input type="checkbox" id="chk-spin" checked /><span>Rotor rotation</span></label>
-          <label><input type="checkbox" id="chk-orbit" /><span>Camera orbit</span></label>
+          <label><input type="checkbox" id="chk-xray" /><span data-i18n="toggle.xray">Transparent casings</span></label>
+          <label><input type="checkbox" id="chk-nac" checked /><span data-i18n="toggle.nacelle">Nacelle</span></label>
+          <label><input type="checkbox" id="chk-labels" checked /><span data-i18n="toggle.labels">Module labels</span></label>
+          <label><input type="checkbox" id="chk-lines" checked /><span data-i18n="toggle.lines">Streamlines</span></label>
+          <label><input type="checkbox" id="chk-haze" checked /><span data-i18n="toggle.haze">Exhaust gas</span></label>
+          <label><input type="checkbox" id="chk-trail" checked /><span data-i18n="toggle.trail">Contrail</span></label>
+          <label><input type="checkbox" id="chk-spin" checked /><span data-i18n="toggle.spin">Rotor rotation</span></label>
+          <label><input type="checkbox" id="chk-orbit" /><span data-i18n="toggle.orbit">Camera orbit</span></label>
         </section>
 
         <section class="block">
           <div class="views" id="views"></div>
         </section>
 
+        <!-- the key letters are not translated: they stay bound to the English
+             mnemonics, so one layout serves every language -->
         <footer>
-          <span>LMB — orbit · wheel — zoom · RMB — pan</span>
-          <span class="keys">Space — flows · C — cutaway · X — x-ray · S — sound</span>
-          <span class="keys">E — start/shutdown · H — exhaust · T — contrail</span>
-          <span class="keys">1…9, 0 — views</span>
+          <span data-i18n="footer.mouse">LMB — orbit · wheel — zoom · RMB — pan</span>
+          <span class="keys" data-i18n="footer.keys1">Space — flows · C — cutaway · X — x-ray · S — sound</span>
+          <span class="keys" data-i18n="footer.keys2">E — start/shutdown · H — exhaust · T — contrail</span>
+          <span class="keys" data-i18n="footer.keys3">1…9, 0 — views</span>
         </footer>
       </aside>
 
       <!-- ------------------------------ legend ------------------------------ -->
+      <!-- Each row is split into a bold name and a separate span: applyStatic
+           assigns textContent, so a data-i18n on the enclosing span would
+           delete the <b> inside it. -->
       <div id="legend" class="hidden">
-        <h3>Flows</h3>
+        <h3 data-i18n="legend.title">Flows</h3>
         <div class="lg"><i style="background: linear-gradient(90deg,#2f6bff,#39b7ff)"></i>
-          <span><b>Bypass duct</b> — cold air, ~15…50 °C at sea level. Up to 80 % of the thrust.</span></div>
+          <span><b data-i18n="legend.bypass.name">Bypass duct</b><span data-i18n="legend.bypass.text"> — cold air, ~15…50 °C at sea level. Up to 80 % of the thrust.</span></span></div>
         <div class="lg"><i style="background: linear-gradient(90deg,#39b7ff,#63efe2,#ffe066)"></i>
-          <span><b>Compression</b> — air is heated to 600 °C in the compressor.</span></div>
+          <span><b data-i18n="legend.compression.name">Compression</b><span data-i18n="legend.compression.text"> — air is heated to 600 °C in the compressor.</span></span></div>
         <div class="lg"><i style="background: linear-gradient(90deg,#fff4d2,#ff9b3d)"></i>
-          <span><b>Combustion</b> — 1800…2000 °C in the flame tube.</span></div>
+          <span><b data-i18n="legend.combustion.name">Combustion</b><span data-i18n="legend.combustion.text"> — 1800…2000 °C in the flame tube.</span></span></div>
         <div class="lg"><i style="background: linear-gradient(90deg,#ff9b3d,#ff4f1a)"></i>
-          <span><b>Hot jet</b> — expansion through the turbine and nozzle, 550 °C.</span></div>
+          <span><b data-i18n="legend.jet.name">Hot jet</b><span data-i18n="legend.jet.text"> — expansion through the turbine and nozzle, 550 °C.</span></span></div>
         <table id="stations"></table>
       </div>
 
@@ -185,7 +212,7 @@
       </div>
 
       <div id="tip"></div>
-      <div id="loading">Assembling the engine…</div>
+      <div id="loading" data-i18n="app.loading">Assembling the engine…</div>
     </div>
     <script type="module" src="./src/main.js"></script>
   </body>

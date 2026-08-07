@@ -13,8 +13,54 @@ import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
 import { atmosphere, humidity } from './atmosphere.js';
-import { contrail, flipAltitude } from './contrail.js';
+import { contrail, flipAltitude, H_MAX } from './contrail.js';
 import { createContrail } from './contrailView.js';
+import { createI18n, pickLocale } from './i18n.js';
+import LOCALES from './locales/index.js';
+
+/* ============================ localisation =========================== *
+ *  Set up before anything is built, so the loading line is already in the
+ *  reader's language for all but the tick the module graph takes to load.
+ * --------------------------------------------------------------------- */
+
+const LANG_KEY = 'turbofan.lang';
+
+// localStorage throws in private mode and inside a sandboxed iframe. Losing
+// the remembered language is a nuisance; taking the whole model down with it
+// would not be.
+const storedLang = () => {
+  try {
+    return localStorage.getItem(LANG_KEY);
+  } catch {
+    return null;
+  }
+};
+const storeLang = (tag) => {
+  try {
+    localStorage.setItem(LANG_KEY, tag);
+  } catch {
+    /* nothing to do: the choice simply will not survive the visit */
+  }
+};
+
+const i18n = createI18n({
+  locales: LOCALES,
+  initial: storedLang() || pickLocale(navigator.languages, Object.keys(LOCALES)),
+});
+const { t, n } = i18n;
+
+function applyStatic() {
+  // querySelectorAll reaches into <head> as well, and textContent on <title>
+  // is document.title, so the tab caption needs no special case.
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  // CJK line breaking depends on this, and so does a screen reader choosing
+  // a voice
+  document.documentElement.lang = i18n.locale();
+}
+
+applyStatic();
 
 /* =============================== scene =============================== */
 
@@ -82,10 +128,14 @@ scene.add(trail.group);
 
 /* ------------------------------ labels ------------------------------- */
 const labelObjects = [];
+// the div and its key are kept side by side so the text can be refilled when
+// the language changes without rebuilding the CSS2D objects
+const labelDivs = [];
 engine.labels.forEach((l) => {
   const div = document.createElement('div');
   div.className = 'lbl';
-  div.textContent = l.text;
+  div.textContent = t(l.key);
+  labelDivs.push({ div, key: l.key });
   const obj = new CSS2DObject(div);
   obj.position.copy(l.pos);
   l.module.add(obj);
@@ -172,12 +222,10 @@ let n2Angle = 0;
 /* ---------------------------- engine state --------------------------- */
 const eng = createEngineState(state.throttle);
 
-const MODE_TEXT = {
-  off: ['SHUT DOWN', 'off'],
-  start: ['STARTING', 'busy'],
-  run: ['RUNNING', ''],
-  stop: ['SHUTDOWN · RUNDOWN', 'stop'],
-};
+// Only the class names live here. The text moved to the dictionary, and the
+// two are kept apart on purpose: a typo in one of eight locale files must not
+// be able to break the styling of the status bar.
+const MODE_CLASS = { off: 'off', start: 'busy', run: '', stop: 'stop' };
 
 // The state machine makes the transitions "rundown -> off" and "start -> run"
 // on its own, so the panel is refreshed whenever the mode actually changes,
@@ -187,25 +235,25 @@ let shownMode = null;
 function refreshModeUI() {
   const mode = eng.mode;
   shownMode = mode;
-  const [text, cls] = MODE_TEXT[mode];
   const bar = $('mode-bar');
-  bar.className = `statusbar ${cls}`;
-  $('val-mode').textContent = text;
+  bar.className = `statusbar ${MODE_CLASS[mode]}`;
+  $('val-mode').textContent = t(`mode.${mode}`);
 
   const btn = $('btn-power');
   const running = mode === 'run' || mode === 'start';
   btn.classList.toggle('danger', running);
   btn.classList.toggle('start', !running);
   btn.classList.toggle('busy', mode === 'start' || mode === 'stop');
-  $('power-label').textContent = running ? 'Shut down engine' : 'Start engine';
-  $('power-hint').textContent =
+  $('power-label').textContent = t(running ? 'power.shutdown' : 'power.start');
+  $('power-hint').textContent = t(
     mode === 'start'
-      ? 'starter cranking, light-off…'
+      ? 'power.hint.starting'
       : mode === 'stop'
-        ? 'fuel cut, rotors coasting down…'
+        ? 'power.hint.stopping'
         : running
-          ? 'fuel shut-off, rotor rundown'
-          : 'starter, light-off, acceleration to idle';
+          ? 'power.hint.running'
+          : 'power.hint.off'
+  );
   $('thr-wrap').classList.toggle('disabled', mode !== 'run');
 }
 
@@ -223,21 +271,21 @@ const info = $('info');
 const tip = $('tip');
 
 const VIEWS = [
-  { name: 'Overview', pos: [-11.6, 4.8, 13.8], target: [-0.3, 0, 0] },
-  { name: 'Cutaway', pos: [-8.2, 5.8, 10.4], target: [-0.5, 0, 0], cut: true },
-  { name: 'Front', pos: [-13.5, 1.0, 3.0], target: [-4.4, 0, 0] },
-  { name: 'Fan', pos: [-8.2, 2.2, 4.6], target: [-3.22, 0, 0] },
-  { name: 'HP compressor', pos: [-4.6, 2.1, 4.0], target: [-1.61, 0, 0], cut: true },
-  { name: 'Combustor', pos: [-1.6, 1.9, 3.8], target: [-0.56, 0, 0], cut: true },
-  { name: 'Turbine', pos: [1.5, 2.1, 4.4], target: [0.44, 0, 0], cut: true },
-  { name: 'Nozzle and jet', pos: [7.6, 2.8, 7.0], target: [3.0, 0, 0] },
+  { key: 'view.overview', pos: [-11.6, 4.8, 13.8], target: [-0.3, 0, 0] },
+  { key: 'view.cutaway', pos: [-8.2, 5.8, 10.4], target: [-0.5, 0, 0], cut: true },
+  { key: 'view.front', pos: [-13.5, 1.0, 3.0], target: [-4.4, 0, 0] },
+  { key: 'view.fan', pos: [-8.2, 2.2, 4.6], target: [-3.22, 0, 0] },
+  { key: 'view.hpc', pos: [-4.6, 2.1, 4.0], target: [-1.61, 0, 0], cut: true },
+  { key: 'view.combustor', pos: [-1.6, 1.9, 3.8], target: [-0.56, 0, 0], cut: true },
+  { key: 'view.turbine', pos: [1.5, 2.1, 4.4], target: [0.44, 0, 0], cut: true },
+  { key: 'view.nozzle', pos: [7.6, 2.8, 7.0], target: [3.0, 0, 0] },
   // the camera sits right at the edge of the jet cone: the jet comes towards
   // the viewer, but the engine is not entirely drowned in it as it would be
   // directly on the axis
-  { name: 'From behind, in the gas stream', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
+  { key: 'view.behind', pos: [11.5, 2.2, 3.6], target: [0.5, 0, 0] },
   // far enough back for the trail to have somewhere to run: the engine is
   // small in the frame, which is the point
-  { name: 'Contrail', pos: [-44, 22, 84], target: [14, 0, 0] },
+  { key: 'view.contrail', pos: [-44, 22, 84], target: [14, 0, 0] },
 ];
 
 // the tenth view is reached by the zero key, the other nine by their own digit
@@ -255,12 +303,16 @@ function goView(v) {
 }
 
 const viewsEl = $('views');
-VIEWS.forEach((v, i) => {
-  const b = document.createElement('button');
-  b.textContent = `${VIEW_KEYS[i]}. ${v.name}`;
-  b.onclick = () => goView(v);
-  viewsEl.appendChild(b);
-});
+function buildViewButtons() {
+  viewsEl.textContent = '';
+  VIEWS.forEach((v, i) => {
+    const b = document.createElement('button');
+    b.textContent = `${VIEW_KEYS[i]}. ${t(v.key)}`;
+    b.onclick = () => goView(v);
+    viewsEl.appendChild(b);
+  });
+}
+buildViewButtons();
 
 /* ------------------------------- toggles ------------------------------ */
 function toggleFlow(on) {
@@ -415,15 +467,15 @@ addEventListener('keydown', (e) => {
  * combustion, and the model does not recompute the engine for altitude.
  */
 const STATIONS = [
-  ['Intake', ({ t }) => t, ({ p }) => p],
-  ['Bypass duct', ({ t, theta, fan }) => t + theta * 34 * fan, ({ p, fan }) => p * (1 + 0.68 * fan)],
-  ['After booster', ({ t, theta, fan }) => t + theta * 105 * fan, ({ p, fan }) => p * (1 + 1.7 * fan)],
+  ['station.intake', ({ t }) => t, ({ p }) => p],
+  ['station.bypass', ({ t, theta, fan }) => t + theta * 34 * fan, ({ p, fan }) => p * (1 + 0.68 * fan)],
+  ['station.booster', ({ t, theta, fan }) => t + theta * 105 * fan, ({ p, fan }) => p * (1 + 1.7 * fan)],
   // The overall pressure ratio of the prototype is about 28 (fan 1.7, booster
   // 1.5, HPC 11), not 40-50 as on next-generation engines.
-  ['After HPC', ({ t, theta, comp }) => t + theta * 585 * comp, ({ p, comp }) => p * (1 + 27 * comp)],
-  ['Combustor', ({ t4 }) => t4, ({ p, comp }) => p * (1 + 26 * comp)],
-  ['After HPT', ({ t4 }) => t4 * 0.494, ({ p, comp }) => p * (1 + 6 * comp)],
-  ['Nozzle exit', ({ t4 }) => t4 * 0.293, ({ p, fan }) => p * (1 + 0.65 * fan)],
+  ['station.hpc', ({ t, theta, comp }) => t + theta * 585 * comp, ({ p, comp }) => p * (1 + 27 * comp)],
+  ['station.combustor', ({ t4 }) => t4, ({ p, comp }) => p * (1 + 26 * comp)],
+  ['station.hpt', ({ t4 }) => t4 * 0.494, ({ p, comp }) => p * (1 + 6 * comp)],
+  ['station.nozzle', ({ t4 }) => t4 * 0.293, ({ p, fan }) => p * (1 + 0.65 * fan)],
 ];
 
 // The contrail is fed by the two streams mixed, not by the hot one alone: the
@@ -434,11 +486,22 @@ const ST_NOZZLE = 6;
 const mixedExhaustT = (v) => (BPR * STATIONS[ST_BYPASS][1](v) + STATIONS[ST_NOZZLE][1](v)) / (BPR + 1);
 
 const stationsEl = $('stations');
-stationsEl.innerHTML =
-  '<tr><td style="color:#5f6b7c">station</td><td style="color:#5f6b7c">T, °C</td><td style="color:#5f6b7c">P, bar</td></tr>' +
-  STATIONS.map(([n]) => `<tr><td>${n}</td><td class="t"></td><td class="p"></td></tr>`).join('');
 
+// declared before buildStationTable, which resets it: a `let` read from inside
+// a function called earlier in the file would land in its temporal dead zone
 let gaugeShown = -1;
+
+function buildStationTable() {
+  const head = (k) => `<td style="color:#5f6b7c">${t(k)}</td>`;
+  stationsEl.innerHTML =
+    `<tr>${head('stations.head.station')}${head('stations.head.t')}${head('stations.head.p')}</tr>` +
+    STATIONS.map(([k]) => `<tr><td>${t(k)}</td><td class="t"></td><td class="p"></td></tr>`).join('');
+  // the rows were just replaced, so the hash guard in updateGauges must not
+  // decide the numbers are already on screen and leave the new cells empty
+  gaugeShown = -1;
+}
+buildStationTable();
+
 function updateGauges(keff) {
   // hash of the state, so the DOM is not touched every frame without need.
   // The ambient conditions are not in the hash: they change only when a slider
@@ -449,10 +512,10 @@ function updateGauges(keff) {
 
   // take-off thrust of the prototype: CFM56-7B27, 27 300 lbf = 121.4 kN
   const thrust = eng.fuel ? 121.4 * Math.pow(keff, 1.45) : 0;
-  $('val-n1').textContent = `${(eng.n1 * 100).toFixed(0)} %`;
-  $('val-n2').textContent = `${(eng.n2 * 100).toFixed(0)} %`;
-  $('val-t4').textContent = `${eng.t4.toFixed(0)} °C`;
-  $('val-thrust').textContent = `${thrust.toFixed(0)} kN`;
+  $('val-n1').textContent = `${n(eng.n1 * 100, 0)} %`;
+  $('val-n2').textContent = `${n(eng.n2 * 100, 0)} %`;
+  $('val-t4').textContent = `${n(eng.t4, 0)} °C`;
+  $('val-thrust').textContent = `${n(thrust, 0)} kN`;
 
   const v = {
     fan: eng.n1 * eng.n1,
@@ -462,16 +525,16 @@ function updateGauges(keff) {
     p: amb.p / 1e5, // bar
     theta: amb.theta,
   };
-  $('val-tmix').textContent = `${mixedExhaustT(v).toFixed(0)} °C`;
+  $('val-tmix').textContent = `${n(mixedExhaustT(v), 0)} °C`;
 
   const rows = stationsEl.querySelectorAll('tr');
   STATIONS.forEach(([, tf, pf], i) => {
     const row = rows[i + 1];
     const p = pf(v);
-    row.querySelector('.t').textContent = tf(v).toFixed(0);
+    row.querySelector('.t').textContent = n(tf(v), 0);
     // at altitude the whole column shrinks by a factor of four, and a single
     // decimal would turn the intake into a flat "0.2"
-    row.querySelector('.p').textContent = p < 10 ? p.toFixed(2) : p.toFixed(1);
+    row.querySelector('.p').textContent = n(p, p < 10 ? 2 : 1);
   });
 }
 
@@ -492,7 +555,7 @@ const ALT_PRESETS = [
 
 // vapour pressure runs from thousands of pascals at the ground to units of
 // them at altitude, so the number of decimals follows the value
-const pascals = (e) => (e >= 100 ? e.toFixed(0) : e >= 10 ? e.toFixed(1) : e.toFixed(2));
+const pascals = (e) => n(e, e >= 100 ? 0 : e >= 10 ? 1 : 2);
 
 function setAmbient(altitude, deltaISA, rh) {
   state.altitude = altitude;
@@ -505,17 +568,17 @@ function setAmbient(altitude, deltaISA, rh) {
   $('alt').value = altitude / 100;
   $('isa').value = deltaISA;
   $('rh').value = Math.round(rh * 100);
-  $('val-alt').textContent = `${(altitude / 1000).toFixed(1)} km`;
-  $('val-isa').textContent = `${deltaISA > 0 ? '+' : ''}${deltaISA} °C`;
-  $('val-rh').textContent = `${Math.round(rh * 100)} %`;
-  $('val-amb-t').textContent = `${amb.t.toFixed(1)} °C`;
-  $('val-amb-p').textContent = (amb.p / 1e5).toFixed(3);
-  $('val-amb-rho').textContent = amb.rho.toFixed(3);
+  $('val-alt').textContent = `${n(altitude / 1000, 1)} km`;
+  $('val-isa').textContent = `${deltaISA > 0 ? '+' : ''}${n(deltaISA, 0)} °C`;
+  $('val-rh').textContent = `${n(Math.round(rh * 100), 0)} %`;
+  $('val-amb-t').textContent = `${n(amb.t, 1)} °C`;
+  $('val-amb-p').textContent = n(amb.p / 1e5, 3);
+  $('val-amb-rho').textContent = n(amb.rho, 3);
   // perfectly dry air has no temperature at which it would condense
-  $('val-amb-td').textContent = hum.dewPoint === null ? '—' : `${hum.dewPoint.toFixed(1)} °C`;
+  $('val-amb-td').textContent = hum.dewPoint === null ? '—' : `${n(hum.dewPoint, 1)} °C`;
   $('val-amb-e').textContent = pascals(hum.e);
   // above freezing there is no ice to saturate over, hence the dash
-  $('val-amb-rhi').textContent = hum.rhIce === null ? '—' : `${(100 * hum.rhIce).toFixed(0)} %`;
+  $('val-amb-rhi').textContent = hum.rhIce === null ? '—' : `${n(100 * hum.rhIce, 0)} %`;
   // above 100 % over ice a contrail would persist rather than evaporate - the
   // one number in the block that is here for a task not yet done (BL-21)
   $('val-amb-rhi').style.color = hum.rhIce > 1 ? 'var(--acc)' : '#7a8494';
@@ -538,38 +601,43 @@ $('rh').oninput = (e) => setAmbient(state.altitude, state.deltaISA, e.target.val
  *  recomputed with the sliders rather than every frame - only the drawing
  *  follows the combustion.
  * --------------------------------------------------------------------- */
-const VERDICT_TEXT = {
-  none: ['NO TRAIL', 'off'],
-  'short-lived': ['SHORT-LIVED', 'busy'],
-  persistent: ['PERSISTENT', ''],
-};
+// class names only, for the same reason as MODE_CLASS above
+const VERDICT_CLASS = { none: 'off', 'short-lived': 'busy', persistent: '' };
 
 function refreshContrail() {
   verdict = contrail(amb, hum, state.eta);
 
-  const [text, cls] = VERDICT_TEXT[verdict.verdict];
-  $('trail-bar').className = `statusbar ${cls}`;
-  $('val-trail').textContent = text;
-  $('val-eta').textContent = state.eta.toFixed(2);
-  $('val-g').textContent = verdict.G.toFixed(2);
-  $('val-tform').textContent = `${verdict.tForm.toFixed(1)} °C`;
+  $('trail-bar').className = `statusbar ${VERDICT_CLASS[verdict.verdict]}`;
+  $('val-trail').textContent = t(`verdict.${verdict.verdict}`);
+  $('val-eta').textContent = n(state.eta, 2);
+  $('val-g').textContent = n(verdict.G, 2);
+  $('val-tform').textContent = `${n(verdict.tForm, 1)} °C`;
 
   // how much would have to change for the verdict to flip: the altitude is
   // searched for on the real criterion, since pressure moves the threshold
   // too, and it is a more telling answer than a temperature margin alone
   const flip = flipAltitude(state.altitude, state.deltaISA, state.rh, state.eta);
   const dKm = flip === null ? null : (flip - state.altitude) / 1000;
+
+  /* Whole sentences rather than glued fragments. Concatenation reads well in
+   * English and falls apart in Japanese, where the clauses have no matching
+   * grammatical positions; the one seam left, {where}, sits on a sentence
+   * boundary, which is safe in all eight languages. The ceiling in
+   * where.nowhere comes from H_MAX rather than being written into the prose,
+   * so eight translations cannot go stale if the search range ever moves. */
   const where =
     dKm === null
-      ? 'nowhere between the ground and 12 km would this air behave differently'
-      : `${Math.abs(dKm).toFixed(1)} km ${dKm > 0 ? 'higher' : 'lower'} it would ${verdict.forms ? 'stop' : 'start'}`;
+      ? t('where.nowhere', { max: n(H_MAX / 1000, 0) })
+      : t(`where.${dKm > 0 ? 'higher' : 'lower'}.${verdict.forms ? 'stop' : 'start'}`, {
+          km: n(Math.abs(dKm), 1),
+        });
 
   $('trail-hint').textContent = verdict.forms
-    ? `The air is ${verdict.margin.toFixed(1)} °C below the threshold, so a trail forms; ` +
-      (verdict.persistent
-        ? `it is supersaturated over ice, so the trail spreads instead of evaporating. ${where}.`
-        : `over ice it is not saturated, so the crystals evaporate within seconds. ${where}.`)
-    : `The air is ${(-verdict.margin).toFixed(1)} °C above the threshold — no trail. ${where}.`;
+    ? t(verdict.persistent ? 'hint.trail.persistent' : 'hint.trail.shortLived', {
+        margin: n(verdict.margin, 1),
+        where,
+      })
+    : t('hint.trail.none', { margin: n(-verdict.margin, 1), where });
 }
 
 $('eta').oninput = (e) => {
@@ -599,8 +667,8 @@ canvas.addEventListener('pointermove', (e) => {
   const hits = ray.intersectObjects(targets, false);
   const m = hits.length ? moduleOf(hits[0].object) : null;
   hovered = m;
-  if (m && m.userData.title) {
-    tip.textContent = m.userData.title;
+  if (m) {
+    tip.textContent = t(`module.${m.name}.title`);
     tip.style.left = `${e.clientX + 14}px`;
     tip.style.top = `${e.clientY + 14}px`;
     tip.style.opacity = 1;
@@ -611,12 +679,48 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 
+// which module the card is showing, so it can be re-rendered in a new
+// language without the reader having to close and reopen it. Not `hovered`:
+// the pointer has usually moved on by then.
+let cardModule = null;
+
+function fillCard(m) {
+  info.querySelector('h2').textContent = t(`module.${m.name}.title`);
+  info.querySelector('p').textContent = t(`module.${m.name}.info`);
+}
+
 canvas.addEventListener('click', () => {
-  if (!hovered || !hovered.userData.title) return;
-  info.querySelector('h2').textContent = hovered.userData.title;
-  info.querySelector('p').textContent = hovered.userData.info;
+  if (!hovered) return;
+  cardModule = hovered;
+  fillCard(cardModule);
   info.classList.remove('hidden');
 });
+
+/* --------------------------- language switch -------------------------- *
+ *  Everything the panel builds once at start-up has to be rebuilt here.
+ *  Defined after every function it calls.
+ * --------------------------------------------------------------------- */
+function applyLanguage(tag) {
+  i18n.setLocale(tag);
+  storeLang(tag);
+
+  applyStatic();
+  buildViewButtons();
+  buildStationTable();
+  labelDivs.forEach(({ div, key }) => {
+    div.textContent = t(key);
+  });
+  refreshModeUI();
+  refreshContrail();
+  // re-formats the ambient read-outs, which is where the decimal separator
+  // changes for five of the eight languages
+  setAmbient(state.altitude, state.deltaISA, state.rh);
+  if (cardModule) fillCard(cardModule);
+}
+
+const langSel = $('lang');
+langSel.value = i18n.locale();
+langSel.onchange = (e) => applyLanguage(e.target.value);
 
 /* ============================= animation ============================= */
 // Timer rather than Clock: the latter is deprecated in three 0.185, and it
