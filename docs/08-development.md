@@ -226,10 +226,22 @@ docker run --rm -p 5188:5188 jet-engine-3d
 
 Two stages. The first is `node:22-alpine`, pinned to the version the project is
 developed on: it installs with `npm ci` from the committed lockfile and runs
-`npm run build`. The second is `nginx:1.29-alpine`, and the only thing that
-crosses the boundary is `dist/` — no `node_modules`, no sources, no npm. The
-runtime image is 63 MB against the 165 MB of the toolchain that produced it,
-and there is nothing in it that could rebuild the bundle.
+`npm run build`. The second is `nginxinc/nginx-unprivileged:1.29-alpine`, and
+the only thing that crosses the boundary is `dist/` — no `node_modules`, no
+sources, no npm. The runtime image is 55 MB against the 165 MB of the toolchain
+that produced it, and there is nothing in it that could rebuild the bundle.
+
+The unprivileged variant rather than the stock `nginx:alpine`, because the one
+reason to run the master process as root does not exist here. Root is needed to
+bind a port below 1024; this server listens on 5188. Everything the running
+container does is read `dist/` and hand it out, so it was a privilege kept for
+no purpose at all. The variant is the nginx team's own and tracks the same
+releases — the alternative, chowning the stock image's pid and temp paths by
+hand, means owning a list that changes quietly between versions. Two `USER`
+lines bracket the build: root to clear the seeded document root and copy
+`dist/` into it, then back to UID 101 for good. Checked by looking: every
+process in the running container, master and all four workers, belongs to
+`nginx`, and there is no root process to find.
 
 The manifests are copied ahead of the sources so that the install layer — some
 50 MB — survives every commit that does not touch a dependency. `test/` and
@@ -241,10 +253,12 @@ The port is 5188, the same as the dev and preview servers. It is quoted in the
 README and above, and pinned in `vite.config.js` for the same reason — a
 container answering on 80 would be the one place the number differs.
 
-`docker ps` nevertheless shows `80/tcp` next to the mapping. That is inherited
-from the nginx base image, which declares it, and a `Dockerfile` cannot undo an
-`EXPOSE`. Nothing is listening there: the server block binds 5188 alone, so
-publishing 80 gets a port that refuses connections.
+`docker ps` nevertheless shows a second port next to the mapping — `8080/tcp`,
+and `80/tcp` before the base image changed. That is inherited from the nginx
+image, which declares it, and a `Dockerfile` cannot undo an `EXPOSE`. Nothing is
+listening there: `netstat` inside the container finds 5188 over v4 and v6 and
+nothing else, so publishing the advertised port gets one that refuses
+connections.
 
 The server configuration is in `docker/nginx.conf`, and one line of it is worth
 knowing about. nginx compresses at `gzip_comp_level 1` by default, which sends

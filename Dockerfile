@@ -25,7 +25,22 @@ RUN npm run build
 # Nothing crosses from the build stage except dist/. No node_modules, no
 # sources, no npm, no compiler — the runtime image holds the three files Vite
 # emits and a web server, and there is nothing in it that could rebuild them.
-FROM nginx:1.29-alpine AS serve
+# The unprivileged variant, not plain nginx:alpine. The stock image runs its
+# master process as root, and the usual justification — only root may bind a
+# port below 1024 — does not apply here: this server listens on 5188. So the
+# root was being kept for nothing, in a container whose entire job is to hand
+# out three static files it cannot even rebuild.
+#
+# The variant is the nginx team's own, same release cadence, and it is the
+# supported way round rather than a chown of the stock image: it ships an
+# nginx.conf with no `user` directive and with the pid and temp paths moved
+# somewhere UID 101 can write. Patching those into nginx:alpine by hand means
+# owning that list, and it grows quietly between releases.
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS serve
+
+# The image drops to UID 101 as its last step, and the two commands below need
+# a writable /usr/share/nginx/html, so they run before that is undone.
+USER root
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
@@ -37,13 +52,18 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Back to the unprivileged user the image is built around. Nothing after this
+# point needs more, and nothing the running server does needs more either: the
+# document root is read, never written.
+USER 101
+
 # 5188 everywhere: it is what the dev server, the preview server, the README
 # and docs/08 all say, and what people have bookmarked when the model is shown
 # to them over the local network. A container that answered on 80 instead
 # would be the one place the number differs.
 #
-# `docker ps` will still advertise 80/tcp alongside it: the nginx base image
-# declares it and a Dockerfile has no way to take that back. Nothing listens
-# there — the server block in docker/nginx.conf binds 5188 and only 5188 — so
-# it is a port that exists in the metadata and nowhere else.
+# The stray 80/tcp that `docker ps` used to advertise is gone as a side effect
+# of the base image change — this one declares 8080, which is no more true, but
+# EXPOSE is inherited and a Dockerfile still cannot withdraw one. Nothing
+# listens on either: the server block in docker/nginx.conf binds 5188 alone.
 EXPOSE 5188

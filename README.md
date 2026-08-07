@@ -34,9 +34,10 @@ docker build -t jet-engine-3d .
 docker run --rm -p 5188:5188 jet-engine-3d
 ```
 
-The build happens inside the image and only `dist/` comes out of it, onto
-nginx — 63 MB served, against 165 MB for the toolchain that produced it. The
-details are in [`08-development`](docs/08-development.md#docker).
+The build happens inside the image and only `dist/` comes out of it, onto an
+unprivileged nginx — 55 MB served, against 165 MB for the toolchain that
+produced it, and no root inside either. The details are in
+[`08-development`](docs/08-development.md#docker).
 
 ## Documentation
 
