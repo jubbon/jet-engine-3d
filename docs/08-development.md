@@ -223,7 +223,8 @@ reporting it.
 
 What is deliberately not here: no compose file, no image published anywhere,
 and the CI workflow does not build the image. Publishing needs a registry and a
-tagging policy, and neither has been decided.
+tagging policy, and neither has been decided — the choices are laid out in
+[BL-28](09-backlog.md#bl-28-publishing-the-container-image).
 
 ## Limitations of the model
 

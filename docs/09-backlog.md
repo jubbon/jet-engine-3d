@@ -38,6 +38,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-13 | Sound absorption in air with distance | Sound | P3 | S |
 | BL-14 | Separating fan and jet sound in space | Sound | P3 | M |
 | BL-24 | Publishing on Vercel | Infrastructure | P1 | S |
+| BL-28 | Publishing the container image: registry, tags, CI | Infrastructure | P3 | S |
 | BL-25 | Code obfuscation in the published build | Infrastructure | P3 | M |
 | BL-26 | Versioning: releases, formats, compatibility | Infrastructure | P2 | M |
 | BL-15 | Bundle splitting and LOD for blade rows | Performance | P2 | M |
@@ -915,6 +916,44 @@ from disk: that works in the published version and needs no deploy at all.
 Touches: `vercel.json`, `index.html` (card metadata), `README.md` (a link to the
 live version and the licences of the recordings). To be documented in
 [Development](08-development.md).
+
+### BL-28. Publishing the container image
+
+The two-stage `Dockerfile` builds and runs locally: `docker build`, `docker
+run`, and the model answers on 5188. What does not exist is any way to obtain
+that image without a checkout and a build of one's own. Three decisions stand
+between here and there, and none of them has been made — which is why the
+container work stopped where it did rather than carrying on by guesswork.
+
+* **A registry.** GHCR is the obvious candidate: the repository is already on
+  GitHub, the workflow gets a token without anyone creating an account, and the
+  image sits beside the code. Docker Hub costs nothing either, but it is a
+  second place to hold credentials for.
+* **A tagging policy.** This is not really a container question, it is BL-26's:
+  what counts as a release here, and whether there are versions at all. `latest`
+  plus the commit SHA is the least that lets somebody pin to something. Whatever
+  BL-26 settles on for release naming, the image tags should follow it rather
+  than grow a parallel scheme alongside.
+* **Building it in CI.** The workflow tests and builds but does not touch the
+  image, so a mistake in the `Dockerfile` or in `docker/nginx.conf` surfaces on
+  somebody's machine instead of in a job. Building on every push is cheap and
+  catches exactly that; *pushing* is the narrower question — on a tag, or on
+  `main` only, and that answer depends on the two decisions above.
+
+A compose file is a smaller, separate matter. For one static container it saves
+typing `-p 5188:5188` and nothing more; it starts to earn its place only if
+something is ever put in front of the model — a reverse proxy terminating TLS,
+or the description service BL-23 would want.
+
+Worth noting for BL-24: the caching and compression decisions in
+`docker/nginx.conf` are the same ones `vercel.json` will have to make. Hashed
+assets immutable for a year, `index.html` sent `no-cache`, and `gzip_comp_level`
+raised from the default of 1 — which sends the bundle 19 % heavier than it needs
+to be. That configuration is the worked-out version, arrived at by measuring;
+it is worth copying rather than re-deriving.
+
+Touches: `.github/workflows/ci.yml`, possibly a `compose.yaml`. To be documented
+in [Development](08-development.md#docker).
 
 ### BL-25. Code obfuscation in the published build
 
