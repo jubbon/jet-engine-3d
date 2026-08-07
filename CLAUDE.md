@@ -39,7 +39,11 @@ The two-stage `Dockerfile` builds with Node and serves `dist/` from nginx on the
 same port 5188. It runs no tests — that is CI's job (`.github/workflows/ci.yml`),
 against the same commit. `docker/nginx.conf` sets `gzip_comp_level 6`
 deliberately: the default of 1 sends the bundle 19 % heavier than the size
-quoted in the documentation.
+quoted in the documentation. Every `add_header` in that file lives in the
+`server` block, and `Cache-Control` is chosen by a `map` on `$uri` for a reason:
+a `location` that sets a header of its own discards all the inherited ones. Put
+an `add_header` in a `location` and that path silently loses the security
+headers.
 
 ## Coordinate system and stations
 

@@ -256,14 +256,47 @@ settings, but it is on the right side of it, so the figure quoted in
 wire. The default `gzip_types` is another: it covers `text/html` alone, which
 would have left the whole payload uncompressed.
 
-The rest is caching. Vite puts a content hash in every asset filename, so
-anything under `/assets/` is immutable and cached for a year; `index.html`
-carries the pointers to those names and is sent `no-cache`, because a cached
-copy would keep asking for yesterday's filenames — which are still on disk and
-still work, making a deploy invisible. A path that matches nothing gets a 404
-rather than the usual fallback to `index.html`: there is no router here, so
-answering a mistyped URL with the model would hide the mistake instead of
-reporting it.
+Then caching. Vite puts a content hash in every asset filename, so anything
+under `/assets/` is immutable and cached for a year; `index.html` carries the
+pointers to those names and is sent `no-cache`, because a cached copy would keep
+asking for yesterday's filenames — which are still on disk and still work,
+making a deploy invisible. A path that matches nothing gets a 404 rather than
+the usual fallback to `index.html`: there is no router here, so answering a
+mistyped URL with the model would hide the mistake instead of reporting it.
+
+Which value applies is chosen by a `map` on `$uri` rather than by a `location`
+block, and that is not a stylistic preference. `add_header` in nginx does not
+accumulate: a `location` that sets one header of its own discards every header
+inherited from the `server` block. With `Cache-Control` living in `location
+/assets/` and `location = /index.html`, adding the security headers below to the
+server block would have delivered them everywhere except the page and the
+bundle — the only two paths anyone requests. The `map` keeps every `add_header`
+in one place, where a location added later cannot silently drop them. It also
+closed a hole the old form had: `location = /index.html` matches that literal
+path and nothing else, so a request for `/` — which is how the page is actually
+opened — carried no `Cache-Control` at all.
+
+The headers themselves are worth a paragraph mostly because of how little they
+cost here. This page loads nothing from anywhere: one bundle and one stylesheet
+of its own, a favicon that is a `data:` URI, no fonts, no images, and no
+requests at run time — no `fetch`, no `XMLHttpRequest`, no WebSocket. So the
+content security policy is not a negotiation between safety and function, and
+it is written down now, while that is still true and the policy can be checked
+against a working page rather than retrofitted around one. Two directives are
+not `'self'`: `img-src` admits `data:` for the favicon, and `style-src` admits
+`'unsafe-inline'` for the `style=""` gradients on the legend swatches — those
+are attributes, there is no inline `<style>` and no inline `<script>` at all.
+`frame-ancestors 'none'` refuses embedding, and `server_tokens off` stops
+sending the nginx version to anyone who asks for a missing file.
+
+All of it was checked against a running container rather than reasoned about:
+the three headers appear on `/`, on the hashed bundle and on a 404 (hence
+`always` — without it the error response would come back bare), `Server` reads
+`nginx` with no version, and the page was then loaded in a browser to confirm
+the policy costs nothing. Nothing was blocked, the panel came up, the gauges ran
+and the language switch redrew the station table; the only violation reported
+was a deliberate inline `<script>` injected to prove the policy was enforced at
+all rather than merely present in the response.
 
 What is deliberately not here: no compose file, no image published anywhere,
 and the CI workflow does not build the image. Publishing needs a registry and a
