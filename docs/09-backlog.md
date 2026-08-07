@@ -34,6 +34,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-10 | Model state in the URL | Interface | P3 | S |
 | BL-11 | Responsive layout and touch control | Interface | P2 | M |
 | BL-12 | Localisation into eight languages (done) | Interface | P3 | — |
+| BL-29 | About the model: version, build, author, links | Interface | P2 | S |
 | BL-22 | Teaching layer: explanations from simple to formulas | Teaching | P1 | L |
 | BL-13 | Sound absorption in air with distance | Sound | P3 | S |
 | BL-14 | Separating fan and jet sound in space | Sound | P3 | M |
@@ -751,6 +752,80 @@ about 5 kB per language:
 What is left over and deliberately not done here: the language does not appear
 in the URL (that belongs to BL-10), and imperial units are a separate axis from
 language and would be their own task.
+
+### BL-29. About the model: version, build, author and links
+
+The interface says nothing about where the model came from. `package.json`
+names the author and the MIT licence, `LICENSE` carries the copyright line,
+`README.md` links the repository — and none of that reaches the person who
+simply opens the page. While the model lived on one machine that was of no
+consequence; after publication (BL-24) the page **is** the project for almost
+everyone who sees it, and there is no path from it back to the repository, to
+the documentation or to the author.
+
+What is needed is one card, opened from a small button in the panel header
+beside the language selector and by a keyboard shortcut, holding four things.
+
+* **Version and build** — the version number, the short commit hash and the
+  build date. This is exactly the "about this model" card BL-26 already names as
+  the place for them: the values are stamped at build time (`define` in
+  `vite.config.js`, from `package.json` and from git), because the built page
+  has no backend and no access to a repository. Two uses beyond decoration: a
+  problem report becomes attributable to a version, and a visitor holding a
+  stale `index.html` sees a stale hash — which is the cheapest possible check of
+  the cache headers BL-24 has to get right.
+* **What the model is, in a paragraph** — the prototype, that the dimensions
+  come from cited sources, and the honest boundary: the physics is illustrative,
+  there is no gas-dynamic or cycle calculation. That last sentence belongs on
+  the card rather than only in
+  [physics](03-physics.md#10-what-the-model-does-not-have), because the
+  instrument panel looks like a calculation and the misunderstanding is easy to
+  fall into. From here, links into `docs/`.
+* **The author and where to follow the work** — a name and a short line about
+  who made this, the GitHub repository, and support links: Boosty, Patreon and
+  whatever else is worth listing. Nothing here is a paywall: the card opens on
+  demand and never by itself, not on a first visit and not on a timer, since the
+  model's value is that it opens and works.
+* **Licence and credits** — MIT and the copyright line, Three.js with its
+  licence, and the origin of the Freesound recordings the sound was tuned
+  against. BL-24 requires that statement in the README in any case; on the
+  published page it is the version most people will actually read.
+
+**Plain anchors, no widgets.** Boosty and Patreon both offer embeddable
+buttons, and both pull in a third-party script. The project has no external
+assets at all — no models, no textures, no sound files — and a donation tracker
+would be the first thing it loads from someone else's domain. Ordinary links
+with `rel="noopener noreferrer"` cost nothing and keep that property. Worth
+listing more than one destination for a second reason too: these platforms are
+unreachable from a number of countries, and a single link is then simply a dead
+end.
+
+**Localisation is the bulk of the work, not the markup.** Every visible string
+goes through `t(key)`, so the card means new `about.*` keys in all eight
+dictionaries, and `test/i18n.test.mjs` will name every one that is missing. The
+usual trap applies: "Version 1.2.0, built on 7 August 2026" is stored as a whole
+sentence with placeholders, never glued from fragments. Names — the author's,
+GitHub's, Boosty's, Patreon's — are not translated.
+
+**A note on the markup.** The panel has no modal anywhere yet, so this would be
+the first. `<dialog>` gives the focus trap, the backdrop and closing on Esc
+without any code, which is the whole reason to prefer it to another absolutely
+positioned `div`. The scene keeps running behind it — nothing about the engine
+pauses.
+
+Related: BL-26 (versioning) — the stamping of the version, hash and date lives
+there and the display lives here, so the two are worth doing in one go;
+separately the card is a name and a few links, which is thin. BL-24
+(publishing) gives the card its purpose, and the one-paragraph description of
+the model is the same text the link preview card needs. BL-25 — its own
+conclusion is that an explicit licence and an attribution line in the interface
+protect the work better than obfuscated variable names; this is that line.
+BL-12 — eight dictionaries.
+
+Touches: `index.html` (the button and the dialog), `src/main.js` (opening,
+closing, the shortcut), `src/style.css`, `src/locales/*.js` (eight files),
+`vite.config.js` (`define` for version, hash and build date). To be documented
+in [User interface](07-ui.md), including the shortcut table.
 
 ## Teaching layer
 
