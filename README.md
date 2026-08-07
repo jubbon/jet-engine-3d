@@ -23,6 +23,10 @@ npm test         # state machine, exhaust gas, spiral smear, atmosphere,
 
 A single test runs directly: `node test/geometry.test.mjs`.
 
+There is a `Makefile` over the same commands — `make help` lists them. It calls
+the npm scripts rather than restating them, and adds what they cannot do: `make
+build` skips the build when nothing has changed.
+
 Or in a container, which needs no Node installed:
 
 ```bash

@@ -20,6 +20,35 @@ The server binds to `0.0.0.0`, so it is reachable from the local network without
 authentication. Handy for showing colleagues, but on an untrusted network the
 port is better closed.
 
+### The Makefile
+
+`make help` lists the targets; they are not repeated here, so that the list
+cannot go stale in two places at once. The commands themselves are not restated
+in the `Makefile` either — it calls the npm scripts and `docker build` rather
+than duplicating them.
+
+What it adds is the one thing an npm script cannot express: when the work can
+be skipped. `npm run build` rebuilds unconditionally on every call, while `make
+build` compares `dist/` against the sources and does nothing if nothing moved.
+The install behaves the same way — `npm ci` wipes and unpacks 50 MB every time
+it is called, and make calls it only when the lockfile is newer than what is
+already there.
+
+That is also the thing to be careful about. The build is triggered by source
+files being newer, and the list of them is the `SOURCES` variable at the top:
+`src/`, `index.html` and `vite.config.js`. If a build ever comes to depend on
+something outside that list, it has to be added, or make will report there is
+nothing to do and be wrong.
+
+A bare `make` prints the help rather than starting a build. The first person to
+type it in an unfamiliar repository is usually looking around, and a 50 MB
+install is a discourteous answer to that.
+
+`make test-geometry` runs one file — the tests need no runner and no flags,
+which is what keeps this a single pattern rule. `make run` builds the image and
+serves it; `IMAGE`, `TAG` and `PORT` override, where `PORT` is the host side
+only.
+
 ## Build size
 
 ```

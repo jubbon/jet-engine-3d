@@ -29,6 +29,12 @@ A single test runs directly, with no runner and no flags:
 node test/geometry.test.mjs
 ```
 
+There is a `Makefile` over the same commands (`make help` lists the targets). It
+does not restate them — it calls the npm scripts — but it does know when to skip
+work: `make build` is a no-op when `dist/` is newer than everything in
+`SOURCES`. Add a build input outside `src/`, `index.html` or `vite.config.js`
+and that variable has to grow, or make will wrongly report nothing to do.
+
 The two-stage `Dockerfile` builds with Node and serves `dist/` from nginx on the
 same port 5188. It runs no tests — that is CI's job (`.github/workflows/ci.yml`),
 against the same commit. `docker/nginx.conf` sets `gzip_comp_level 6`
