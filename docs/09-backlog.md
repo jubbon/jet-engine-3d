@@ -720,7 +720,7 @@ demonstrating.
 
 The panel is designed for a wide screen and there are no gestures. What is
 needed is a compact layout, collapsible sections and a sensible response to
-touch. While at it, check that the scene runs at all on a mobile GPU — at 758
+touch. While at it, check that the scene runs at all on a mobile GPU — at 771
 thousand triangles that is not obvious, and here the task joins up with BL-15.
 
 ### BL-12. Localisation — **done**

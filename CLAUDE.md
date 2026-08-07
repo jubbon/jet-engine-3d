@@ -122,7 +122,7 @@ Worth knowing before making changes:
   rotors stay in sync even when their parent modules have moved apart in the
   exploded view.
 * **Picking goes through invisible proxy cylinders** (`engine.pickables`, 11 of
-  them) rather than the real geometry: the scene holds ~758 thousand triangles
+  them) rather than the real geometry: the scene holds ~771 thousand triangles
   and raycasting them on every mouse move is unacceptable. Add a module and add
   a proxy for it to the `PROXY` array, otherwise it simply will not be
   selectable.
@@ -203,7 +203,7 @@ memory, compute it on the model — `buildEngine()` runs under Node, so triangle
 rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
-The yardstick as of today (recount it, do not copy it): 758 thousand triangles,
+The yardstick as of today (recount it, do not copy it): 771 thousand triangles,
 123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 237
 checks across eight test files. The build is 731 kB of JS, 198 kB gzipped.
 

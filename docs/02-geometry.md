@@ -25,6 +25,13 @@ revolution coincides with X. A closed profile (outer skin running aft, inner one
 running forward) gives a shell with thickness in a single operation — that is
 how the nacelle, the casings and the cowls are made.
 
+`lathe()` joins the points it is given with straight lines, which is right for a
+casing but wrong for the nacelle: the creases between the segments catch the
+light and the skin reads as a faceted body. The outer skin is therefore passed
+through `smoothProfile()` first — a spline through the twelve control points,
+resampled at even spacing into 64 points, about one every 55 mm of skin. That is
+where the extra 13 thousand triangles over the old profile go.
+
 ## Gas path stations
 
 The constants are declared in `ST` (`src/engine.js`):

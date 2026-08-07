@@ -110,7 +110,7 @@ to tip), and wrapped around the circumference — as real blades are
   axis.
 * **Module picking.** Picking goes not through the real geometry but through
   eleven invisible proxy cylinders (`engine.pickables`) — otherwise a raycast of
-  ~758 thousand triangles would run on every mouse move.
+  ~771 thousand triangles would run on every mouse move.
 
 ## Airflow (`src/airflow.js`)
 

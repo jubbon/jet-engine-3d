@@ -70,7 +70,7 @@ site moves.
 
 ## Performance
 
-About 758 thousand triangles and 123 draw calls (the breakdown by module is in
+About 771 thousand triangles and 123 draw calls (the breakdown by module is in
 [Architecture](01-architecture.md#performance)). On a discrete or integrated GPU
 this runs with room to spare; the bottleneck is not the geometry but the
 transparent shells in x-ray mode together with the particles and the bloom.

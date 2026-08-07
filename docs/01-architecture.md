@@ -151,12 +151,12 @@ have moved apart.
   | LP turbine | 8 | 660 |
 
   Plus the ten rear frame struts built the same way. That comes to about
-  **758 thousand triangles** and **123 draw calls** — of which the rows account
+  **771 thousand triangles** and **123 draw calls** — of which the rows account
   for 38, the rest being made up by individual meshes: casings, barrels, discs,
   the 20 fuel nozzles, the pipework.
 * Module picking goes **not** through the real geometry but through invisible
   proxy cylinders (`engine.pickables`, 11 objects — one per module): raycasting
-  758 thousand triangles on every mouse move would be unacceptably expensive.
+  771 thousand triangles on every mouse move would be unacceptably expensive.
   The proxy material has `visible: false` — it is not rendered, but stays
   visible to ray tracing.
 * With the cutaway or the transparent casings switched on, the shell proxies are

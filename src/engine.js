@@ -182,6 +182,16 @@ function lathe(points, material, segments = 96) {
   return m;
 }
 
+/* Resamples a profile along a spline through its control points, at even
+   spacing. lathe() joins the points it is given with straight lines, and on a
+   body the size of the nacelle the creases between them catch the light and
+   read as facets - most visibly on the barrel, where the surface is nearly
+   flat and the eye is at its most sensitive to a break in the shading. */
+function smoothProfile(points, samples) {
+  const curve = new THREE.SplineCurve(points.map((p) => new THREE.Vector2(p[0], p[1])));
+  return curve.getSpacedPoints(samples).map((p) => [p.x, p.y]);
+}
+
 /* ------------------- flat bottom of the nacelle --------------------- *
  *  The 737 nacelle is not round: the bottom and the intake lip are
  *  flattened - the "hamster pouch". The reason is not stylistic. The 737
@@ -358,8 +368,10 @@ export function buildEngine() {
   // are flattened differently - outside the nacelle is flat along almost its
   // whole length, inside only near the lip (see flattenBelly).
   // Outer skin: lip Ø 1.70 m, maximum Ø 2.44 m at the intake-to-fan-cowl joint,
-  // then a gentle taper towards the fan nozzle.
-  const nacOuter = [
+  // then a gentle taper towards the fan nozzle. The annular face at the trailing
+  // edge is not part of this curve - a spline through it would round off the
+  // very edge that should stay sharp - so the inner profile closes the shell.
+  const nacOuterCtl = [
     [1.7, ST.lip],
     [1.86, -5.1],
     [2.02, -4.8],
@@ -372,11 +384,16 @@ export function buildEngine() {
     [1.98, 0.6],
     [1.78, 1.0],
     [1.7, ST.bypassExit],
-    [1.62, ST.bypassExit],
   ];
+  // 64 samples put a point about every 55 mm of skin. Fewer and the spline
+  // still shows as facets on the barrel, where the surface is nearly flat and
+  // the eye is most sensitive to them; more buys nothing visible.
+  const nacOuter = smoothProfile(nacOuterCtl, 64);
   // Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
-  // tips (15 mm clearance) and the bypass duct up to the nozzle exit.
+  // tips (15 mm clearance) and the bypass duct up to the nozzle exit. The first
+  // point is the annular trailing face that closes the shell against the skin.
   const nacInner = [
+    [1.7, ST.bypassExit],
     [1.62, ST.bypassExit],
     [1.64, 1.0],
     [1.68, 0.3],
