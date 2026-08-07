@@ -259,7 +259,16 @@ export function createAirflow() {
       }
     `,
   });
-  const plumeGeo = new THREE.CylinderGeometry(0.8, 1.5, 5.0, 40, 12, true);
+  /* The argument order is the trap here. CylinderGeometry takes (radiusTop,
+     radiusBottom) with the top at +Y, and rotateZ(-PI/2) carries +Y to +X —
+     downstream. So radiusTop is the tail of the jet and radiusBottom is the
+     mouth of the nozzle, which is the opposite way round from how the pair
+     reads. Written the other way it produced a cone Ø 1.5 m wide at a nozzle
+     of Ø 0.82 m, standing outside the cowl against the sky with a hard bright
+     rim — and narrowing downstream, where a jet entrains air and spreads.
+     0.8 is the cowl lip at ST.coreExit (0.82, measured), so the cone leaves
+     the metal flush; test/clearance.test.mjs holds it to both. */
+  const plumeGeo = new THREE.CylinderGeometry(1.5, 0.8, 5.0, 40, 12, true);
   plumeGeo.rotateZ(-Math.PI / 2);
   plumeGeo.translate(5.4, 0, 0); // measured from the core nozzle exit (2.90)
   const plume = new THREE.Mesh(plumeGeo, plumeMat);

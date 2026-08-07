@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Eight files, 232 checks. There is no framework: each test is a plain Node script
+Eight files, 237 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -151,13 +151,22 @@ reference breaks the test rather than silently diverging from the model. The
 nacelle envelope is computed from vertices rather than from the `lathe` profile
 — otherwise the flattened bottom would not be included.
 
-`test/clearance.test.mjs` — 11 checks of the layout clearances: blade rows do
+`test/clearance.test.mjs` — 16 checks of the layout clearances: blade rows do
 not intersect one another (overlapping both axially and radially), the tips of
 the fan and outlet guide vanes stay under their own wall, and the accessory
 gearbox holds the overall engine width without piercing the nacelle skin. This
 is insurance against the main risk of a tight layout: the core is short, the
 stage pitch is small, and any addition to a blade chord drops the rows onto each
 other.
+
+The last five check the exhaust plume against the nozzle it leaves. That cone is
+built from constants of its own rather than from the gas path, so nothing tied
+it to the metal, and it spent a long time Ø 1.5 m wide at a nozzle of Ø 0.82 m —
+a rim standing outside the cowl against the sky, which the eye reads as a sleeve
+pulled over the engine rather than gas leaving a pipe. The lip is measured off
+the model rather than copied from `cowlPts`, and the measurement skips invisible
+meshes on purpose: `mExh` carries a picking proxy of radius 1.24 that would
+answer the question wrongly and plausibly.
 
 `test/i18n.test.mjs` — 82 checks of the localisation, and most of them are about
 agreement rather than content. All eight dictionaries must carry exactly the key
@@ -218,7 +227,7 @@ The tree has one package with an install hook that matters, `esbuild`, and it
 does not need it: the binary comes from the platform package in
 `optionalDependencies`, and the hook only verifies it. That was checked rather
 than assumed — a clean `npm ci --ignore-scripts` in a fresh copy loads esbuild,
-passes all 232 checks, and produces a bundle with the same content hash as the
+passes all 237 checks, and produces a bundle with the same content hash as the
 build that ran the hooks.
 
 The build job prints the bundle size into the run summary. That is there for a

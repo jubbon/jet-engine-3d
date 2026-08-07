@@ -96,7 +96,21 @@ bypass duct, 5 in the core. The colour is set per vertex from the same
 temperature ramp, so the line itself shows where the flow heats up.
 
 **Exhaust plume** — a cone with a noise-based shader; its brightness is tied to
-the combustion intensity, so when the fuel is cut the plume dies.
+the combustion intensity, so when the fuel is cut the plume dies. It starts at
+the core nozzle exit at the radius of the cowl lip there (0.8 against a measured
+0.82) and widens to 1.5 over five units, so the gas leaves the metal flush and
+spreads the way a jet entrains the air around it.
+
+Which way round that pair goes is the one trap in the code. `CylinderGeometry`
+takes `(radiusTop, radiusBottom)` with the top at +Y, and the `rotateZ(-π/2)`
+that lays the cone along the engine axis carries +Y to +X — downstream. So the
+first argument is the *tail* and the second is the *mouth*, the opposite of how
+the pair reads. Written the natural way it gave a cone Ø 1.5 m wide at a nozzle
+of Ø 0.82 m: the rim stood clear of the cowl against the sky, and because the
+shader's opacity peaks at the nozzle and falls as (1 − t)², that overhanging rim
+was also the brightest edge in the frame. The cone narrowed downstream as well,
+contradicting the heat-haze cone drawn on top of it, which widens from 1.45 to
+4.0. Two checks in `test/clearance.test.mjs` now measure both against the model.
 
 At the edges of the computational domain (−7.6 and 8.6) the particles and lines
 fade out smoothly through `edgeFade()` — otherwise they would pop in and out,

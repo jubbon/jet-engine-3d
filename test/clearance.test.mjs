@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildEngine, ST } from '../src/engine.js';
+import { createAirflow } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
  *  Layout clearances. The prototype dimensions squeezed the axial length
@@ -109,6 +110,77 @@ check(
   `${acc.r.toFixed(3)} against ${ST.accR} units`
 );
 check('Accessories fit within the nacelle length', acc.x0 > ST.lip && acc.x1 < ST.coreExit, `${acc.x0.toFixed(2)}…${acc.x1.toFixed(2)}`);
+
+console.log('\n=== THE EXHAUST PLUME LEAVES THE NOZZLE IT BELONGS TO ===');
+
+/* The plume in the flows diagram is a cone of its own, built from constants
+ * rather than from the gas path, so nothing tied it to the metal it comes out
+ * of. It has to start no wider than the core nozzle lip: a rim standing
+ * outside the cowl is drawn against the sky, and the cone reads as a sleeve
+ * pulled over the engine instead of gas leaving a pipe.
+ *
+ * The lip is measured off the model rather than copied from cowlPts, and the
+ * invisible picking proxies are skipped — mExh carries one of radius 1.24 that
+ * would answer this question wrongly and plausibly. */
+function skinRadiusAt(x, tol = 0.02) {
+  let r = 0;
+  for (const m of Object.values(engine.parts)) {
+    m.updateWorldMatrix(true, true);
+    m.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || !o.geometry?.attributes?.position) return;
+      if (o.material?.visible === false) return;
+      const pos = o.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        if (Math.abs(v.x - x) <= tol) r = Math.max(r, Math.hypot(v.y, v.z));
+      }
+    });
+  }
+  return r;
+}
+
+const lipR = skinRadiusAt(ST.coreExit);
+check('Core nozzle lip is where cowlPts puts it', Math.abs(lipR - 0.82) < 0.01, `${lipR.toFixed(3)} units`);
+
+const plumeMeshes = [];
+createAirflow().group.traverse((o) => {
+  if (o.isMesh && o.geometry?.type === 'CylinderGeometry') plumeMeshes.push(o);
+});
+// If the plume stops being a lathe of one cylinder this test is measuring
+// something else, and saying so is more useful than a pass.
+check('The plume is one cone', plumeMeshes.length === 1, `${plumeMeshes.length} found`);
+
+const pp = plumeMeshes[0].geometry.attributes.position;
+let xIn = Infinity;
+let xOut = -Infinity;
+for (let i = 0; i < pp.count; i++) {
+  xIn = Math.min(xIn, pp.getX(i));
+  xOut = Math.max(xOut, pp.getX(i));
+}
+const plumeRadiusAt = (x) => {
+  let r = 0;
+  for (let i = 0; i < pp.count; i++) {
+    if (Math.abs(pp.getX(i) - x) < 1e-4) r = Math.max(r, Math.hypot(pp.getY(i), pp.getZ(i)));
+  }
+  return r;
+};
+const rIn = plumeRadiusAt(xIn);
+const rOut = plumeRadiusAt(xOut);
+
+check('The plume starts at the core nozzle exit', Math.abs(xIn - ST.coreExit) < 0.01, `x=${xIn.toFixed(2)}`);
+check(
+  'The plume does not stick out past the nozzle lip',
+  rIn <= lipR + 0.01,
+  `plume Ø ${rIn.toFixed(2)} m against a nozzle of Ø ${lipR.toFixed(2)} m`
+);
+// A jet entrains the air around it and spreads. The heat-haze cone in
+// heathaze.js widens from 1.45 to 4.0 over its length; a diagram cone that
+// narrowed instead would contradict the shimmer drawn on top of it.
+check(
+  'The plume spreads downstream rather than closing up',
+  rOut > rIn,
+  `${rIn.toFixed(2)} at x=${xIn.toFixed(1)} to ${rOut.toFixed(2)} at x=${xOut.toFixed(1)}`
+);
 
 console.log(failures ? `\n${failures} failures` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);
