@@ -228,6 +228,49 @@ A known simplification: the gas path in the flow visualisation has remained
 axisymmetric (it is given by tables of radii), so right at the lip the bypass
 particles poke slightly outside the barrel underneath.
 
+## Markings on the skin
+
+A nacelle with nothing on it reads as a moulded blank: there is nothing on the
+surface to take a scale from, and one 2.44 m across looks exactly like one
+0.5 m across. `livery.js` draws the joints, the service door, the placards, the
+`NO STEP` roundel and the `BOEING 737-800` title into a canvas at start-up and
+hands it back as the colour map of the outer skin. There are no image files in
+the project, so this is the only way to get them; and one texture on one mesh
+costs one draw call, where decals laid over the surface would cost one each and
+would z-fight with the skin at the grazing angles most of the nacelle is seen
+at.
+
+The placement rides on how `LatheGeometry` lays out UVs: `u` runs around the
+circumference, `v` along the profile **by point index**. That is the second
+reason the skin is resampled at even spacing — with the raw control points, six
+of them crowded into the lip and one for the whole barrel, `v` would be bunched
+up at the nose and the title smeared over the cowl. Evenly spaced, `v` is
+proportional to distance along the generatrix and a marking can be asked for by
+station.
+
+Which way round the texture goes follows from `lathe()`: a vertex at angle φ
+ends up at world Y = −r·sin φ, Z = r·cos φ, so `u` = 0 is the +Z side, 0.25 the
+bottom, 0.5 the −Z side, 0.75 the top. Nothing is placed on the bottom — that is
+where `flattenBelly()` deforms the surface, and it is the one place the paint
+would visibly stretch.
+
+Two things are deliberate and look like mistakes:
+
+**The title straddles the joint between the fan cowl and the reverser.** Titles
+this size are painted on the assembled nacelle and matched panel to panel;
+keeping the whole of it clear of the joint would mean shrinking it to a third of
+the size the prototype carries.
+
+**The lettering does not go through `t()`.** These are markings painted on the
+hardware, and on real hardware they are in English whatever the language the
+interface is set to.
+
+The stations of the two circumferential joints are not free numbers. The forward
+one is `ST.a1` — the flange the intake bolts to. The aft one is expressed as a
+fraction of the run from `ST.a1` to `ST.bypassExit` rather than as a station of
+its own, so that it follows the layout instead of having to be kept in step with
+it by hand.
+
 ## The 5° engine tilt
 
 The engine on the 737 is installed with 5° of nose-up tilt relative to the

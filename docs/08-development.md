@@ -54,7 +54,7 @@ only.
 ```
 dist/index.html                12.3 kB  (3.5 kB gzip)
 dist/assets/index-*.css         8.1 kB  (2.4 kB gzip)
-dist/assets/index-*.js        731 kB  (198 kB gzip)
+dist/assets/index-*.js        734 kB  (200 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
@@ -395,6 +395,7 @@ index.html              markup of the panel, the legend and the module card
 src/main.js             scene, lighting, post-processing, cutaway, UI, frame loop
 src/engine.js           geometry of all modules, materials, labels, picking proxies
 src/blade.js            procedural generator of blades and rows
+src/livery.js           markings on the nacelle skin, drawn into a canvas
 src/airflow.js          flow ducts, particles, streamlines, plume
 src/heathaze.js         exhaust gas aft of the nozzle (screen-space pass)
 src/engineState.js      regime state machine: start, running, shutdown, rundown

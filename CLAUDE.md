@@ -93,6 +93,7 @@ Dependencies run one way, and `main.js` is the only orchestrator:
 
 ```
 index.html → main.js → engine.js → blade.js
+                                  → livery.js
                      → airflow.js  heathaze.js  sound.js  engineState.js
                      → atmosphere.js → contrail.js → contrailView.js
                      → i18n.js → locales/*.js
@@ -133,6 +134,14 @@ Worth knowing before making changes:
   module means adding its keys to all eight files; the parity test will say so.
   Sentences assembled at run time are stored whole, never glued from fragments:
   the word order that works in English has no counterpart in Japanese.
+* **The markings on the nacelle are the one exception to that** — they are paint
+  on the hardware, not interface, and stay English. `livery.js` draws them into
+  a canvas (there are no image files) and hands it back as the colour map of the
+  outer skin. It places them by station, which only works because the skin
+  profile is resampled at even spacing: `LatheGeometry` hands out `v` by point
+  index. Under Node there is no `document`, so it returns `null` and the skin
+  goes unpainted — that is what lets `geometry.test` and `clearance.test` keep
+  building the real scene.
 * **The cutaway** is two `THREE.Plane`s with `clipIntersection = true`, assigned
   only to the shell materials (`getShellMaterials()`). Rotors and blades stay
   whole, giving the classic cutaway. A material added without the
@@ -205,7 +214,7 @@ lines.
 
 The yardstick as of today (recount it, do not copy it): 771 thousand triangles,
 123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 237
-checks across eight test files. The build is 731 kB of JS, 198 kB gzipped.
+checks across eight test files. The build is 734 kB of JS, 200 kB gzipped.
 
 The bundle grew by 64 kB when the interface was localised into eight languages:
 the dictionaries are about 8 kB apiece and all of them ship, since lazy loading

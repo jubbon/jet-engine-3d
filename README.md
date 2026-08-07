@@ -243,6 +243,7 @@ src/style.css     panel styling
 src/main.js       scene, lighting, post-processing, cutaway, UI, animation
 src/engine.js     geometry of all engine modules, materials, labels
 src/blade.js      procedural generator of blades and rows
+src/livery.js     joints, doors and titles painted on the nacelle skin
 src/airflow.js    particles, streamlines, plume
 src/heathaze.js   exhaust gas aft of the nozzle (screen-space pass)
 src/sound.js      procedural engine sound

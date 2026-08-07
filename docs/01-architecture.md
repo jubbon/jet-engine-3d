@@ -17,6 +17,7 @@ graph TD
   M --> L[i18n.js<br/>lookup, interpolation,<br/>number formatting]
   L --> LOC[["locales/*.js<br/>eight dictionaries"]]
   E --> B[blade.js<br/>blade generator]
+  E --> LV[livery.js<br/>markings on the<br/>nacelle skin]
   L -.checked by.-> T7[test/i18n.test.mjs]
   ST -.checked by.-> T[test/engine-state.test.mjs]
   ST -.checked by.-> T2[test/heat-haze.test.mjs]
@@ -64,7 +65,7 @@ check the rotor rundown other than watching the screen.
 | File | Lines | Responsibility |
 |---|---:|---|
 | `src/locales/*.js` | 1355 | Eight dictionaries, 128 keys each |
-| `src/engine.js` | 1194 | All engine geometry, materials, proxies for module picking |
+| `src/engine.js` | 1238 | All engine geometry, materials, proxies for module picking |
 | `src/main.js` | 830 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 367 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/style.css` | 359 | Panel styling |
@@ -72,6 +73,7 @@ check the rotor rundown other than watching the screen.
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/contrailView.js` | 220 | The trail itself: a camera-facing strip along the axis |
 | `index.html` | 219 | Markup of the panel, the legend and the module card |
+| `src/livery.js` | 344 | Joints, service doors and titles painted on the nacelle skin |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |

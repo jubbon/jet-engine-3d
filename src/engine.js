@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeBladeGeometry, bladeRow } from './blade.js';
+import { createNacelleLivery } from './livery.js';
 
 /* ------------------------------------------------------------------ *
  *  Geometric layout of a high-bypass turbofan. The prototype is the
@@ -114,6 +115,13 @@ export const MATS = {
     { color: 0xe8eaed, metalness: 0.25, roughness: 0.35, side: THREE.DoubleSide },
     { shell: true }
   ),
+  // The outer skin differs from the rest of the nacelle only in carrying the
+  // markings; the map is attached below, once the profile it is laid out
+  // against exists.
+  nacelleSkin: mat(
+    { color: 0xe8eaed, metalness: 0.25, roughness: 0.35, side: THREE.DoubleSide },
+    { shell: true }
+  ),
   nacelleLip: mat({ color: 0xb9c0c7, metalness: 1.0, roughness: 0.12 }, { shell: true }),
   coreCowl: mat(
     { color: 0xd4d8dc, metalness: 0.4, roughness: 0.35, side: THREE.DoubleSide },
@@ -183,10 +191,13 @@ function lathe(points, material, segments = 96) {
 }
 
 /* Resamples a profile along a spline through its control points, at even
-   spacing. lathe() joins the points it is given with straight lines, and on a
-   body the size of the nacelle the creases between them catch the light and
-   read as facets - most visibly on the barrel, where the surface is nearly
-   flat and the eye is at its most sensitive to a break in the shading. */
+   spacing. Two things come out of it, and both matter for the nacelle skin.
+   The silhouette stops being a chain of straight segments - lathe() joins the
+   control points with lines, and on a body this size the creases between them
+   catch the light and read as facets. And LatheGeometry hands out the texture
+   coordinate v by point index, so evenly spaced points make v proportional to
+   distance along the generatrix; the markings in livery.js are placed by
+   station and rely on that. */
 function smoothProfile(points, samples) {
   const curve = new THREE.SplineCurve(points.map((p) => new THREE.Vector2(p[0], p[1])));
   return curve.getSpacedPoints(samples).map((p) => [p.x, p.y]);
@@ -297,6 +308,64 @@ function flattenBelly(mesh, depth) {
   return mesh;
 }
 
+/* ----------------------- the nacelle profiles ----------------------- *
+ *  The cowl is one closed shell described by two profiles: the outer skin
+ *  runs from the lip aft, the inner gas path comes back forward. They are
+ *  flattened differently - outside the nacelle is flat along almost its
+ *  whole length, inside only near the lip (see flattenBelly).
+ *
+ *  They live out here rather than inside buildEngine() because the markings
+ *  are laid out against the outer profile: the texture has to be built from
+ *  the same numbers the geometry is.
+ * -------------------------------------------------------------------- */
+
+/* Control points of the outer skin: lip Ø 1.70 m, maximum Ø 2.44 m at the
+   intake-to-fan-cowl joint, then a gentle taper towards the fan nozzle. The
+   annular face at the trailing edge is not part of this curve - a spline
+   through it would round off the very edge that should stay sharp - so it is
+   left to the inner profile to close. */
+const NAC_OUTER_CTL = [
+  [1.7, ST.lip],
+  [1.86, -5.1],
+  [2.02, -4.8],
+  [2.2, -4.4],
+  [2.36, -3.9],
+  [ST.nacelleR, ST.a1],
+  [ST.nacelleR, -1.6],
+  [2.36, -0.8],
+  [2.2, 0.0],
+  [1.98, 0.6],
+  [1.78, 1.0],
+  [1.7, ST.bypassExit],
+];
+
+/* 64 samples put a point about every 55 mm of skin. Fewer and the spline
+   still shows as facets on the barrel, where the surface is nearly flat and
+   the eye is most sensitive to them; more buys nothing visible and only
+   stretches the texture rows thinner. */
+const NAC_OUTER = smoothProfile(NAC_OUTER_CTL, 64);
+
+/* Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
+   tips (15 mm clearance) and the bypass duct up to the nozzle exit. The first
+   point is the annular trailing face that closes the shell against the skin. */
+const NAC_INNER = [
+  [1.7, ST.bypassExit],
+  [1.62, ST.bypassExit],
+  [1.64, 1.0],
+  [1.68, 0.3],
+  [1.7, -0.6],
+  [1.68, -1.6],
+  [1.64, -2.82],
+  [1.58, ST.fan],
+  [1.58, ST.a1],
+  [1.55, -4.1],
+  [1.53, -4.62],
+  [1.52, ST.throat],
+  [1.7, ST.lip],
+];
+
+MATS.nacelleSkin.map = createNacelleLivery(NAC_OUTER, ST);
+
 // Annular rotor disc / drum
 function drum(x0, x1, r0, r1, material, seg = 64) {
   return lathe(
@@ -363,52 +432,10 @@ export function buildEngine() {
   /* ===================== 1. Nacelle / intake ========================= */
   const mNac = module('nacelle', new THREE.Vector3(0, 4.4, 0));
 
-  // The cowl profile is split into two halves: the outer skin runs aft, the
-  // inner one comes back forward. Together they form one closed shell, but they
-  // are flattened differently - outside the nacelle is flat along almost its
-  // whole length, inside only near the lip (see flattenBelly).
-  // Outer skin: lip Ø 1.70 m, maximum Ø 2.44 m at the intake-to-fan-cowl joint,
-  // then a gentle taper towards the fan nozzle. The annular face at the trailing
-  // edge is not part of this curve - a spline through it would round off the
-  // very edge that should stay sharp - so the inner profile closes the shell.
-  const nacOuterCtl = [
-    [1.7, ST.lip],
-    [1.86, -5.1],
-    [2.02, -4.8],
-    [2.2, -4.4],
-    [2.36, -3.9],
-    [ST.nacelleR, ST.a1],
-    [ST.nacelleR, -1.6],
-    [2.36, -0.8],
-    [2.2, 0.0],
-    [1.98, 0.6],
-    [1.78, 1.0],
-    [1.7, ST.bypassExit],
-  ];
-  // 64 samples put a point about every 55 mm of skin. Fewer and the spline
-  // still shows as facets on the barrel, where the surface is nearly flat and
-  // the eye is most sensitive to them; more buys nothing visible.
-  const nacOuter = smoothProfile(nacOuterCtl, 64);
-  // Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
-  // tips (15 mm clearance) and the bypass duct up to the nozzle exit. The first
-  // point is the annular trailing face that closes the shell against the skin.
-  const nacInner = [
-    [1.7, ST.bypassExit],
-    [1.62, ST.bypassExit],
-    [1.64, 1.0],
-    [1.68, 0.3],
-    [1.7, -0.6],
-    [1.68, -1.6],
-    [1.64, -2.82],
-    [1.58, ST.fan],
-    [1.58, ST.a1],
-    [1.55, -4.1],
-    [1.53, -4.62],
-    [1.52, ST.throat],
-    [1.7, ST.lip],
-  ];
-  mNac.add(flattenBelly(lathe(nacOuter, MATS.nacelle, 120), outerBelly));
-  mNac.add(flattenBelly(lathe(nacInner, MATS.nacelle, 120), innerBelly));
+  // NAC_OUTER / NAC_INNER are module-level: the markings on the skin are laid
+  // out against the outer profile, so it has to exist before buildEngine runs.
+  mNac.add(flattenBelly(lathe(NAC_OUTER, MATS.nacelleSkin, 120), outerBelly));
+  mNac.add(flattenBelly(lathe(NAC_INNER, MATS.nacelle, 120), innerBelly));
   // the polished intake lip: it lies entirely within the fully flattened zone,
   // so it is cut the same way inside and out
   mNac.add(
