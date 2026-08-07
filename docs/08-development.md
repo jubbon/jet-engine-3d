@@ -231,6 +231,11 @@ The port is 5188, the same as the dev and preview servers. It is quoted in the
 README and above, and pinned in `vite.config.js` for the same reason — a
 container answering on 80 would be the one place the number differs.
 
+`docker ps` nevertheless shows `80/tcp` next to the mapping. That is inherited
+from the nginx base image, which declares it, and a `Dockerfile` cannot undo an
+`EXPOSE`. Nothing is listening there: the server block binds 5188 alone, so
+publishing 80 gets a port that refuses connections.
+
 The server configuration is in `docker/nginx.conf`, and one line of it is worth
 knowing about. nginx compresses at `gzip_comp_level 1` by default, which sends
 the bundle in 234.9 kB — 19 % more than it needs to, and a gap nobody would

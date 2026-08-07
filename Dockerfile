@@ -41,4 +41,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # and docs/08 all say, and what people have bookmarked when the model is shown
 # to them over the local network. A container that answered on 80 instead
 # would be the one place the number differs.
+#
+# `docker ps` will still advertise 80/tcp alongside it: the nginx base image
+# declares it and a Dockerfile has no way to take that back. Nothing listens
+# there — the server block in docker/nginx.conf binds 5188 and only 5188 — so
+# it is a port that exists in the metadata and nowhere else.
 EXPOSE 5188
