@@ -28,6 +28,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-23 | Engine selection: CFM56, LEAP, geared, three-spool | Geometry and sound | P1 | L |
 | BL-19 | Real dimensions: dimension lines and a figure for scale | Geometry | P1 | S |
 | BL-20 | Nacelle: what is left after the flat bottom | Geometry | P2 | M |
+| BL-29 | Heat tint on the core cowl and the primary nozzle | Geometry | P3 | S |
 | BL-07 | Section by an arbitrary plane | Interface | P2 | M |
 | BL-08 | Occlusion-aware labels | Interface | P1 | S |
 | BL-09 | Camera presets and a tour of the gas path | Interface | P2 | M |
@@ -681,6 +682,59 @@ taken from sources.
 Touches: `src/airflow.js` (duct boundaries), `src/engine.js` (structural
 breakdown, pylon, dimensions). To be documented in [Geometry](02-geometry.md)
 and [Airflow](04-airflow.md).
+
+### BL-29. Heat tint on the core cowl and the primary nozzle
+
+Everything outside the engine in the model is painted one colour. The core cowl
+is `MATS.coreCowl`, a light grey (`0xd4d8dc`), from the splitter all the way to
+the nozzle exit. On a real engine that is not so: the aft part of the core cowl
+and the primary nozzle are unpainted heat-resistant sheet, and after a few
+hundred hours it carries the straw-to-bronze discolouration that unpainted
+titanium and nickel alloys take on from temperature. The plug already gets it,
+by accident rather than design — it is built from `MATS.nickel` (`0xbfa887`),
+which is warm. The cowl next to it is not, and the join between them looks wrong.
+
+It is worth doing because it is the only place where the hot part of the engine
+can be seen from outside without the cutaway. The model spends effort on the
+glow of the turbine and the combustor, and all of it is hidden inside; a tint on
+the skin says the same thing to somebody who has not opened anything.
+
+**How.** The same technique as the markings: a small canvas gradient handed to
+`MATS.coreCowl` as a colour map — white forward, where the cowl is a fairing
+inside the bypass duct, warming towards the nozzle. `livery.js` already has the
+machinery for placing a value by station (`vAt`), and pulling it out for reuse
+is most of the work. Two things to watch:
+
+* `cowlPts` is a **closed** profile — it runs aft along the outside and back
+  forward along the inside. A gradient in `v` would therefore come out mirrored,
+  warm at both ends of the array and cold in the middle. Either split the
+  profile the way the nacelle skin is split, or map the gradient from the
+  station rather than from `v`.
+* The profile is a chain of straight segments, so it wants the same
+  `smoothProfile()` treatment before it can carry a texture at all; without even
+  spacing the gradient bunches up. That is a second reason to do it here rather
+  than by fiddling with the material colour.
+
+**Do not tie it to the regime.** The tint is accumulated damage to the finish,
+not a temperature readout: it is the same on a cold engine on the stand as at
+take-off power. The regime already drives `emissive` on `turbineHot`, `diskHot`
+and `combLiner`, and wiring the cowl into the same place would make it pulse
+with the throttle, which no engine does.
+
+**What is missing before it can be done properly: a source.** The reference file
+[`cfm56-7b-nacelle.json`](engines/cfm56-7b-nacelle.json) says nothing about
+finish — it is a file of dimensions. So this would be the first thing in the
+model chosen from appearance rather than from a citation, and it should at least
+be pinned to a photograph of the prototype's aft end, recorded the same way the
+dimensions are. The photograph that prompted the markings work shows the engine
+from the front and settles nothing about the core cowl.
+
+Related: with BL-20 (structural breakdown of the nacelle) — both are about the
+skin rather than the layout, and both want profiles that can carry a texture.
+
+Touches: `src/engine.js` (`MATS.coreCowl`, `cowlPts`), `src/livery.js` (the
+station-to-`v` helper, if it is to be shared). To be documented in
+[Geometry](02-geometry.md#markings-on-the-skin).
 
 ## Interface and visualisation
 
