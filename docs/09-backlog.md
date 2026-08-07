@@ -33,7 +33,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-09 | Camera presets and a tour of the gas path | Interface | P2 | M |
 | BL-10 | Model state in the URL | Interface | P3 | S |
 | BL-11 | Responsive layout and touch control | Interface | P2 | M |
-| BL-12 | Russian localisation | Interface | P3 | M |
+| BL-12 | Localisation into eight languages (done) | Interface | P3 | — |
 | BL-22 | Teaching layer: explanations from simple to formulas | Teaching | P1 | L |
 | BL-13 | Sound absorption in air with distance | Sound | P3 | S |
 | BL-14 | Separating fan and jet sound in space | Sound | P3 | M |
