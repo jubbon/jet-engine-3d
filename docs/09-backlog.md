@@ -654,7 +654,12 @@ defect.
   of the barrel. The first is more honest and also prepares the ground for
   asymmetric nacelles generally.
 * **Structural breakdown.** The intake barrel, the fan cowls opening upwards on
-  latches, the core cowl, the fan nozzle — with visible split lines. Separately,
+  latches, the core cowl, the fan nozzle. The split lines themselves are now
+  there — `livery.js` paints the joint at flange A1, the joint with the
+  reverser, the lengthwise splits of the cowl halves and the fastener rows along
+  them (see [Geometry](02-geometry.md#markings-on-the-skin)). What is missing is
+  the structure behind them: the skin is still one lathe, so nothing can be
+  opened, and the cowls cannot move apart in the exploded view. Separately,
   the acoustic panels on the inner surface of the intake: their perforated
   surface reads well and explains why the finish there is what it is.
 * **A pylon matching the prototype.** At present it is a flat extruded shape
