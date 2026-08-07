@@ -33,10 +33,17 @@ RUN npm run build
 # sources, no npm, no compiler — the runtime image holds the three files Vite
 # emits and a web server, and there is nothing in it that could rebuild them.
 # The unprivileged variant, not plain nginx:alpine. The stock image runs its
-# master process as root, and the usual justification — only root may bind a
-# port below 1024 — does not apply here: this server listens on 5188. So the
-# root was being kept for nothing, in a container whose entire job is to hand
-# out three static files it cannot even rebuild.
+# master process as root, and nothing here has a use for it: the server reads
+# dist/ and hands it out, and never writes anything.
+#
+# Not because of the port, which is the reflex answer and does not survive a
+# look. The usual reason an nginx image keeps root is the bind below 1024, and
+# inside a container that reason has already gone — Docker sets
+# net.ipv4.ip_unprivileged_port_start=0, against 1024 on the host. Built with
+# `listen 80` and run as UID 101 this image binds it and answers 200, with
+# CapEff 0000000000000000 in the container's own /proc/1/status. So the choice
+# of port and the choice of user are independent, and 5188 is not what buys
+# this; the root was simply never earning anything.
 #
 # The variant is the nginx team's own, same release cadence, and it is the
 # supported way round rather than a chown of the stock image: it ships an

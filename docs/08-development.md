@@ -247,11 +247,19 @@ the only thing that crosses the boundary is `dist/` — no `node_modules`, no
 sources, no npm. The runtime image is 55 MB against the 165 MB of the toolchain
 that produced it, and there is nothing in it that could rebuild the bundle.
 
-The unprivileged variant rather than the stock `nginx:alpine`, because the one
-reason to run the master process as root does not exist here. Root is needed to
-bind a port below 1024; this server listens on 5188. Everything the running
-container does is read `dist/` and hand it out, so it was a privilege kept for
-no purpose at all. The variant is the nginx team's own and tracks the same
+The unprivileged variant rather than the stock `nginx:alpine`, because nothing
+the running container does has a use for root: it reads `dist/` and hands it
+out, and never writes anything.
+
+Not because of the port, which is the reflex answer and is wrong. The usual
+reason an nginx image keeps root is the bind below 1024, and inside a container
+that reason has already evaporated — Docker sets
+`net.ipv4.ip_unprivileged_port_start` to 0, against 1024 on the host. Built with
+`listen 80` and run as UID 101, this image binds it and answers 200, with
+`CapEff: 0000000000000000` in the container's own `/proc/1/status`: no
+capabilities at all, port 80 anyway. The choice of port and the choice of user
+are independent, and 5188 is not what makes the unprivileged image possible.
+The variant is the nginx team's own and tracks the same
 releases — the alternative, chowning the stock image's pid and temp paths by
 hand, means owning a list that changes quietly between versions. Two `USER`
 lines bracket the build: root to clear the seeded document root and copy
@@ -275,6 +283,17 @@ image, which declares it, and a `Dockerfile` cannot undo an `EXPOSE`. Nothing is
 listening there: `netstat` inside the container finds 5188 over v4 and v6 and
 nothing else, so publishing the advertised port gets one that refuses
 connections.
+
+Which is a small thing, because `EXPOSE` publishes nothing in the first place.
+It is metadata with two effects: this line in `docker ps`, and `docker run -P`
+picking the ports up — on this image that assigns two random high ones, 5188 to
+one and the phantom 8080 to another. Reaching the model on some other port needs
+no change here at all, since the host side is chosen at run time and is
+unrelated to what the server listens on: `docker run -p 80:5188` serves it on
+80, and `make run PORT=8080` on 8080. That is what keeps the internal number at
+5188 rather than something more conventional — it costs nobody anything, and it
+is the one number the dev server, the preview server, the README and every
+bookmark already agree on.
 
 The server configuration is in `docker/nginx.conf`, and one line of it is worth
 knowing about. nginx compresses at `gzip_comp_level 1` by default, which sends
