@@ -66,14 +66,14 @@ check the rotor rundown other than watching the screen.
 | `src/locales/*.js` | 1355 | Eight dictionaries, 128 keys each |
 | `src/engine.js` | 1194 | All engine geometry, materials, proxies for module picking |
 | `src/main.js` | 830 | Scene, lighting, post-processing, cutaway, UI, frame loop |
-| `src/heathaze.js` | 360 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/heathaze.js` | 367 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/style.css` | 359 | Panel styling |
 | `src/sound.js` | 351 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
+| `src/contrailView.js` | 220 | The trail itself: a camera-facing strip along the axis |
 | `index.html` | 219 | Markup of the panel, the legend and the module card |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
-| `src/contrailView.js` | 158 | The trail itself: a camera-facing strip along the axis |
 | `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
 | `src/i18n.js` | 96 | Lookup, interpolation, number formatting, locale matching |
