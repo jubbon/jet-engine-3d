@@ -38,12 +38,15 @@ help: ## show this list
 
 install: node_modules ## install dependencies (only if the lockfile moved)
 
-# ci rather than install, for the reason the CI workflow and the Dockerfile
-# give: the lockfile is committed and is meant to be obeyed. The touch is not
-# cosmetic — npm ci leaves the directory mtime older than the lockfile it just
-# read, so without it every make invocation would reinstall.
+# ci rather than install, and --ignore-scripts with it, for the reasons the CI
+# workflow and the Dockerfile give: the lockfile is committed and is meant to be
+# obeyed, and obeying it is worth little if unpacking it also runs code from it.
+# The flag belongs here too — a developer's machine is the one place where an
+# install hook has the most to reach. The touch is not cosmetic — npm ci leaves
+# the directory mtime older than the lockfile it just read, so without it every
+# make invocation would reinstall.
 node_modules: package-lock.json package.json
-	npm ci
+	npm ci --ignore-scripts
 	@touch $@
 
 dev: node_modules ## Vite dev server on 5188

@@ -16,7 +16,14 @@ COPY package.json package-lock.json ./
 # ci, not install: the lockfile is committed, and an image that quietly
 # resolved a newer Three.js would no longer be the commit it claims to be.
 # Same reasoning as the CI workflow.
-RUN npm ci
+#
+# --ignore-scripts, because npm ci otherwise runs whatever install hooks the
+# dependency tree carries — here esbuild's, which is one compromised release
+# away from executing during the image build with the build context on disk.
+# Checked, not assumed: esbuild resolves its binary from the platform package
+# in optionalDependencies, and without its hook the tests still pass and the
+# bundle comes out with the same content hash.
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run build

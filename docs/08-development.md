@@ -205,6 +205,22 @@ of them does not hide the state of the others. Installation is `npm ci` rather
 than `npm install`: the lockfile is committed, and a run that quietly resolves a
 newer Three.js is no longer testing the commit it claims to test.
 
+It carries `--ignore-scripts`, here and in the `Makefile` and the `Dockerfile`
+alike, which is the other half of the same idea: pinning what gets installed is
+worth little if installing it also runs code out of it. `npm ci` executes the
+install hooks of the whole dependency tree by default, and a lockfile pins the
+version of a package without saying anything about what that version's
+`postinstall` does — the compromise everyone reads about in the news arrives
+through exactly this door, on a machine that has a checkout and credentials
+sitting next to it.
+
+The tree has one package with an install hook that matters, `esbuild`, and it
+does not need it: the binary comes from the platform package in
+`optionalDependencies`, and the hook only verifies it. That was checked rather
+than assumed — a clean `npm ci --ignore-scripts` in a fresh copy loads esbuild,
+passes all 232 checks, and produces a bundle with the same content hash as the
+build that ran the hooks.
+
 The build job prints the bundle size into the run summary. That is there for a
 specific failure this repository keeps repeating — the size is quoted in four
 places and every one of them is copied from memory, so the figures drift.
@@ -225,8 +241,8 @@ docker run --rm -p 5188:5188 jet-engine-3d
 ```
 
 Two stages. The first is `node:22-alpine`, pinned to the version the project is
-developed on: it installs with `npm ci` from the committed lockfile and runs
-`npm run build`. The second is `nginxinc/nginx-unprivileged:1.29-alpine`, and
+developed on: it installs with `npm ci --ignore-scripts` from the committed
+lockfile and runs `npm run build`. The second is `nginxinc/nginx-unprivileged:1.29-alpine`, and
 the only thing that crosses the boundary is `dist/` — no `node_modules`, no
 sources, no npm. The runtime image is 55 MB against the 165 MB of the toolchain
 that produced it, and there is nothing in it that could rebuild the bundle.

@@ -41,7 +41,11 @@ jobs:
 
       # ci rather than install: the lockfile is committed, and a run that
       # quietly resolves a newer three.js is no longer testing this commit.
-      - run: npm ci
+      # --ignore-scripts for the other half of the same idea: obeying the
+      # lockfile is worth little if installing it also runs code from it. The
+      # tree has one package with an install hook, esbuild, and the suite
+      # passes without it.
+      - run: npm ci --ignore-scripts
 
       - run: npm test
 
@@ -56,7 +60,7 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --ignore-scripts
 
       - run: npm run build
 
