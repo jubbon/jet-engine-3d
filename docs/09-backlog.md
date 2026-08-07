@@ -1065,12 +1065,23 @@ engine descriptions from BL-23 are data, and they are open by design.
 Obfuscation raises the barrier to entry but does not make copying impossible;
 expecting more from it is a mistake.
 
-**What solves the problem better, if the goal is attribution.** There is
-currently no licence file in the repository, although `package.json` says ISC.
-An explicit licence, an attribution line in the interface and a statement of the
-origin of the recordings used do more to protect the work than scrambled
-variable names, and cost half an hour. That is worth doing in any case —
-regardless of whether obfuscation happens.
+**What solves the problem better, if the goal is attribution.** An explicit
+licence, an attribution line in the interface and a statement of the origin of
+the recordings used do more to protect the work than scrambled variable names,
+and cost hours rather than days. That is worth doing regardless of whether
+obfuscation ever happens — and one of the three is now done.
+
+* **The licence — done.** `LICENSE` holds MIT with the copyright line, and
+  `package.json` says the same. It used to declare ISC with no licence file
+  anywhere, which is the worst of both: code published without a `LICENSE`
+  defaults to "all rights reserved" whatever a field in the manifest says, so
+  the declaration protected nothing and permitted nothing.
+* **The attribution line in the interface** is BL-29 — the card with the
+  version, the author and the links. That entry is where it is now tracked.
+* **The origin of the recordings is still unstated.** `test/audio` uses
+  Freesound recordings under free licences to tune the synthesis, and neither
+  `README.md` nor the interface says so. BL-24 requires that statement before
+  publishing; until then the project is silently using someone else's work.
 
 **The cost.** The built file grows — noticeably so at aggressive settings, which
 runs counter to BL-15, where the size is reduced instead. Debugging the
@@ -1088,8 +1099,8 @@ is being protected: the layout and the physics are described in detail in
 `docs/` and are open by design, so what remains to close is the implementation.
 
 Touches: the build configuration (`vite.config.js`), `package.json` (the build
-step and a mode without obfuscation), `LICENSE`, `README.md`. To be documented
-in [Development](08-development.md).
+step and a mode without obfuscation), `README.md`. To be documented in
+[Development](08-development.md).
 
 ### BL-26. Versioning: releases, formats, compatibility
 
