@@ -23,6 +23,17 @@ npm test         # state machine, exhaust gas, spiral smear, atmosphere,
 
 A single test runs directly: `node test/geometry.test.mjs`.
 
+Or in a container, which needs no Node installed:
+
+```bash
+docker build -t jet-engine-3d .
+docker run --rm -p 5188:5188 jet-engine-3d
+```
+
+The build happens inside the image and only `dist/` comes out of it, onto
+nginx — 63 MB served, against 165 MB for the toolchain that produced it. The
+details are in [`08-development`](docs/08-development.md#docker).
+
 ## Documentation
 
 The full description is in the [`docs/`](docs/README.md) directory:

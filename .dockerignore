@@ -1,0 +1,25 @@
+# What the build stage actually needs is index.html, src/, vite.config.js and
+# the two manifests. Everything below is either rebuilt inside the image or
+# has no bearing on it.
+
+node_modules/
+dist/
+
+.git/
+.github/
+.omc/
+.playwright-mcp/
+*.log
+
+# 37 MB of reference recordings live under test/audio, and the tests do not run
+# in the image — CI runs them, and it runs them against the same commit. If a
+# build step ever needs docs/engines/*.json (today only the tests read it),
+# this is the line that has to go.
+test/
+docs/
+
+Dockerfile
+.dockerignore
+README.md
+LICENSE
+CLAUDE.md

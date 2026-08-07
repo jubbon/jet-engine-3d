@@ -178,6 +178,53 @@ What CI does not check is anything needing a GPU: the shader passes, the bloom,
 and how the scene actually looks. Those stay a manual pass — see the four views
 at the end of the previous section.
 
+## Docker
+
+```bash
+docker build -t jet-engine-3d .
+docker run --rm -p 5188:5188 jet-engine-3d
+```
+
+Two stages. The first is `node:22-alpine`, pinned to the version the project is
+developed on: it installs with `npm ci` from the committed lockfile and runs
+`npm run build`. The second is `nginx:1.29-alpine`, and the only thing that
+crosses the boundary is `dist/` — no `node_modules`, no sources, no npm. The
+runtime image is 63 MB against the 165 MB of the toolchain that produced it,
+and there is nothing in it that could rebuild the bundle.
+
+The manifests are copied ahead of the sources so that the install layer — some
+50 MB — survives every commit that does not touch a dependency. `test/` and
+`docs/` are excluded from the build context, which mostly matters because
+`test/audio` holds 37 MB of reference recordings the image has no use for; the
+tests are CI's job, against the same commit.
+
+The port is 5188, the same as the dev and preview servers. It is quoted in the
+README and above, and pinned in `vite.config.js` for the same reason — a
+container answering on 80 would be the one place the number differs.
+
+The server configuration is in `docker/nginx.conf`, and one line of it is worth
+knowing about. nginx compresses at `gzip_comp_level 1` by default, which sends
+the bundle in 234.9 kB — 19 % more than it needs to, and a gap nobody would
+think to measure. At level 6 it is 196.8 kB. That is not identical to the
+198.29 kB Vite reports, since the two use different zlib window and memory
+settings, but it is on the right side of it, so the figure quoted in
+[Build size](#build-size) is an upper bound on what actually goes over the
+wire. The default `gzip_types` is another: it covers `text/html` alone, which
+would have left the whole payload uncompressed.
+
+The rest is caching. Vite puts a content hash in every asset filename, so
+anything under `/assets/` is immutable and cached for a year; `index.html`
+carries the pointers to those names and is sent `no-cache`, because a cached
+copy would keep asking for yesterday's filenames — which are still on disk and
+still work, making a deploy invisible. A path that matches nothing gets a 404
+rather than the usual fallback to `index.html`: there is no router here, so
+answering a mistyped URL with the model would hide the mistake instead of
+reporting it.
+
+What is deliberately not here: no compose file, no image published anywhere,
+and the CI workflow does not build the image. Publishing needs a registry and a
+tagging policy, and neither has been decided.
+
 ## Limitations of the model
 
 The model is illustrative. The full list of what is deliberately simplified or

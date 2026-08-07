@@ -29,6 +29,12 @@ A single test runs directly, with no runner and no flags:
 node test/geometry.test.mjs
 ```
 
+The two-stage `Dockerfile` builds with Node and serves `dist/` from nginx on the
+same port 5188. It runs no tests — that is CI's job (`.github/workflows/ci.yml`),
+against the same commit. `docker/nginx.conf` sets `gzip_comp_level 6`
+deliberately: the default of 1 sends the bundle 19 % heavier than the size
+quoted in the documentation.
+
 ## Coordinate system and stations
 
 This is the central convention of the project; do not touch the geometry before
