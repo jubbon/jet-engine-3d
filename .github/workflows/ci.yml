@@ -1,0 +1,92 @@
+name: CI
+
+# The tests build the real scene through buildEngine() under Node, so they are
+# the closest thing to a rendering check this project can have on a runner: a
+# software rasteriser gives about 1 fps and a forty-second engine start cannot
+# be waited out. Everything worth checking is therefore headless and cheap —
+# the whole suite runs in under a second — which is why every push gets it.
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      # One failing version should not hide the others.
+      fail-fast: false
+      matrix:
+        # 20 is the floor Vite 7 still supports, 22 is what the project is
+        # developed on, 24 is where it is heading.
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # ci rather than install: the lockfile is committed, and a run that
+      # quietly resolves a newer three.js is no longer testing this commit.
+      - run: npm ci
+
+      - run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # The documentation quotes the bundle size in several places and it
+      # regularly falls behind — the localisation alone added 64 kB. Printing
+      # the real figures into the run summary means the number can be copied
+      # from a measurement instead of from memory.
+      # Node's zlib, not the gzip binary: Vite measures with zlib and the two
+      # disagree by a couple of kilobytes, which is exactly the kind of drift
+      # this step exists to stop.
+      - name: Report bundle size
+        run: |
+          node --input-type=module -e '
+            import { gzipSync } from "node:zlib";
+            import { readFileSync, readdirSync, appendFileSync } from "node:fs";
+            const kB = n => (n / 1000).toFixed(2) + " kB";
+            const files = ["index.html", ...readdirSync("dist/assets").map(f => "assets/" + f)];
+            const rows = files.map(name => {
+              const raw = readFileSync("dist/" + name);
+              return `| \`${name}\` | ${kB(raw.length)} | ${kB(gzipSync(raw).length)} |`;
+            });
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              ["### Bundle size", "", "| File | Size | Gzipped |", "| --- | ---: | ---: |", ...rows, ""].join("\n"));
+          '
+
+      # Keeps the artefact of a green commit around for a quick look without a
+      # local checkout; the default retention would be 90 days, which is more
+      # than this is worth.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

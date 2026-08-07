@@ -1,5 +1,7 @@
 # Turbofan engine — interactive 3D model (Three.js)
 
+[![CI](https://github.com/jubbon/jet-engine-3d/actions/workflows/ci.yml/badge.svg)](https://github.com/jubbon/jet-engine-3d/actions/workflows/ci.yml)
+
 A detailed model of a high-bypass turbofan: turning rotors, all the main core
 assemblies, airflow visualisation and a "look inside" mode.
 

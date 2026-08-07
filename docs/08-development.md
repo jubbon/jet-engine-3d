@@ -131,6 +131,31 @@ from the front — there the image must stay sharp, otherwise the occlusion by t
 bodies is broken; and with the air flows switched on — there the particles and
 streamlines must not drown in the gas.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request into `main` and
+`dev`. Two jobs: the test suite on Node 20, 22 and 24, and a build on 22.
+
+Running the whole suite on every push is affordable precisely because none of it
+needs a renderer: it is a handful of plain Node scripts and finishes in under a
+second. The three versions are the floor Vite still supports, the one the
+project is developed on, and the next one; `fail-fast` is off, so a break in one
+of them does not hide the state of the others. Installation is `npm ci` rather
+than `npm install`: the lockfile is committed, and a run that quietly resolves a
+newer Three.js is no longer testing the commit it claims to test.
+
+The build job prints the bundle size into the run summary. That is there for a
+specific failure this repository keeps repeating — the size is quoted in four
+places and every one of them is copied from memory, so the figures drift.
+Measuring it uses Node's `zlib` rather than the `gzip` binary, because Vite
+measures with `zlib` and the two disagree by about two kilobytes: 198.29 kB
+against 195.88 kB for the same file. Two numbers that both look right are worse
+than none. The built `dist/` is kept as an artefact for a week.
+
+What CI does not check is anything needing a GPU: the shader passes, the bloom,
+and how the scene actually looks. Those stay a manual pass — see the four views
+at the end of the previous section.
+
 ## Limitations of the model
 
 The model is illustrative. The full list of what is deliberately simplified or
