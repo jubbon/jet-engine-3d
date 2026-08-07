@@ -29,7 +29,21 @@ export function pickLocale(preferred, available) {
 }
 
 export function createI18n({ locales, initial }) {
-  let current = locales[initial] ? initial : 'en';
+  /* Own keys only. `locales['__proto__']` and `locales['constructor']` are both
+   * truthy without a dictionary behind them, so a plain `if (locales[tag])`
+   * accepts them - and the tag arrives from localStorage, where anything can be
+   * written. What follows is not a wrong translation but a dead scene:
+   * Intl.NumberFormat throws RangeError on those tags, n() is called from
+   * updateGauges at the top of the frame loop, and the next frame is scheduled
+   * at the bottom of it. One throw and the model stops for good, with the
+   * offending tag still in localStorage to greet the next reload. */
+  const known = (tag) => Object.hasOwn(locales, tag);
+  /* Same reasoning one level down: t('constructor') would otherwise return
+   * Object's constructor - a function where a string is expected. No key in use
+   * is a bare word, but nothing enforces that either. */
+  const entry = (dict, key) => (dict && Object.hasOwn(dict, key) ? dict[key] : undefined);
+
+  let current = known(initial) ? initial : 'en';
 
   /* Intl.NumberFormat is expensive to construct, and updateGauges formats
    * nineteen numbers per call straight out of the frame loop - four gauges,
@@ -49,7 +63,7 @@ export function createI18n({ locales, initial }) {
    * missing string must not take the whole scene down.
    */
   const t = (key, params) => {
-    const raw = locales[current]?.[key] ?? locales.en?.[key] ?? key;
+    const raw = entry(locales[current], key) ?? entry(locales.en, key) ?? key;
     if (!params) return raw;
     return raw.replace(/\{(\w+)\}/g, (whole, name) =>
       Object.prototype.hasOwnProperty.call(params, name) ? params[name] : whole
@@ -88,7 +102,7 @@ export function createI18n({ locales, initial }) {
     // switcher shows, and it must not reshuffle when the language changes.
     available: () => Object.keys(locales),
     setLocale(tag) {
-      if (!locales[tag]) return;
+      if (!known(tag)) return;
       current = tag;
       formatters = new Map();
     },

@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Eight files, 210 checks. There is no framework: each test is a plain Node script
+Eight files, 232 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -159,7 +159,7 @@ is insurance against the main risk of a tight layout: the core is short, the
 stage pitch is small, and any addition to a blade chord drops the rows onto each
 other.
 
-`test/i18n.test.mjs` — 60 checks of the localisation, and most of them are about
+`test/i18n.test.mjs` — 82 checks of the localisation, and most of them are about
 agreement rather than content. All eight dictionaries must carry exactly the key
 set of the English one, with the same `{placeholders}` in every value and
 nothing left empty: a key added to `en.js` and forgotten in the other seven
@@ -172,6 +172,16 @@ anywhere — grouped, a T4 of 1604 °C reads as German "1.604 °C"), and the
 agreement between `index.html` and the dictionary: every `data-i18n` names a key
 that exists, no tagged element has child tags, and the English left in the
 markup still says what `en.js` says.
+
+Twenty-two of the checks are there for one narrow reason: the language tag is
+read from `localStorage`, and a tag inherited from `Object.prototype` used to
+get past the guard on it. `locales['__proto__']` is truthy with no dictionary
+behind it, and `Intl.NumberFormat('__proto__')` throws — out of `n()`, out of
+`updateGauges()`, out of the top of the frame loop, which schedules the next
+frame only at its bottom. The result was not a wrong translation but a scene
+that stopped and stayed stopped, since the reload read the same tag back. The
+checks pin down both halves: such a tag is refused, and a locale that survives
+it still formats numbers.
 
 The sound is checked separately, by rendering the graph into an
 `OfflineAudioContext` (method and results in the [sound document](06-sound.md)).

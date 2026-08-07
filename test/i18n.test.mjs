@@ -71,6 +71,43 @@ console.log(`  ${TAGS.length} locales, ${EN_KEYS.length} keys: ${TAGS.join(', ')
   check('available() keeps the declared order', i18n.available().join() === TAGS.join());
 }
 
+/* ------------------------ tags off the prototype ---------------------- *
+ *  These are not a translation problem. A tag inherited from Object.prototype
+ *  passes a truthiness test with no dictionary behind it, and two of them make
+ *  Intl.NumberFormat throw - out of n(), out of updateGauges, out of the top of
+ *  the frame loop, which schedules the next frame only at its bottom. The scene
+ *  freezes and stays frozen: the tag is read from localStorage, so a reload
+ *  restores the wreck rather than the model.
+ * ---------------------------------------------------------------------- */
+{
+  const INHERITED = ['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty'];
+
+  const i18n = createI18n({ locales: LOCALES, initial: 'ja' });
+  for (const tag of INHERITED) {
+    i18n.setLocale(tag);
+    check(`setLocale refuses ${tag}`, i18n.locale() === 'ja', i18n.locale());
+  }
+
+  for (const tag of INHERITED) {
+    // the localStorage path: whatever is stored is handed straight to createI18n
+    const stored = createI18n({ locales: LOCALES, initial: tag });
+    check(`a stored ${tag} falls back to English`, stored.locale() === 'en', stored.locale());
+    // the check that matters - this is the call that used to take the scene down
+    let formatted;
+    try {
+      formatted = stored.n(1604, 0);
+    } catch (e) {
+      formatted = `${e.constructor.name}: ${e.message}`;
+    }
+    check(`a stored ${tag} still formats numbers`, formatted === '1604', formatted);
+    check(`a stored ${tag} still translates`, stored.t('panel.h1') === EN['panel.h1']);
+  }
+
+  const proto = createI18n({ locales: { en: { k: 'English' } }, initial: 'en' });
+  check('an inherited key is not a translation', proto.t('constructor') === 'constructor');
+  check('an inherited key does not shadow the fallback', typeof proto.t('toString') === 'string');
+}
+
 /* ---------------------------- interpolation --------------------------- */
 {
   const probe = createI18n({ locales: { en: { 'x.y': 'a {one} b {two}' } }, initial: 'en' });
