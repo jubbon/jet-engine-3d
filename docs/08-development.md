@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Eight files, 237 checks. There is no framework: each test is a plain Node script
+Eight files, 239 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -227,7 +227,7 @@ The tree has one package with an install hook that matters, `esbuild`, and it
 does not need it: the binary comes from the platform package in
 `optionalDependencies`, and the hook only verifies it. That was checked rather
 than assumed — a clean `npm ci --ignore-scripts` in a fresh copy loads esbuild,
-passes all 237 checks, and produces a bundle with the same content hash as the
+passes all 239 checks, and produces a bundle with the same content hash as the
 build that ran the hooks.
 
 The build job prints the bundle size into the run summary. That is there for a

@@ -71,6 +71,58 @@ near(
   0.2
 );
 
+/* The flat bottom has to BE flat.
+ *
+ * Every dimension above is taken at the widest section, and there a flattening
+ * that holds a level plane and one that follows the taper of the cowl give
+ * exactly the same answer. That is how an underside which climbed 0.33 m over
+ * the length of the intake - a bevel across the bottom front corner, not a
+ * flattening at all - passed every check on this page for as long as it did.
+ *
+ * The reference says nothing about the lengthwise shape of the flat, so what is
+ * guarded here is the model's own decision rather than a published figure: the
+ * underside is a plane, and it runs to the lip. The clearance the feature exists
+ * to buy is measured from the ground to the lowest point of the nacelle, so a
+ * flat that rises anywhere along its run is not doing its job. */
+const belly = new Map(); // station -> lowest point of the skin there
+{
+  const v = new THREE.Vector3();
+  engine.parts.mNac.updateWorldMatrix(true, true);
+  engine.parts.mNac.traverse((o) => {
+    if (!o.isMesh || !o.geometry || o.material?.visible === false || o.name === 'pylon') return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      const b = Math.round(v.x * 10) / 10;
+      if (!belly.has(b) || v.y < belly.get(b)) belly.set(b, v.y);
+    }
+  });
+}
+const floor = Math.min(...belly.values());
+const LEVEL = 0.02; // 10 mm: below that the flat is flat as far as the eye goes
+
+// Where the flat begins, measured from the lip.
+let flatFrom = Infinity;
+for (const [x, y] of belly) if (y <= floor + LEVEL) flatFrom = Math.min(flatFrom, x);
+check(
+  'The flat bottom reaches the lip',
+  station(flatFrom) <= 0.2,
+  `starts ${station(flatFrom).toFixed(2)} m aft of the lip, allowed 0.20`
+);
+
+// And does not climb anywhere along its run, from the lip to the aft cowl.
+let worst = 0;
+let worstAt = 0;
+for (const [x, y] of belly) {
+  if (x < flatFrom || station(x) > 2.4) continue;
+  if (y - floor > worst) [worst, worstAt] = [y - floor, x];
+}
+check(
+  'The underside does not climb along its run',
+  worst <= LEVEL,
+  `worst ${(m(worst) * 1000).toFixed(0)} mm at ${station(worstAt).toFixed(2)} m from the lip`
+);
+
 near('Lip -> fan nozzle exit', station(ST.bypassExit), nod.length_lip_to_fan_nozzle_exit.value, 0.15);
 near('Lip -> core nozzle exit', station(ST.coreExit), nod.length_lip_to_core_nozzle_exit.value, 0.15);
 near('Lip -> plug tip', station(ST.plugTip), nod.length_lip_to_plug_tip.value, 0.3);

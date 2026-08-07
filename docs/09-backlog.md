@@ -643,28 +643,26 @@ JSON) and `test/clearance.test.mjs` (rows do not intersect, accessories do not
 pierce the skin). Details and consequences are in
 [Geometry](02-geometry.md#dimensions-from-sources).
 
-Four things remain, and the first of them is not decoration but a visible
-defect.
+**The flat runs to the lip.** The underside is no longer trimmed but carried
+down: the lower half of each section is stretched to the depth of the widest one
+before the plane cuts it, so the section stops being a circle and the flat holds
+level from 0.10 m aft of the lip through to the aft cowl. Two checks in
+`test/geometry.test.mjs` guard the lengthwise shape, which every dimension taken
+at the widest section is blind to. Details in
+[Geometry](02-geometry.md#flat-bottom-of-the-nacelle).
 
-* **The flat stops 0.3 m short of the lip.** The underside is a plane at
-  y = −2.12, so the cut runs out by itself where the intake narrows past it —
-  forward of that the nacelle is simply thinner than the flat and there is
-  nothing to trim. On the prototype the flat reaches the lip, which means the
-  intake there is not a surface of revolution: its lower part is carried down
-  below a circle of the same radius. Doing it properly means giving the intake
-  profile a dependence on circumferential angle, not just trimming what `lathe()`
-  produced. That is also the point at which the flat bottom stops being a
-  deformation applied afterwards and becomes part of the shape, which is the
-  right end state — and it is what the flow path needs too (below).
+That also disposed of the flow defect that used to head this list: the bypass
+particles poked out through the barrel underneath at the lip because the barrel
+was cut *up* there. The duct boundaries in `src/airflow.js` are still
+axisymmetric tables of "axial coordinate → radius" and still know nothing about
+the flat, but the skin is now below them everywhere — the tightest margin is
+54 mm, at the fan nozzle. It is worth making the boundaries angle-dependent
+anyway, both because the flow through a flattened intake really is not
+axisymmetric and because it prepares the ground for asymmetric nacelles
+generally; it is no longer urgent.
 
-* **The flow path does not know about the flat bottom.** The duct boundaries in
-  `src/airflow.js` are given by tables of "axial coordinate → radius", that is,
-  they are axisymmetric. The nacelle is cut away underneath while the duct is
-  not, so right at the lip the bypass particles poke out through the barrel. The
-  cure is either the same flattening profile applied to the boundary radius as a
-  function of circumferential angle, or constraining the particles by the shape
-  of the barrel. The first is more honest and also prepares the ground for
-  asymmetric nacelles generally.
+Three things remain.
+
 * **Structural breakdown.** The intake barrel, the fan cowls opening upwards on
   latches, the core cowl, the fan nozzle. The split lines themselves are now
   there — `livery.js` paints the joint at flange A1, the joint with the

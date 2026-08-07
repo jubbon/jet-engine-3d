@@ -239,36 +239,47 @@ function skinRadiusAt(x) {
 const BELLY_FLOOR = 2.12; // 1.06 m below the axis
 
 /* The flat is a PLANE, so what is held constant along the nacelle is the height
-   of the underside, not the depth of the cut. That distinction is the whole
-   point of the feature and it used to be got wrong here: with a constant depth
-   of 0.32 the underside followed the taper of the cowl and climbed 0.33 m over
-   the length of the intake, which read as a bevel cut across the bottom front
-   corner - and a flattening that rises towards the lip is not a flattening, it
-   is a chamfer. The clearance it exists to buy is measured to the lowest point
-   of the nacelle from the ground, and that point has to stay put.
+   of the underside, not the depth of the cut. Trimming a surface of revolution
+   at that height gets it right only where the cowl is wide enough to reach the
+   plane: the widest section is 2.44, but the intake narrows to 1.70 at the lip,
+   and a circle of radius 1.70 cannot reach down to 2.12. Trimming alone
+   therefore always leaves the flat running out short of the lip and the
+   underside curving up to meet it - and a flattening that rises towards the lip
+   is not a flattening, it is a chamfer. The clearance the feature exists to buy
+   is measured to the lowest point of the nacelle, and that point has to stay
+   put.
 
-   Taking the depth from the local radius makes the cut deepest at the barrel,
-   where the cowl is widest, and fade out by itself where the intake narrows
-   past the floor - around 0.3 m short of the lip. Forward of that the nacelle
-   is simply narrower than the flat and there is nothing left to trim: a body of
-   revolution of radius 1.70 cannot reach down to 2.12. Carrying the flat right
-   out to the lip needs an intake that is not a surface of revolution at all,
-   which is a separate piece of work (BL-20).
+   So the underside is not trimmed but CARRIED DOWN: the lower half of each
+   section is stretched until it reaches the depth of the widest section, and
+   only then cut by the plane. The section stops being a circle - it keeps its
+   width, and its underside is a half-ellipse deep enough to meet the floor.
+   That is what the prototype does; the "hamster pouch" is a panel running the
+   length of the cowl, not a slice off a cone.
 
-   The same argument disposes of the fade that used to taper the cut away
-   towards the nozzle. It was there to stop a constant depth from following the
-   cowl round as it narrows; a plane needs no help - the cut runs out on its own
-   where the radius drops back through the floor, about 0.5 m short of the fan
-   nozzle. Keeping the fade as well only pulled the underside 17 mm below the
-   floor over the aft cowl, which put the lowest point of the whole nacelle in
-   the one place it has no business being. */
-const outerBelly = (x) => Math.max(0, skinRadiusAt(x) - BELLY_FLOOR);
+   Nothing here is a new free number. The stretch reaches ST.nacelleR, the same
+   2.44 the widest section already has, so at that station the ellipse is a
+   circle again and the shape is exactly what the reference was checked against.
+   The flat then narrows with the cowl on its own: 1.21 m across at the barrel,
+   1.00 m level with the aft edge of the polished lip. */
 
-/* The inner gas path is never trimmed. It nowhere exceeds 1.70 units, so it
-   sits entirely above the floor - the flat plane misses it. That also settles
-   what used to need a separate fade: the duct has to be round by the fan plane,
-   where the clearance to the blade tips is under a tenth of a unit and a
-   flattened duct would shave them off, and now it is round everywhere. */
+/* How much of that stretch is applied, 0..1.
+
+   It goes to zero at the lip nose, over the length of the polished lip. That is
+   not a compromise: the nose ring is shared by the skin, the lip and the inner
+   gas path, and moving it on one of them and not the others would split the
+   shell open. It is also what the lip is - a leading edge rolling over the flat
+   panel behind it, fatter underneath than on top, exactly as on the prototype.
+
+   Aft it goes to zero by the fan nozzle, which has to be round: the skin and
+   the duct meet at the exit ring and the same argument applies there. */
+const outerBelly = (x) =>
+  THREE.MathUtils.smoothstep(x, ST.lip, -4.8) *
+  (1 - THREE.MathUtils.smoothstep(x, -0.8, ST.bypassExit));
+
+/* The inner gas path is left alone. It nowhere exceeds 1.70 units, so it sits
+   entirely above the floor and the plane misses it; and it has to be round by
+   the fan plane in any case, where the clearance to the blade tips is under a
+   tenth of a unit and a flattened duct would shave them off. */
 const innerBelly = () => 0;
 
 // The angle by which the accessory gearbox is swung from the bottom of the
@@ -316,11 +327,13 @@ function weldNormals(geo) {
 }
 
 /**
- * Flattens the bottom of a surface of revolution built by lathe().
+ * Gives the bottom of a surface of revolution built by lathe() the flat of the
+ * nacelle: the lower half of each section is carried down to the depth of the
+ * widest section, then cut by the plane at BELLY_FLOOR.
  * @param {THREE.Mesh} mesh
- * @param {(x: number) => number} depth how much to cut from below at station x
+ * @param {(x: number) => number} droop how much of the stretch to apply, 0..1
  */
-function flattenBelly(mesh, depth) {
+function flattenBelly(mesh, droop) {
   const geo = mesh.geometry;
   geo.rotateZ(-Math.PI / 2); // from LatheGeometry axes into engine axes
   mesh.rotation.z = 0;
@@ -328,16 +341,28 @@ function flattenBelly(mesh, depth) {
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i);
-    if (y >= 0) continue; // only the bottom is flattened
-    const d = depth(pos.getX(i));
-    if (d <= 1e-4) continue;
-    // the radius is constant around the ring, so the cut level is shared by the whole ring
+    if (y >= 0) continue; // only the bottom is shaped
+    const x = pos.getX(i);
+    const k = droop(x);
+    if (k <= 1e-4) continue;
+    // the radius is constant around the ring, so the whole ring shares its shape
     const r = Math.hypot(y, pos.getZ(i));
     if (r < 1e-4) continue;
+
+    /* Only the outermost surface at a station is carried down. The polished lip
+       is a single closed lathe - its outer face lies flush with the skin, its
+       inner face is the wall of the intake duct - and taking both down would
+       push the inner one through the duct it is supposed to line. */
+    const outermost = THREE.MathUtils.smoothstep(r, skinRadiusAt(x) - 0.3, skinRadiusAt(x) - 0.1);
+    if (outermost <= 1e-4) continue;
+
+    // how far down this section is allowed to reach, before the plane cuts it
+    const reach = THREE.MathUtils.lerp(r, Math.max(r, ST.nacelleR), k * outermost);
     // Keep the fillet tight: with a soft transition the flattening spreads out
     // along the sides and the intake reads as an oval rather than a circle with
     // its bottom cut off.
-    pos.setY(i, -smoothMin(-y, Math.max(r * 0.4, r - d), r * 0.09));
+    const level = Math.max(r * 0.4, Math.min(reach, BELLY_FLOOR));
+    pos.setY(i, -smoothMin((-y * reach) / r, level, r * 0.09));
   }
   pos.needsUpdate = true;
   weldNormals(geo);

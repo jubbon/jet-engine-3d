@@ -193,42 +193,58 @@ the pylon fairing: head-on it is exactly what obscured the top, which is what
 the reference warns about (`derived_low`, "a lower-bound estimate").
 
 Surfaces of revolution are built by `lathe()`, so the shape is produced by
-deforming vertices: the bottom of each section is trimmed to the level `r − d`
-with a smooth minimum.
+deforming vertices. The lower half of each section is first stretched down to
+the depth of the widest section, and only then cut by the plane:
 
 ```js
-d  = max(0, r(x) − 2.12)
-y' = −smoothMin(−y, max(0.4·r, r − d), 0.09·r)
+reach = lerp(r, max(r, 2.44), k(x))            // k — how much droop, 0…1
+y'    = −smoothMin(−y·reach/r, max(0.4·r, min(reach, 2.12)), 0.09·r)
 ```
 
 Three decisions without which the shape comes out wrong:
 
-**What is held constant is the height of the underside, not the depth of the
-cut.** The flat is a plane; the depth therefore has to be taken from the local
-radius, deepest at the barrel where the cowl is widest. This used to be the
-other way round — a constant depth of 0.32 units — and the result was that the
-underside followed the taper of the cowl and climbed 0.33 m over the length of
-the intake. It read as a bevel across the bottom front corner, and a flattening
-that rises towards the lip is not a flattening but a chamfer: the clearance it
-exists to buy is measured to the lowest point of the nacelle, and that point has
-to stay put. The underside is now level to within a millimetre from 0.6 m aft of
-the lip all the way to the aft cowl.
+**The underside is carried down, not merely trimmed.** Trimming a surface of
+revolution at a fixed height only works where the cowl is wide enough to reach
+that height. The widest section is 2.44, but the intake narrows to 1.70 at the
+lip, and a circle of radius 1.70 cannot reach down to 2.12 — so trimming alone
+always leaves the flat running out short of the lip and the underside curving up
+to meet it. Stretching first fixes that: the section keeps its width and its
+underside becomes a half-ellipse deep enough to meet the plane. The section
+stops being a circle, which is the point — the "hamster pouch" is a panel
+running the length of the cowl, not a slice off a cone.
 
-The cut runs out on its own about 0.3 m short of the lip, where the intake
-narrows past the floor. Forward of that the nacelle is simply narrower than the
-flat and there is nothing left to trim: a body of revolution of radius 1.70
-cannot reach down to 2.12. Carrying the flat right out to the lip needs an
-intake that is not a surface of revolution at all — see BL-20 in the
-[Backlog](09-backlog.md).
+This has been wrong twice, in opposite directions. First the depth of the cut
+was held constant at 0.32 units, so the underside followed the taper and climbed
+0.33 m over the length of the intake. Replacing that with a plane fixed most of
+it but still left the last 0.3 m curving up. Both read on screen as a bevel
+across the bottom front corner, and a flattening that rises towards the lip is
+not a flattening but a chamfer: the clearance it exists to buy is measured to
+the lowest point of the nacelle, and that point has to stay put. The flat now
+starts 0.10 m from the lip and holds level to within 8 mm for 2.4 m. Two checks
+in `geometry.test.mjs` guard it — every dimension measured at the widest section
+is blind to this, which is how the bevel survived as long as it did.
 
-**The inner gas path is never trimmed.** It nowhere exceeds 1.70 units, so it
-sits entirely above the floor and the plane misses it. That is also what settles
-the requirement the split of the profile was made for: the duct has to be round
-by the fan plane, where the clearance to the blade tips is under 0.1 model units
-and a flattened duct would shave them off. With the floor it is round
-everywhere, and the fade that used to taper the inner cut away is gone. The
-split into an outer skin and an inner gas path stays, because the two still
-differ — one is flattened and the other is not.
+Nothing here is a new free number: the stretch reaches `ST.nacelleR`, the same
+2.44 the widest section already has, so at that station the ellipse is a circle
+again and the shape is exactly what the reference was checked against. The flat
+narrows with the cowl on its own — 1.22 m across at the barrel, 1.03 m level
+with the aft edge of the polished lip, 0.90 m at the lip itself.
+
+**The droop goes to zero at the lip nose and at the fan nozzle.** Not a
+compromise: those two rings are shared with the inner gas path, and moving one
+surface and not the other would split the shell open. At the lip it is also what
+a lip is — a leading edge rolling over the flat panel behind it, fatter
+underneath than on top. Within the polished lip only the outermost surface is
+carried down: that ring is one closed lathe, its outer face flush with the skin
+and its inner face lining the duct, and taking both down would push the lining
+through the duct it lines.
+
+**The inner gas path is left alone.** It nowhere exceeds 1.70 units, so it sits
+entirely above the floor and the plane misses it; and it has to be round by the
+fan plane in any case, where the clearance to the blade tips is under 0.1 model
+units and a flattened duct would shave them off. The split into an outer skin
+and an inner gas path stays, because the two still differ — one is shaped and
+the other is not.
 
 **The fillet at the joint is kept tight (0.09·r).** With a soft transition the
 flattening spreads out along the sides and the intake reads as an oval rather
@@ -239,9 +255,12 @@ and the shape does not read. `computeVertexNormals()` meanwhile leaves a seam
 where `lathe` duplicates vertices at the 0 / 2π joint — the normals of
 coincident vertices are averaged in a separate pass.
 
-A known simplification: the gas path in the flow visualisation has remained
-axisymmetric (it is given by tables of radii), so right at the lip the bypass
-particles poke slightly outside the barrel underneath.
+The gas path in the flow visualisation is still axisymmetric — it is given by
+tables of radii — but it no longer shows: the bypass particles used to poke out
+through the barrel underneath at the lip, because the barrel was cut *up* there.
+Now the skin is carried *down* instead, and the tightest margin between the
+lowest bypass streamline and the skin is 54 mm, at the fan nozzle rather than at
+the lip.
 
 ## Markings on the skin
 
