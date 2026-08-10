@@ -105,6 +105,7 @@ export function createEngineSound(opts = {}) {
   let jetBand, jetLow, jetLow2, jetGain;
   let rumbleFilter, rumbleGain;
   let fanBbBand, fanBbGain;
+  let revBand, revGain;
   let wander, wanderGain, turb, turbGain;
 
   function build() {
@@ -244,6 +245,22 @@ export function createEngineSound(opts = {}) {
     fanBbGain.gain.value = 0;
     whiteSrc.connect(fanBbBand).connect(fanBbGain).connect(bus);
 
+    /* ---- 6b. The cascades ---- *
+     * Air turning through better than a right angle in a grille of vanes is
+     * the loudest single thing about a thrust reverser, and it is broadband
+     * rather than tonal: it comes from the shear layers off a few hundred
+     * small vanes, not from anything going round. The band sits between the
+     * jet noise and the fan - lower than the fan because the vanes are large
+     * compared with a blade passage, higher than the jet because the scale is
+     * still small.                                                          */
+    revBand = ctx.createBiquadFilter();
+    revBand.type = 'bandpass';
+    revBand.frequency.value = 320;
+    revBand.Q.value = 0.55;
+    revGain = ctx.createGain();
+    revGain.gain.value = 0;
+    brownSrc.connect(revBand).connect(revGain).connect(bus);
+
     /* ---- 7. Liveliness: speed wander and jet turbulence ---- */
     wander = ctx.createOscillator(); // slow wander of the shaft frequency
     wander.frequency.value = 0.13;
@@ -258,6 +275,9 @@ export function createEngineSound(opts = {}) {
     turbGain = ctx.createGain();
     turbGain.gain.value = 0.05;
     turb.connect(turbGain).connect(jetGain.gain);
+    // the cascade roar breathes with the same oscillator: it is the same
+    // turbulence, and two independent wobbles would beat against each other
+    turbGain.connect(revGain.gain);
     turb.start();
 
     ready = true;
@@ -271,8 +291,11 @@ export function createEngineSound(opts = {}) {
    * @param {number} burn    combustion intensity 0..1 (0 - fuel cut)
    * @param {number} pan     -1..1, position of the engine on screen
    * @param {number} nearness 0..1, how close the camera is
+   * @param {number} rev     0..1, how much of the bypass duct the thrust
+   *        reverser's blocker doors have closed. Defaults to 0 so the offline
+   *        rendering snippet in test/audio/README.md keeps working unchanged.
    */
-  function update(n1, n2, burn, pan = 0, nearness = 0.5) {
+  function update(n1, n2, burn, pan = 0, nearness = 0.5, rev = 0) {
     if (!ready || !enabled) return;
 
     const shaft = (n1 * CFM.n1MaxRpm) / 60; // LP shaft frequency, Hz
@@ -295,16 +318,28 @@ export function createEngineSound(opts = {}) {
     set(bpf2Gain.gain, 0.010 * Math.min(1, n1 * 6) * (1 - 0.55 * buzz));
     set(n2Gain.gain, 0.032 * Math.pow(n2, 1.3) * Math.min(1, n2 * 6));
 
-    // noise components - driven by combustion and airflow
-    set(jetGain.gain, 0.16 * Math.pow(n1, 1.2) + 0.66 * Math.pow(burn, 1.4));
+    /* Noise components - driven by combustion and airflow.
+     *
+     * Reverse changes three of them and leaves the rest alone. The fan-driven
+     * part of the jet noise goes away with the fan jet: with the duct blocked
+     * there is no high-velocity stream leaving the fan nozzle. The part driven
+     * by combustion stays, because the core is still doing exactly what it was.
+     * The broadband fan noise gets louder and darker - it is no longer leaving
+     * down a lined duct but sideways through a grille. And the cascades
+     * themselves roar.
+     *
+     * The buzz-saw comb is deliberately untouched. It radiates forward out of
+     * the intake, and the intake has not changed. */
+    set(jetGain.gain, 0.16 * Math.pow(n1, 1.2) * (1 - 0.85 * rev) + 0.66 * Math.pow(burn, 1.4));
     set(rumbleGain.gain, 0.30 * (0.30 * n1 + 0.70 * burn));
-    set(fanBbGain.gain, 0.011 * (0.35 + 0.65 * n1));
+    set(fanBbGain.gain, 0.011 * (0.35 + 0.65 * n1) * (1 + 1.4 * rev));
+    set(revGain.gain, 0.95 * rev * Math.pow(n1, 0.8));
 
     // the jet spectrum shifts up as the exhaust velocity rises
     set(jetBand.frequency, 180 + 130 * burn, 0.25);
     set(jetLow.frequency, 290 + 210 * burn, 0.25);
     set(jetLow2.frequency, 350 + 260 * burn, 0.25);
-    set(fanBbBand.frequency, 1200 + 1600 * n1, 0.25);
+    set(fanBbBand.frequency, (1200 + 1600 * n1) * (1 - 0.35 * rev), 0.25);
     set(combFilter.frequency, 150 + 120 * n1, 0.25);
 
     // liveliness: the wander grows more noticeable at higher speeds
