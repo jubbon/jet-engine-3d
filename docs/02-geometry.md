@@ -347,6 +347,12 @@ sweep rather than at the ends: closest approach to the core cowl 12 mm at full
 travel, no door reaching past its own 15° half-pitch, and 90 % of the duct
 closed — 95 % radially by 94 % round — against the 92 % the linkage predicts.
 
+Deployed, the duct has a 0.50-unit stretch of bare bay between the doors and
+the sleeve's own wall, at x = 0.11…0.61. That is the space the stowed doors
+occupied, and it is open for the same reason it is open on the real thing: the
+doors have swung out of it. The doors themselves stand across the duct at its
+forward end and hide it from the airflow side.
+
 ### Splitting the skin
 
 The nacelle skin is one profile lathed as **two meshes**, cut at `ST.sleeve`;

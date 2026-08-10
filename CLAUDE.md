@@ -220,7 +220,7 @@ rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
 The yardstick as of today (recount it, do not copy it): 777 thousand triangles,
-132 draw calls, 37 blade rows holding 2350 blades, 13 picking proxies, 288
+132 draw calls, 37 blade rows holding 2350 blades, 13 picking proxies, 291
 checks across nine test files. The build is 750 kB of JS, 206 kB gzipped.
 
 The bundle grew by 64 kB when the interface was localised into eight languages:

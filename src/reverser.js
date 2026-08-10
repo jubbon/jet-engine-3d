@@ -81,8 +81,10 @@ export const LINK_L = Math.hypot(LINK.u0 + LINK.a, LINK.v);
    own profiles - the inner nacelle wall against the core cowl - which run
    0.50…0.53 units apart across the doors' sweep. It is a property of the duct
    rather than of the reverser, and what keeps it honest is clearance.test.mjs,
-   which measures the real vertices instead of trusting this number. */
-const DUCT_H = 0.52;
+   which measures it off the real profiles and compares. Exported so that check
+   can be a direct comparison of the two halves of one fact rather than of some
+   consequence that might pass for a compensating reason. */
+export const DUCT_H = 0.52;
 
 /* And how much of the CIRCUMFERENCE the ring of doors covers. Twelve tapered
    doors leave about 25 mm of gap at each end of each door - close-fitting, but
@@ -152,12 +154,17 @@ export function blockerAngle(travel) {
      an angle anyway: a NaN would put a hole in the model rather than raise. At
      the limit the door is simply as far round as the linkage can take it.
 
-     With the constants above only the lower clamp can ever engage - the link
-     length is derived from theta(0) = 0 with u0 + a = 0, which reduces c to
-     -(u^2 + a^2), negative everywhere - and it first does so at travel 1.25,
-     well past the stroke. The upper clamp is kept because those constants came
-     out of a search and the next search need not preserve that identity; it
-     costs a comparison. */
+     With the constants above only the lower clamp can ever engage, and it
+     first does so at travel 1.25, well past the stroke: the link length is
+     derived from theta(0) = 0, which makes L^2 = (u0 + a)^2 + v^2 and collapses
+     c to (u0 + a)^2 - u^2 - a^2, and u0 + a happens to be zero here.
+
+     The upper clamp is kept because that is a property of a search result, not
+     of the mechanism. It goes live as soon as |u0 + a| >= sqrt(a^2 + 2*a*v) -
+     0.80 for the present a and v, so u0 outside -1.25…0.35 - because the
+     largest ratio occurs at u = 0, which the sleeve passes through at travel
+     0.45, in the middle of the stroke. A future search has no reason to stay
+     out of that range. */
   if (h < 1e-9) return 0;
   const ratio = c / h;
   if (ratio <= -1) return phi + Math.PI;

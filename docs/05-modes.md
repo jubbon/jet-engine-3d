@@ -156,7 +156,7 @@ N1 and N2 chase the command at different rates.
 
 ## Tests
 
-`npm test` — 22 checks in `test/engine-state.test.mjs` and 34 in
+`npm test` — 22 checks in `test/engine-state.test.mjs` and 36 in
 `test/reverser.test.mjs`, with both state machines stepped at 1/60 s. The test prints a trace of the shutdown and the start, which
 is convenient when tuning the time constants:
 
@@ -192,8 +192,8 @@ the bypass air ends up:
 fully deployed: 2.02 s
 
 === WHERE THE BYPASS AIR GOES ===
-  stowed:   out of the cascades 0, out of the fan nozzle 1770, core 309
-  deployed: out of the cascades 1106, out of the fan nozzle 0, core 323
+  stowed:   out of the cascades 0, out of the fan nozzle 1826
+  deployed: out of the cascades 1211, out of the fan nozzle 0
 ```
 
 The second of those is the check that a cascade reverser does nothing to the

@@ -62,6 +62,12 @@ export const ST = {
   caseR: 1.829, // outside of the fan case: engine height 1.829 m
   accR: 2.118, // accessories on the side: engine width 2.118 m
   nacelleR: 2.44, // largest nacelle dimension Ø 2.44 m (APPROX 8 FT)
+  /* Wall of the bypass duct where the blocker doors are hinged. A radius, on
+     the same footing as the four above it, and here rather than in reverser.js
+     for the usual reason: it is a fact about the duct, the doors and the test
+     that measures them, and it was written out in four places before it was
+     written in one. */
+  ductWall: 1.69,
 };
 
 /* -------------------- spinner spiral smear -------------------------- *
@@ -745,7 +751,7 @@ export function buildEngine() {
   sleeveGroup.add(skinAft);
   sleeveGroup.add(wallAft);
 
-  const R_HINGE = 1.69; // the duct wall the doors stow flush with
+  const R_HINGE = ST.ductWall; // the duct wall the doors stow flush with
   /* Tangential width at each end. The pitch is 0.885 at the hinge radius and
      0.624 at the radius the tip reaches, so the door is cut to leave about
      25 mm of gap at both - close-fitting, as blocker doors are, without

@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Nine files, 288 checks. There is no framework: each test is a plain Node script
+Nine files, 291 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -107,7 +107,7 @@ with light-off and temperature overshoot, a realistic start duration, stable
 idle, throttle response. The test prints a trace of the processes, which also
 makes it a convenient tool for tuning the time constants.
 
-`test/reverser.test.mjs` — 34 checks of the thrust reverser: the deployment and
+`test/reverser.test.mjs` — 36 checks of the thrust reverser: the deployment and
 stow times, the transitions the state machine makes on its own, the interlocks
 (refused unless the engine is running, throttle held at idle while the sleeve
 moves, N1 limited to 80 % deployed, stowed by a shutdown), and a stow that
@@ -117,10 +117,12 @@ the end of the stroke, and closing late: less than a quarter of the duct blocked
 at a third of the travel. Then the thrust, driven through the real
 `createEngineState()`: exactly ×1 stowed, and −19 kN at the reverse power limit.
 Finally the flows, which is why the one Three.js import in an otherwise
-dependency-free test is there: with the reverser out, 1115 particles leave
-through the cascades, none through the fan nozzle, and the core count is
-unchanged. At one frame per second, counting eight thousand dots is a great deal
-more reliable than looking at them.
+dependency-free test is there: with the reverser out, some 1200 particles leave
+through the cascades, none through the fan nozzle, and no particle of the core
+stream has left the core duct. At one frame per second, counting eight thousand
+dots is a great deal more reliable than looking at them — provided the thing
+counted holds still, which is why the core is checked as a property rather than
+as a population (see [airflow](04-airflow.md#reverse-where-the-bypass-air-goes-instead)).
 
 `test/heat-haze.test.mjs` — 10 checks of the exhaust gas: on a cold engine there
 is no distortion at all, during a start it appears only after light-off, at
@@ -166,7 +168,7 @@ reference breaks the test rather than silently diverging from the model. The
 nacelle envelope is computed from vertices rather than from the `lathe` profile
 — otherwise the flattened bottom would not be included.
 
-`test/clearance.test.mjs` — 25 checks of the layout clearances: blade rows do
+`test/clearance.test.mjs` — 26 checks of the layout clearances: blade rows do
 not intersect one another (overlapping both axially and radially), the tips of
 the fan and outlet guide vanes stay under their own wall, and the accessory
 gearbox holds the overall engine width without piercing the nacelle skin. This

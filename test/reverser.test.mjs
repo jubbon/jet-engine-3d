@@ -257,6 +257,18 @@ const deg = (r) => (r * 180) / Math.PI;
   }
   check('and it falls all the way, without a peak in the middle', monotone);
 
+  /* thrustFactor takes the BLOCKED FRACTION, not the sleeve travel, and the two
+     ranges overlap - 0…0.92 against 0…0.90. A caller that regressed to passing
+     travel would get a plausible negative number rather than an error: -0.210
+     against -0.243, a 14 % understatement that reads as entirely reasonable.
+     Neither endpoint check would catch it, since factor(0) = 1 under both
+     meanings. This one does. */
+  check(
+    'the thrust factor is fed the blocked fraction, not the travel',
+    Math.abs(thrustFactor(STROKE) - thrustFactor(blockedFraction(STROKE))) > 0.02,
+    `travel would give ${thrustFactor(STROKE).toFixed(3)}, blocked gives ${thrustFactor(blockedFraction(STROKE)).toFixed(3)}`
+  );
+
   // through the real state machine, at the power the interlock allows
   const eng = createEngineState(0);
   for (let i = 0; i < 60 * 60; i++) eng.update(DT, REV_MAX_THROTTLE);
@@ -293,30 +305,35 @@ const deg = (r) => (r * 180) / Math.PI;
   const { createAirflow } = await import('../src/airflow.js');
   const N_BYPASS = 5200; // the split in airflow.js; core particles follow
 
-  const run = (blocked) => {
-    const flow = createAirflow();
-    flow.setVisible(true);
-    for (let i = 0; i < 600; i++) flow.update(1 / 60, 0.8, 0.6, blocked);
-    const p = flow.group.children[0].geometry.attributes.position;
+  /* ONE particle system, deployed part-way through: that is what actually
+     happens, and it avoids comparing two independently seeded runs. */
+  const flow = createAirflow();
+  flow.setVisible(true);
+  const p = flow.group.children[0].geometry.attributes.position;
+
+  const census = () => {
     let escaping = 0; // bypass air forward of the doors and outside the duct
     let throughNozzle = 0; // bypass air still leaving aft
-    let core = 0; // core air past the core nozzle
+    let strayCore = 0; // core air that has left the core duct
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i);
       const r = Math.hypot(p.getY(i), p.getZ(i));
       if (i < N_BYPASS) {
         if (x < 0.11 && r > 1.75) escaping++;
         if (x > 1.16) throughNozzle++;
-      } else if (x > 2.9) core++;
+      } else if (r > 1.3) strayCore++;
     }
-    return { escaping, throughNozzle, core };
+    return { escaping, throughNozzle, strayCore };
   };
 
-  const fwd = run(0);
-  const rev = run(1);
+  for (let i = 0; i < 600; i++) flow.update(1 / 60, 0.8, 0.6, 0);
+  const fwd = census();
+  for (let i = 0; i < 600; i++) flow.update(1 / 60, 0.8, 0.6, 1);
+  const rev = census();
+
   console.log('\n=== WHERE THE BYPASS AIR GOES ===');
-  console.log(`  stowed:   out of the cascades ${fwd.escaping}, out of the fan nozzle ${fwd.throughNozzle}, core ${fwd.core}`);
-  console.log(`  deployed: out of the cascades ${rev.escaping}, out of the fan nozzle ${rev.throughNozzle}, core ${rev.core}\n`);
+  console.log(`  stowed:   out of the cascades ${fwd.escaping}, out of the fan nozzle ${fwd.throughNozzle}`);
+  console.log(`  deployed: out of the cascades ${rev.escaping}, out of the fan nozzle ${rev.throughNozzle}\n`);
 
   check('Stowed, nothing leaves through the cascades', fwd.escaping === 0);
   check('Deployed, the fan air does', rev.escaping > 100, `${rev.escaping} particles`);
@@ -325,12 +342,24 @@ const deg = (r) => (r * 180) / Math.PI;
     rev.throughNozzle < 0.1 * fwd.throughNozzle,
     `${rev.throughNozzle} against ${fwd.throughNozzle} stowed`
   );
-  // A cascade reverser does nothing to the core. If this ever changes, the
-  // plume, the heat haze and the contrail are all wrong too.
+  /* A cascade reverser does nothing to the core, and that is asserted as a
+     PROPERTY rather than as a count. Counting core particles past the nozzle
+     looked like the obvious measure and is worthless: the flow field has no
+     mixing, so a cohort that respawns together arrives together, and the count
+     in any downstream window oscillates - 310, 658, 879, 492, 1226 at ten-
+     second intervals of the same steady run. A statistic that swings four to
+     one cannot detect a change of a few per cent, and a tolerance wide enough
+     to be stable would not be testing anything.
+
+     What does not oscillate is where the core air IS. Nothing in the core
+     stream may leave the core duct, whatever the reverser is doing - the
+     deflection is written to skip them, and this is the check that says so.
+     If it ever fails, the plume, the heat haze and the contrail are wrong too. */
+  check('The core stream is untouched, stowed', fwd.strayCore === 0);
   check(
-    'The core stream is untouched',
-    Math.abs(rev.core - fwd.core) < 0.15 * fwd.core,
-    `${rev.core} against ${fwd.core}`
+    'and deployed: no core particle leaves the core duct',
+    rev.strayCore === 0,
+    `${rev.strayCore} strayed`
   );
 }
 

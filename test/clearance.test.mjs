@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildEngine, ST, MATS } from '../src/engine.js';
-import { STROKE, DOORS, blockedFraction } from '../src/reverser.js';
+import { STROKE, DOORS, DUCT_H, blockedFraction } from '../src/reverser.js';
 import { createAirflow } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
@@ -298,7 +298,7 @@ check(
   engine.parts.mRev.updateWorldMatrix(true, true);
   const pts = doorPoints(STROKE);
   const tip = pts.reduce((lo, p) => (p[1] < lo[1] ? p : lo), pts[0]);
-  const wall = 1.69; // the duct wall the doors are hinged to
+  const wall = ST.ductWall; // read, not retyped: the guard must not carry its own copy
   const radial = (wall - tip[1]) / (wall - cowlR(tip[0]));
 
   // angular coverage: the widest angular extent of one door, times twelve
@@ -312,6 +312,18 @@ check(
   }
   const angular = (DOORS * 2 * spread) / (2 * Math.PI);
   const closed = radial * angular;
+
+  /* reverser.js divides by a duct height of its own to turn a door angle into a
+     blocked fraction, and that height is half of a fact whose other half - the
+     wall radius and the cowl profile - lives in the geometry. Compare them
+     directly, the same way the cascade band is compared against the stroke.
+     Checking only the consequence would let two errors cancel. */
+  const measuredDuctH = wall - cowlR(tip[0]);
+  check(
+    "The duct height reverser.js divides by is the duct's",
+    Math.abs(measuredDuctH - DUCT_H) < 0.02,
+    `measured ${measuredDuctH.toFixed(3)} at x = ${tip[0].toFixed(2)}, reverser.js ${DUCT_H}`
+  );
 
   check(
     'The doors close the bypass duct',

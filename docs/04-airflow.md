@@ -79,17 +79,24 @@ a transient that lasts two seconds; particles already past the doors when the
 reverser deploys carry on out of the fan nozzle, which is what actually happens
 in those two seconds.
 
-**The core stream is untouched**, and measurably so. Counted over the whole
-particle set after ten seconds of running:
+**The core stream is untouched**, and measurably so:
 
-| | Out of the cascades | Out of the fan nozzle | Core, past the nozzle |
+| | Out of the cascades | Out of the fan nozzle | Core air outside the core duct |
 |---|---:|---:|---:|
-| Stowed | 0 | ~1770 | ~310 |
-| Deployed | ~1110 | 0 | ~320 |
+| Stowed | 0 | ~1800 | 0 |
+| Deployed | ~1200 | 0 | 0 |
 
-(The particles are seeded randomly, so the counts move by a few per cent
-between runs. The two that matter are exact: zero out of the cascades stowed,
-zero out of the fan nozzle deployed.)
+The three zeros are exact; the two middle figures move a few per cent between
+runs, because the particles are seeded randomly.
+
+The core column is a **property**, not a count, and that is deliberate. Counting
+core particles past the nozzle was the obvious measure and is worthless here:
+this flow field has no mixing, so a cohort that respawns together arrives
+together, and the count in any downstream window oscillates — 310, 658, 879,
+492, 1226 at ten-second intervals of the same steady run. A statistic that
+swings four to one cannot detect a change of a few per cent. Where the core air
+*is* does not oscillate: no particle of it may leave the core duct, whatever the
+reverser is doing.
 
 That is what a cascade reverser is: it turns the fan stream, which is five
 sixths of the mass flow, and does nothing to the core. The exhaust plume, the
