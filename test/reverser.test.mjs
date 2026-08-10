@@ -313,7 +313,19 @@ const deg = (r) => (r * 180) / Math.PI;
      0.026, not the 0.4 that 1.30 suggests at a glance. It is ample against the
      regression it exists for - a deflected particle overshoots it within a
      third of a second - but widening CORE_OUT's tail would break this check
-     with nothing in the failure message pointing at the edit. */
+     with nothing in the failure message pointing at the edit.
+
+     It is also a LOOSE bound everywhere except at that edge, which matters more
+     than the staleness. 1.25 is the duct at X_END, out in the free jet where it
+     has stopped being a duct; along the engine CORE_OUT is 0.55 at x = -1.04
+     and 1.08 at its widest, so a particle leaking radially near the combustor
+     would have to get 0.75 units clear of its own duct before this noticed.
+     Evaluating CORE_OUT at each particle's own station would trip at 0.03
+     anywhere along the length. That is the stronger check, and it is not here
+     because it means importing the flow tables across a module boundary for a
+     gain against regressions nobody has thought of; the one this guards - the
+     deflection losing its `!core` condition - overshoots any threshold within a
+     second. If this line is ever touched for another reason, derive it then. */
   const CORE_DUCT_MAX = 1.3;
 
   /* ONE particle system, deployed part-way through: that is what actually
