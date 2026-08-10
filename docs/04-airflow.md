@@ -161,6 +161,53 @@ the cascades.
 The streamlines are static geometry built once at start-up and keep showing the
 stowed duct; they are the shape of the channel, not of the flow of the moment.
 
+## Surge: the core going the other way
+
+A compressor surge is the mirror image of the reverse case above, and it is
+drawn with the same discipline. On each bang a cohort of **core** particles
+between the booster face (x = −3.22) and the turbine exit (x = 0.12) is marked
+once and thereafter travels **forward**, out through the intake and past the
+lip, fading as it goes. Gas already past the turbine carries on out of the
+nozzle, which is what it does.
+
+Deciding it once, at the bang, rather than re-rolling every frame is the same
+rule the blocker doors follow, for the same reason. The bang itself is latched
+in `main.js` — the surge state machine counts bangs rather than raising a flag,
+and the particle marking and the sound read the *same* latch, so at the ×4 time
+scale they cannot disagree about how many there were.
+
+The expelled particles keep the colour the temperature table gives them, so they
+leave orange without any new mechanism: the gas coming back out of the intake is
+compressor and combustor air.
+
+**The bypass duct is untouched, and measurably so** — the same claim the reverse
+section makes in the other direction:
+
+| | Core particles running backwards | Bypass particles running backwards |
+|---|---:|---:|
+| Stable | 0 | 0 |
+| Surging | many | 0 |
+
+Both zeros are exact. A surge is a core event; the fan is still turning, driven
+by an LP turbine that is still being fed.
+
+The measure is **backward motion**, not position, and that is deliberate. The
+domain begins 2.4 units ahead of the intake lip, so there is always inflowing
+air out there in normal running — a count of "particles ahead of the lip" would
+be measuring the intake rather than the surge. Where a particle *is* cannot
+distinguish the two; which way it is going can.
+
+In a locked stall nothing is expelled at all. The flow is no longer oscillating,
+it is simply bad: two cells of about 50° each travel round the annulus at 0.48
+of rotor speed, and a core particle inside one keeps 15 % of its axial speed.
+Slower than the rotor is the whole visual point — a stall cell propagates from
+blade to blade rather than being carried round with them.
+
+Expelled particles need a lower bound that the forward-flowing field never did.
+`respawn()` seeds into a 0.8-unit window at the inlet, so a particle travelling
+the wrong way passes straight through it; without the mirror of the `x > X_END`
+recycle it would run to minus infinity. There is a check for that.
+
 ## Temperature and colour
 
 The colour ramp `RAMP` runs from cold to incandescent:

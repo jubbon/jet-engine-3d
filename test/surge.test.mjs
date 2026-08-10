@@ -19,6 +19,7 @@ import {
 } from '../src/surge.js';
 import { IDLE_N1, IDLE_N2, createEngineState } from '../src/engineState.js';
 import { createReverser } from '../src/reverser.js';
+import { createAirflow } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
  *  Compressor stability.
@@ -566,6 +567,114 @@ function lever(from, to, ramp, seconds, trace = false) {
   for (let i = 0; i < 60 * 2; i++) step.update(DT, 1);
   check('whereas releasing the same cap in one frame does', step.bangs > 0,
     `${step.bangs} bangs — which is why the cap is rate limited, not snapped`);
+}
+
+/* ================================================================== *
+ *  The flow.
+ *
+ *  Asserted on WHERE the particles are, not on how many are in a
+ *  window. This field never mixes, so a cohort that respawns together
+ *  arrives together and any downstream count oscillates four to one -
+ *  the lesson test/reverser.test.mjs records at length. Where the gas
+ *  is does not oscillate.
+ * ================================================================== */
+
+console.log('\n=== FLOW DURING A SURGE ===');
+
+const LIP = -5.2; // intake lip, the station ST.lip in engine.js
+const N_BYPASS = 5200; // airflow.js seeds the bypass particles first, then the core
+
+/* The claim BL-03 makes is that the axial velocity in the core goes NEGATIVE,
+   and that is what gets measured: particles whose x actually decreased between
+   two frames. Position alone cannot say it - the domain starts 2.4 units ahead
+   of the lip, so there is always inflowing air out there in normal running, and
+   a count of "particles ahead of the lip" would be measuring the intake. */
+function flowRun(scenario, seconds) {
+  const eng = createEngineState(0);
+  for (let i = 0; i < 60 * 90; i++) eng.update(DT, 0);
+  const flow = createAirflow();
+  flow.setVisible(true); // airflow.update early-returns when the group is hidden
+  const pos = flow.group.children[0].geometry.attributes.position.array;
+  /* One update before the baseline is taken. The position buffer is only
+     written inside update(), so before the first call it is all zeros, and
+     every particle currently at a negative station would read as having just
+     moved backwards from the origin. */
+  flow.update(DT, eng.n1, eng.burn, 0, null);
+  const prev = new Float32Array(pos.length / 3);
+  for (let i = 0; i < prev.length; i++) prev[i] = pos[i * 3];
+
+  let seen = eng.bangs;
+  let coreBackwards = 0;
+  let bypassBackwards = 0;
+  let coreAheadOfLip = 0;
+  for (let t = 0; t < seconds; t += DT) {
+    eng.update(DT, scenario(t));
+    const bang = eng.bangs !== seen;
+    seen = eng.bangs;
+    flow.update(DT, eng.n1, eng.burn, 0, {
+      state: eng.surge, bang, reverse: eng.reverse, cell: eng.cell,
+    });
+    for (let i = 0; i < prev.length; i++) {
+      const x = pos[i * 3];
+      // a recycled particle jumps a long way back; that is not flow reversal
+      const moved = x - prev[i];
+      if (moved < -1e-4 && moved > -1.0) {
+        if (i >= N_BYPASS) coreBackwards++;
+        else bypassBackwards++;
+      }
+      if (i >= N_BYPASS && x < LIP && moved < 0) coreAheadOfLip++;
+      prev[i] = x;
+    }
+  }
+  return { eng, coreBackwards, bypassBackwards, coreAheadOfLip };
+}
+
+{
+  const calm = flowRun(() => 0, 3);
+  check('with the engine stable nothing in the core runs backwards',
+    calm.coreBackwards === 0, `${calm.coreBackwards} backward steps`);
+
+  const surged = flowRun(() => 1, 4);
+  check('and the engine really was surging', surged.eng.bangs > 0, `${surged.eng.bangs} bangs`);
+  check('a surge drives the core axial velocity negative', surged.coreBackwards > 0,
+    `${surged.coreBackwards} backward steps`);
+  check('and the gas is expelled forward, past the intake lip',
+    surged.coreAheadOfLip > 0, `${surged.coreAheadOfLip} beyond ${LIP} and still going forward`);
+
+  /* The bypass duct is untouched, and measurably so - the same claim the
+     reverser work made in the other direction. A surge is a core event: the fan
+     is still turning, driven by a turbine that is still being fed. */
+  check('while the bypass duct never reverses at all',
+    surged.bypassBackwards === 0, `${surged.bypassBackwards} backward steps in the bypass`);
+}
+
+{
+  // the expelled cohort must be recycled rather than running to minus infinity:
+  // respawn() seeds at X_START..X_START+0.8, which a forward-travelling
+  // particle would otherwise pass straight through
+  const eng = createEngineState(0);
+  for (let i = 0; i < 60 * 90; i++) eng.update(DT, 0);
+  const flow = createAirflow();
+  flow.setVisible(true);
+  let seen = eng.bangs;
+  for (let t = 0; t < 25; t += DT) {
+    eng.update(DT, 1);
+    const bang = eng.bangs !== seen;
+    seen = eng.bangs;
+    flow.update(DT, eng.n1, eng.burn, 0, {
+      state: eng.surge, bang, reverse: eng.reverse, cell: eng.cell,
+    });
+  }
+  const pos = flow.group.children[0].geometry.attributes.position.array;
+  let runaway = 0;
+  let finite = true;
+  for (let i = 0; i < pos.length; i += 3) {
+    if (pos[i] < -7.7) runaway++;
+    if (!Number.isFinite(pos[i])) finite = false;
+  }
+  check('expelled particles are recycled, not lost forward', runaway === 0,
+    `${runaway} beyond the domain after 25 s of surging and stall`);
+  check('and every position stays a number', finite);
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);

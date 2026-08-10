@@ -219,6 +219,9 @@ let verdict = contrail(amb, hum, state.eta);
 
 let n1Angle = 0;
 let n2Angle = 0;
+// the last bang count consumed by the frame loop; the surge state machine
+// counts them, and everything downstream latches on a change
+let shownBangs = 0;
 
 /* ---------------------------- engine state --------------------------- */
 const eng = createEngineState(state.throttle);
@@ -838,9 +841,18 @@ function animate() {
   MATS.combLiner.emissive.setRGB(0.42 * glow, 0.1 * glow, 0.02 * glow);
   bloom.strength = 0.12 + glow * 0.2;
 
+  /* The bang is an event, and it is latched here - once per frame, however many
+     cycles the state machine got through. Everything that reacts to a bang
+     reads the SAME latch, so the flow and the sound cannot come to disagree
+     about how many there were; at the ×4 time scale a frame can carry more than
+     one, and two of them 5 ms apart is worse than one. */
+  const bang = eng.bangs !== shownBangs;
+  shownBangs = eng.bangs;
+  const surgeView = { state: eng.surge, bang, reverse: eng.reverse, cell: eng.cell };
+
   // only the bypass stream knows about the reverser; the core plume, the heat
   // haze and the contrail are the same in reverse as they are in forward thrust
-  airflow.update(dt, eng.n1, burn, rev.blocked);
+  airflow.update(dt, eng.n1, burn, rev.blocked, surgeView);
   haze.update(dt, burn, eng.n1, rev.travel, rev.blocked);
   // the verdict is about the air, but the water is the engine's: fuel cut, and
   // the trail dies with the flame

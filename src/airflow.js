@@ -52,6 +52,32 @@ const TURN_COS = Math.SQRT1_2;
 // of the nacelle.
 const TURN_REACH = 1.5;
 
+/* Where a surge throws the core gas back from. The window runs from the booster
+   face to the turbine exit - the compressor and the burner, the part of the gas
+   path that is actually behind the blockage - so gas already past the turbine
+   carries on out of the nozzle, which is what it does.
+
+   These are stations from engine.js, copied for the same reason as X_DOORS
+   above: this module depends on nothing, and importing engine.js for three
+   numbers would drag the materials, the livery canvas and buildEngine into its
+   graph. */
+const X_SURGE_FROM = -3.22; // fan/booster face
+const X_SURGE_TO = 0.12; // turbine exit
+
+/* What fraction of the core particles in that window a single bang throws
+   forward. A visual density choice rather than a physical one - surge.js owns
+   how hard the flow reverses, this owns how many dots say so. Everything looks
+   like a solid plug of gas at 1.0 and like a leak at 0.2. */
+const EXPEL_FRACTION = 0.6;
+
+/* Rotating stall: two cells, each covering this much of the circumference. They
+   travel at STALL_CELL of rotor speed - slower than the rotor, which is the
+   whole visual point, since a stall cell propagates rather than being carried
+   round with the blades - and the flow inside one barely moves. */
+const STALL_SECTORS = 2;
+const STALL_ARC = Math.PI * 0.28; // ~50 degrees each
+const STALL_SLOW = 0.15; // what is left of the axial speed inside a cell
+
 // Bypass duct: inner and outer boundaries of the channel
 const BYPASS_IN = [
   [X_START, 0.6], [-5.2, 0.66], [-3.22, 0.98], [-2.86, 1.0], [-1.86, 1.1],
@@ -181,6 +207,8 @@ export function createAirflow() {
   // through the cascades it has got since
   const turned = new Uint8Array(N);
   const outward = new Float32Array(N);
+  // and has this one been thrown back out of the intake by a surge
+  const expelled = new Uint8Array(N);
 
   function respawn(i, initial) {
     px[i] = initial ? THREE.MathUtils.lerp(X_START, X_END, Math.random()) : X_START + Math.random() * 0.8;
@@ -189,6 +217,7 @@ export function createAirflow() {
     jitter[i] = (Math.random() - 0.5) * 0.05;
     turned[i] = 0;
     outward[i] = 0;
+    expelled[i] = 0;
   }
   for (let i = 0; i < N; i++) {
     isCore[i] = i >= N_BYPASS ? 1 : 0;
@@ -308,8 +337,16 @@ export function createAirflow() {
    *        blocker doors have closed, 0..1. Only the bypass stream is affected:
    *        a cascade reverser does nothing to the core, which is why the plume,
    *        the heat haze and the contrail all carry on unchanged.
+   * @param {object} [surge] - compressor stability, or null when there is
+   *        nothing to say. One object rather than three more positional
+   *        arguments: this call already takes four, and seven would be seven
+   *        chances to transpose two of them at the call site.
+   *        `{ state, bang, reverse, cell }` - `bang` true on the frame a bang
+   *        was latched, which is when a cohort is thrown forward.
+   *        The bypass duct is untouched throughout: a surge is a core event,
+   *        and the fan is still being driven by a turbine that is still fed.
    */
-  function update(dt, level, burn = 1, blocked = 0) {
+  function update(dt, level, burn = 1, blocked = 0, surge = null) {
     if (!group.visible) return;
     time += dt;
     plumeMat.uniforms.uTime.value = time;
@@ -318,6 +355,8 @@ export function createAirflow() {
     // without combustion the core duct is just cold air being pumped through
     const heat = Math.max(level * 0.22, burn);
     const speedK = 0.06 + 1.05 * level;
+    const banging = Boolean(surge && surge.bang && surge.reverse > 0);
+    const stalling = Boolean(surge && surge.state === 'stall');
     for (let i = 0; i < N; i++) {
       const core = isCore[i] === 1;
       const inT = core ? CORE_IN : BYPASS_IN;
@@ -326,9 +365,37 @@ export function createAirflow() {
       const sT = core ? CORE_SWIRL : BYPASS_SWIRL;
       const tT = core ? CORE_T : BYPASS_T;
 
-      const v = pw(vT, px[i]) * speedK;
+      let v = pw(vT, px[i]) * speedK;
 
-      if (turned[i]) {
+      /* Rotating stall: a couple of cells travelling round the annulus at half
+         rotor speed, with the flow inside them almost stopped. The cell angle
+         comes from surge.js, so the number that governs what is seen is the one
+         the test checks. */
+      if (core && stalling) {
+        const rel = phase[i] - surge.cell;
+        for (let k = 0; k < STALL_SECTORS; k++) {
+          const d = Math.abs(
+            ((rel - (k * Math.PI * 2) / STALL_SECTORS + Math.PI) % (Math.PI * 2)) - Math.PI
+          );
+          if (d < STALL_ARC / 2) {
+            v *= STALL_SLOW;
+            break;
+          }
+        }
+      }
+
+      if (expelled[i]) {
+        /* Back out of the intake. The compressor has stopped holding the
+           pressure behind it, so the gas in the compressor and the burner goes
+           the only way left - forward, past the fan and out of the lip, hot.
+           It keeps the colour the temperature table gives it, so nothing new is
+           needed to make it leave orange. */
+        px[i] -= v * dt;
+        // the mirror of the px > X_END line below: without it a particle
+        // travelling forward runs straight through the respawn window and on
+        // towards minus infinity
+        if (px[i] < X_START) respawn(i, false);
+      } else if (turned[i]) {
         /* Out through the cascades: forward and outward at the turning angle.
            The particle keeps the speed of the duct it came from - what a
            cascade does is change the direction of the momentum, not destroy
@@ -346,6 +413,20 @@ export function createAirflow() {
            honest linear reading of a transient that lasts two seconds. */
         if (!core && blocked > 0 && prev < X_DOORS && px[i] >= X_DOORS && Math.random() < blocked) {
           turned[i] = 1;
+        }
+        /* A bang throws a cohort of the core back. Decided ONCE, on the frame
+           the bang is latched, and for whatever is inside the compressor and
+           the burner at that instant - the same discipline as the reverser's
+           deflection above, and for the same reason: re-rolling per frame turns
+           a flow reversal into a fog of particles changing their minds. */
+        if (
+          core &&
+          banging &&
+          px[i] > X_SURGE_FROM &&
+          px[i] < X_SURGE_TO &&
+          Math.random() < EXPEL_FRACTION * surge.reverse
+        ) {
+          expelled[i] = 1;
         }
         if (px[i] > X_END) respawn(i, false);
       }
