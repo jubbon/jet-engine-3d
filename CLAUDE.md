@@ -20,7 +20,7 @@ npm install
 npm run dev      # Vite on port 5188, listening on 0.0.0.0
 npm run build    # build into dist/
 npm run preview
-npm test         # all nine test files in sequence
+npm test         # all ten test files in sequence
 ```
 
 A single test runs directly, with no runner and no flags:
@@ -179,6 +179,7 @@ failure. Write new ones in the same style.
 | `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin, the reverser's doors clear the core cowl and each other over the whole sweep, and the cascade band is sealed stowed and open deployed |
 | `i18n.test.mjs` | The eight dictionaries agree: same keys, same `{placeholders}`, nothing empty. Locale matching, number formatting, and that the English left in `index.html` still says what the dictionary says |
 | `reverser.test.mjs` | The thrust reverser: deployment and stow timing, the interlocks, the drag-link kinematics of the blocker doors, reverse thrust through the real engine state, and where the bypass particles end up |
+| `surge.test.mjs` | Compressor stability: the map and the surge line, and that the margin at rest is the tabulated one. The scenarios — which throttle movements cross the boundary and which do not — arrive with the rest of the surge work |
 
 `geometry` and `clearance` build the **real scene** through `buildEngine()`
 right under Node — Three.js allows that without a renderer. The envelopes are
@@ -220,8 +221,8 @@ rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
 The yardstick as of today (recount it, do not copy it): 777 thousand triangles,
-132 draw calls, 37 blade rows holding 2350 blades, 13 picking proxies, 291
-checks across nine test files. The build is 750 kB of JS, 206 kB gzipped.
+132 draw calls, 37 blade rows holding 2350 blades, 13 picking proxies, 309
+checks across ten test files. The build is 750 kB of JS, 206 kB gzipped.
 
 The bundle grew by 64 kB when the interface was localised into eight languages:
 the dictionaries are about 8 kB apiece and all of them ship, since lazy loading

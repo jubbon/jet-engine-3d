@@ -303,6 +303,70 @@ The exponent of 2.5 for a multistage high-pressure compressor is above the
 square: as the speed rises, not only does the stage work grow, but the stages
 also match each other better, so the overall pressure ratio grows more steeply.
 
+### The compressor map and the stability boundary
+
+A compressor is not a pump. A pump pushes harder the faster it turns; a
+compressor is a stack of wings, every one of which has a critical angle of
+attack, and the machine has a **stability boundary** the operating point can be
+driven across. `src/surge.js` holds that boundary.
+
+Only one relation in it is derived. The HP turbine nozzle is choked in every
+regime that matters, so it passes a fixed corrected mass flow:
+
+```
+W · √T4 / P4 = const
+```
+
+At a fixed corrected speed the compressor delivers a fixed `W`, so the pressure
+it works against — and hence its pressure ratio — must rise as the square root
+of the turbine entry temperature:
+
+```
+PR_op / PR_work = √( T4 / T4ref(n2) )
+```
+
+That is the whole mechanism by which "fuel is running ahead of the airflow"
+becomes a number. The temperatures are **absolute**; in Celsius the relation is
+not merely imprecise but false — at idle it is wrong by 55 %.
+
+The **working line** is the model's own pressure-ratio formula, `1 + 27·n2^2.5`
+— the same expression the "After HPC" row of the station table uses, so the
+chart and the table cannot come to disagree. The **surge line** is that raised
+by a tabulated margin:
+
+| n2 | 0.30 | 0.50 | 0.60 | 0.70 | 0.80 | 0.90 | 1.00 |
+|---|---|---|---|---|---|---|---|
+| margin | 0.30 | 0.20 | 0.16 | 0.17 | 0.20 | 0.25 | 0.28 |
+
+The **shape** is the point, not the individual numbers: the margin is narrowest
+just above idle and widens towards take-off power. That is why surge is a
+low-speed transient phenomenon rather than something that happens at full power;
+why a real HP compressor carries variable stator vanes and handling bleed
+valves, which are open at exactly these speeds; and why a FADEC's acceleration
+schedule is most restrictive precisely where the engine feels most sluggish.
+Neither the vanes nor the bleed valves are modelled as hardware — the geometry
+has no VSV rings to turn — so their effect is folded into this table, which is
+the honest place for it: they change where the boundary is, and the boundary is
+what the table is.
+
+The margin itself, positive stable and zero on the boundary:
+
+```
+SM = (1 + margin(n2)) / √( T4(wf) / T4ref(n2) ) − 1
+```
+
+In steady running `wf` is the fuel the speed would settle at, the square root is
+exactly 1, and `SM` is the tabulated margin unchanged. That identity is what
+makes the number checkable against the table rather than against itself, and
+`test/surge.test.mjs` checks it to 1e-12 across the range.
+
+**This is not a calculation, and the chart must not be read as one.** The model
+does not solve the equations of gas dynamics. The working line is an algebraic
+fit, the surge line is a table of plausible numbers, and only the relation
+between temperature and pressure joining them is physics. It is exactly as much
+of a computation as the velocity and temperature profiles in `airflow.js` — a
+tabulated shape with the right behaviour, not a solution.
+
 ### Stations
 
 `T` and `P` here are the ambient temperature and pressure from the section
