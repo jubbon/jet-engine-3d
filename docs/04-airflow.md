@@ -138,9 +138,25 @@ seconds, and a headless browser renders this scene at roughly one frame per
 second: six frames per period cannot tell a cohort from the frame rate.
 
 That is what a cascade reverser is: it turns the fan stream, which is five
-sixths of the mass flow, and does nothing to the core. The exhaust plume, the
-heat haze and the contrail are therefore unchanged in reverse — if that ever
-stops being true, three other things in this model are wrong as well.
+sixths of the mass flow, and does nothing to the core.
+
+The heat haze does change, though — not because the core changed but because
+most of what it was drawing has gone. `PLUME` in `heathaze.js` is the **mixed**
+jet: it starts at the fan nozzle (x = 1.6) and is 1.45 units wide, because in
+forward thrust the hot core leaves inside a sheath of fan air. Block the duct
+and that sheath is not there, so what goes aft is the core alone — starting at
+the core nozzle (2.9) and barely wider than its lip (0.85). The plume
+interpolates between the two with the blocked fraction, and `hazePower()` loses
+the fan's share of its strength for the same reason. Left as it was, the model
+drew a full-width jet going aft while five sixths of it was leaving sideways.
+
+**Nothing is drawn going sideways**, and that is not the same oversight. The
+heat haze is heat: it exists because hot gas bends light. The reversed stream is
+fan air, and fan air is cold — it shimmers not at all. What a reverser actually
+throws up is spray and dust off the runway, which is a different phenomenon and
+is not modelled. The sideways flow is shown where it can honestly be shown: in
+the particle view, where about 1200 of them leave forward and outward through
+the cascades.
 
 The streamlines are static geometry built once at start-up and keep showing the
 stowed duct; they are the shape of the channel, not of the flow of the moment.

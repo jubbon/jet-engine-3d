@@ -27,6 +27,24 @@ const PLUME = {
   r1: 4.0, // radius of the dissolved jet at the tail
 };
 
+/* And the same plume with the thrust reverser deployed, which is a different
+   jet altogether. What leaves aft then is the CORE only: the blocker doors have
+   sent the fan stream out through the cascades, and that is five sixths of the
+   mass flow. So the jet starts at the core nozzle instead of the fan nozzle and
+   is barely wider than the core nozzle lip.
+
+   Nothing is drawn going sideways out of the cascades, and that is not an
+   omission. This pass draws heat shimmer, and the reversed stream is fan air -
+   cold. It bends no light. What a reverser throws up on a wet runway is spray
+   and dust, which is a different phenomenon and not modelled; the sideways flow
+   is shown where it can honestly be shown, in the particle view. */
+const PLUME_REV = {
+  x0: 2.9, // core nozzle exit
+  x1: 18.0,
+  r0: 0.85, // the core nozzle lip is 0.82
+  r1: 2.6,
+};
+
 /* Engine bodies that occlude the jet: seen from the front, the nacelle stands
    between the eye and the jet, and nothing there should shimmer.
    Four cylinders: nacelle (Ø 2.44 m), core cowl, exhaust plug, and the
@@ -292,8 +310,11 @@ const fragmentShader = /* glsl */ `
  * @param {number} n1 fan speed 0..1
  * @returns {number} 0..1.15
  */
-export function hazePower(burn, n1) {
-  return Math.max(0, Math.min(1.15, burn * 1.03 + n1 * 0.12));
+export function hazePower(burn, n1, blocked = 0) {
+  // The fan's share of the visible jet goes with the fan jet: with the duct
+  // blocked there is no cold stream leaving the nozzle to be dragged along and
+  // heated by the core. What burns still burns, so the combustion term stands.
+  return Math.max(0, Math.min(1.15, burn * 1.03 + n1 * 0.12 * (1 - blocked)));
 }
 
 /**
@@ -339,10 +360,12 @@ export function createHeatHaze(camera, width, height) {
    * @param {number} sleeve thrust reverser sleeve travel, model units. The
    *        sleeve slides aft into the front of the plume, and the shimmer must
    *        not pass through it.
+   * @param {number} blocked how much of the bypass duct the reverser has closed,
+   *        0..1. The jet aft shrinks to the core alone as it rises.
    */
-  function update(dt, burn, n1, sleeve = 0) {
+  function update(dt, burn, n1, sleeve = 0, blocked = 0) {
     time += dt;
-    const power = hazePower(burn, n1);
+    const power = hazePower(burn, n1, blocked);
     // while the engine is cold the pass need not run at all
     pass.enabled = enabled && power > 0.004;
     if (!pass.enabled) return;
@@ -353,6 +376,13 @@ export function createHeatHaze(camera, width, height) {
     // z is the aft end of the sleeve occluder; with the sleeve home it equals
     // its own start and the cylinder has no interior to hit
     uniforms.uOcc.value[3].z = 1.16 + sleeve;
+    // the jet aft is the mixed one, or the core alone, or somewhere between
+    uniforms.uPlume.value.set(
+      THREE.MathUtils.lerp(PLUME.x0, PLUME_REV.x0, blocked),
+      THREE.MathUtils.lerp(PLUME.x1, PLUME_REV.x1, blocked),
+      THREE.MathUtils.lerp(PLUME.r0, PLUME_REV.r0, blocked),
+      THREE.MathUtils.lerp(PLUME.r1, PLUME_REV.r1, blocked)
+    );
 
     camera.updateMatrixWorld();
     uniforms.uCam.value.setFromMatrixPosition(camera.matrixWorld);

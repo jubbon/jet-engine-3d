@@ -841,7 +841,7 @@ function animate() {
   // only the bypass stream knows about the reverser; the core plume, the heat
   // haze and the contrail are the same in reverse as they are in forward thrust
   airflow.update(dt, eng.n1, burn, rev.blocked);
-  haze.update(dt, burn, eng.n1, rev.travel);
+  haze.update(dt, burn, eng.n1, rev.travel, rev.blocked);
   // the verdict is about the air, but the water is the engine's: fuel cut, and
   // the trail dies with the flame
   trail.update(dt, verdict, burn);

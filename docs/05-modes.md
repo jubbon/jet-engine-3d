@@ -137,6 +137,9 @@ sleeve position.
 * with the flows on, the fan air turns round at the doors and leaves forward and
   outward through the cascades, while the core jet carries on aft exactly as
   before;
+* the jet aft narrows to the core alone — it was the two streams mixed, and one
+  of them has gone sideways. Nothing shimmers sideways in its place: the
+  reversed stream is fan air, and fan air is cold;
 * the sound loses the fan jet, the fan broadband gets louder and darker, and the
   cascades roar — 3.6 dB up overall at the same N1
   ([sound](06-sound.md#reverse)).

@@ -80,5 +80,26 @@ check(
   check('distortion outlives the flame (hot gas is still flowing)', zeroAt !== null && zeroAt > 6, `${zeroAt?.toFixed(1)} s`);
 }
 
+/* ------------------- the jet aft in reverse ------------------------- *
+ *  A cascade reverser sends the fan stream out sideways and leaves the
+ *  core alone, so what is left going aft is the core jet: narrower, and
+ *  missing the fan's share of the shimmer. The plume geometry follows the
+ *  blocked fraction in update(); what can be checked here is the power.
+ * -------------------------------------------------------------------- */
+{
+  const burn = 0.85;
+  const n1 = 0.795; // the reverse power limit
+  const fwd = hazePower(burn, n1, 0);
+  const rev = hazePower(burn, n1, 0.92);
+  check('Reverse weakens the jet aft', rev < fwd, `${rev.toFixed(3)} against ${fwd.toFixed(3)}`);
+  // but only by the fan's share of it - the core is still burning
+  check(
+    'and only by the fan share of it',
+    rev > 0.85 * fwd,
+    `${(100 * (1 - rev / fwd)).toFixed(0)} % down, the fan term is ${(100 * (n1 * 0.12) / fwd).toFixed(0)} % of the whole`
+  );
+  check('A dead engine stays dead in reverse', hazePower(0, 0, 1) === 0);
+}
+
 console.log(failures ? `\n${failures} checks failed\n` : '\nall checks passed\n');
 process.exit(failures ? 1 : 0);
