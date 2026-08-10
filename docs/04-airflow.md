@@ -115,12 +115,27 @@ in open view, and at 4.0 that means popping into existence inside the intake.
 Widening only as far as the fade allows buys almost nothing: 0.193 against
 0.201.
 
-So it stands, deliberately. Removing it properly means giving each particle a
-speed of its own — a few per cent either way, which is what turbulent diffusion
-does anyway — and that is a change to how the whole visualisation looks, not a
-tuning of a constant. It is recorded here because it is the reason a test that
-counted particles could not be made to hold still, and the next person to reach
-for such a count should know before writing it rather than after.
+So it stands, deliberately. There are two ways to remove it properly, and
+neither is a tuning of a constant:
+
+* **Break the cohort in space** — give each particle a speed of its own, a few
+  per cent either way, which is what turbulent diffusion does anyway. Measured
+  to work, but it changes how every moving particle looks.
+* **Break it in time** — hold a particle unrendered for a random delay at
+  respawn instead of reinserting it at once. The spawn position never moves, so
+  the fade budget is untouched and nothing about a moving particle changes. It
+  costs density instead: particles that are waiting are not drawn, and a delay
+  averaging a fifth of a transit hides a sixth of the field, to be recovered by
+  raising `N_BYPASS` or simply accepted. **Untested** — it is here as an option
+  someone should measure, not as a recommendation.
+
+Recorded because it is the reason a test that counted particles could not be
+made to hold still, and the next person to reach for such a count should know
+before writing it rather than after.
+
+Whether any of it reads on screen is **not established**. A transit is about six
+seconds, and a headless browser renders this scene at roughly one frame per
+second: six frames per period cannot tell a cohort from the frame rate.
 
 That is what a cascade reverser is: it turns the fan stream, which is five
 sixths of the mass flow, and does nothing to the core. The exhaust plume, the
