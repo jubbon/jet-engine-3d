@@ -154,10 +154,17 @@ deliberately left alone.
 | Jet noise, the part driven by combustion | unchanged | The core is still doing exactly what it was |
 | Broadband fan noise | ×(1 + 1.4·rev), centre frequency ×(1 − 0.35·rev) | It no longer leaves down a lined duct but sideways through a grille, so the duct is no longer filtering it |
 | Cascade roar | new: brown noise, bandpass 320 Hz, gain 0.95·rev·N1^0.8 | Air turning through better than a right angle in a few hundred small vanes is the loudest single thing about a reverser, and it is broadband rather than tonal |
+| Its modulation | a gain of its own, 0.09·rev | See below: wired straight from the jet's turbulence oscillator it became a source rather than a modulation |
 | Buzz-saw comb | unchanged | It radiates forward out of the intake, and the intake has not changed |
 
-The cascade branch breathes on the same turbulence oscillator as the jet: it is
-the same turbulence, and two independent wobbles would beat against each other.
+The cascade branch breathes on the same turbulence oscillator as the jet — it is
+the same turbulence, and two independent wobbles would beat against each other —
+but through a gain of its own, scaled by deployment. Connected straight to
+`revGain.gain` it was a **source**: an `AudioParam` sums its connections onto
+its intrinsic value, and that value is zero with the reverser stowed, so the
+roar swung between −0.045 and +0.09 at 0.31 Hz whenever the sound was on at all.
+The jet gets away with the direct connection because its own intrinsic value
+never falls below 0.16·N1^1.2, so there is always something there to modulate.
 
 The gain was set against the rendered spectrum rather than by ear, and the first
 value was wrong in a way listening would not have diagnosed. At 0.42 the
@@ -168,12 +175,10 @@ N1 = 80 %, burn 0.6:
 
 | Band | Forward | Reverse |
 |---|---:|---:|
-| 80…160 Hz | 56.5 dB | 62.2 dB |
-| 250…450 Hz | 51.4 dB | 54.2 dB |
-| 800…1600 Hz | 18.4 dB | 37.2 dB |
-| 2…3.5 kHz | 21.4 dB | 26.3 dB |
+| 250…450 Hz | 51.1 dB | 55.0 dB |
+| 800…1600 Hz | 18.6 dB | 40.6 dB |
 
-Overall 4.3 dB louder at the same rotor speed, and distinctly darker. Peak 0.55
+Overall 3.6 dB louder at the same rotor speed, and distinctly darker. Peak 0.55
 against the 0.52 quoted below at take-off power: still no clipping, and reverse
 is limited to 80 % N1 in any case.
 

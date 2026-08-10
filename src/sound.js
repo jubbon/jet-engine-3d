@@ -105,7 +105,7 @@ export function createEngineSound(opts = {}) {
   let jetBand, jetLow, jetLow2, jetGain;
   let rumbleFilter, rumbleGain;
   let fanBbBand, fanBbGain;
-  let revBand, revGain;
+  let revBand, revGain, revTurbGain;
   let wander, wanderGain, turb, turbGain;
 
   function build() {
@@ -275,9 +275,18 @@ export function createEngineSound(opts = {}) {
     turbGain = ctx.createGain();
     turbGain.gain.value = 0.05;
     turb.connect(turbGain).connect(jetGain.gain);
-    // the cascade roar breathes with the same oscillator: it is the same
-    // turbulence, and two independent wobbles would beat against each other
-    turbGain.connect(revGain.gain);
+    /* The cascade roar breathes on the same oscillator - it is the same
+       turbulence, and two independent wobbles would beat against each other -
+       but through a gain of its own, scaled by how far the reverser is out.
+       Wired straight from turbGain it was a SOURCE rather than a modulation:
+       an AudioParam sums its connections onto its intrinsic value, and that
+       value is zero with the reverser stowed, so the roar swung between -0.045
+       and +0.09 at 0.31 Hz whenever the sound was on at all. jetGain gets away
+       with the direct connection because its intrinsic value never drops below
+       0.16 * n1^1.2, so there is always something there to modulate. */
+    revTurbGain = ctx.createGain();
+    revTurbGain.gain.value = 0;
+    turb.connect(revTurbGain).connect(revGain.gain);
     turb.start();
 
     ready = true;
@@ -334,6 +343,7 @@ export function createEngineSound(opts = {}) {
     set(rumbleGain.gain, 0.30 * (0.30 * n1 + 0.70 * burn));
     set(fanBbGain.gain, 0.011 * (0.35 + 0.65 * n1) * (1 + 1.4 * rev));
     set(revGain.gain, 0.95 * rev * Math.pow(n1, 0.8));
+    set(revTurbGain.gain, 0.09 * rev);
 
     // the jet spectrum shifts up as the exhaust velocity rises
     set(jetBand.frequency, 180 + 130 * burn, 0.25);
