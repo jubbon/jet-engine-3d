@@ -185,4 +185,13 @@ export default {
   'surge.hint.surging': 'El flujo se ha desprendido y el gas sale hacia adelante por la admisión varias veces por segundo. Reduzca la palanca ahora y se recuperará; manténgala arriba y quedará enganchado.',
   'surge.hint.stall': 'Pérdida enganchada: los ejes están colgados, el conducto de gas se recalienta y no hay empuje. Ningún movimiento de la palanca lo resolverá, solo una parada.',
   'surge.hint.off': 'el motor debe estar en marcha',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': 'Mapa del compresor',
+  'map.line.surge': 'línea de bombeo',
+  'map.line.working': 'línea de trabajo',
+  'map.line.point': 'punto de funcionamiento',
+  'map.axis.pr': '↑ relación de presiones',
+  'map.axis.flow': 'gasto corregido →',
+  'map.caveat': 'La línea de bombeo es una tabla de valores plausibles, no un cálculo: el modelo no resuelve ecuaciones de gasdinámica.',
 };

@@ -13,6 +13,7 @@ import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
 import { createReverser, thrustFactor } from './reverser.js';
+import { workingLine, surgeLine, correctedFlow, marginAt } from './surge.js';
 import { atmosphere, humidity } from './atmosphere.js';
 import { contrail, flipAltitude, H_MAX } from './contrail.js';
 import { createContrail } from './contrailView.js';
@@ -627,6 +628,102 @@ function updateGauges() {
   });
 }
 
+/* -------------------------- compressor map --------------------------- *
+ *  Corrected flow across, pressure ratio up, the working line, the surge
+ *  line above it, and a dot for where the engine actually is.
+ *
+ *  Every curve is read from src/surge.js - the same functions that decide
+ *  whether the engine surges. A chart with its own copy of the surge line
+ *  would eventually disagree with the behaviour it illustrates, and it
+ *  would disagree SILENTLY, because nothing tests a picture.
+ * --------------------------------------------------------------------- */
+const cmap = $('cmap');
+const cmapCtx = cmap.getContext('2d');
+const MAP_H = 150;
+const MAP_PAD = { l: 6, r: 6, t: 6, b: 6 };
+const PR_MAX = 38; // a little above surgeLine(1), so the top curve is not clipped
+const N2_LO = 0.3; // the range the SM0 table covers
+
+// its own hash, not the gauges': a dot moving one pixel is a finer question
+// than a read-out changing, and updateGauges returns early on its own tolerance
+let mapShown = -1;
+
+function sizeMap() {
+  // match the renderer's own cap: a 2x backing store on a HiDPI panel, no more
+  const dpr = Math.min(devicePixelRatio, 2);
+  const w = cmap.clientWidth || 286;
+  cmap.width = Math.round(w * dpr);
+  cmap.height = Math.round(MAP_H * dpr);
+  cmapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mapShown = -1; // the bitmap was just resized, so whatever was on it is gone
+}
+
+function drawMap() {
+  const w = cmap.width / Math.min(devicePixelRatio, 2);
+  const h = MAP_H;
+  const x = (n2) => MAP_PAD.l + ((correctedFlow(n2) - N2_LO) / (1 - N2_LO)) * (w - MAP_PAD.l - MAP_PAD.r);
+  const y = (pr) => h - MAP_PAD.b - (pr / PR_MAX) * (h - MAP_PAD.t - MAP_PAD.b);
+
+  cmapCtx.clearRect(0, 0, w, h);
+  cmapCtx.fillStyle = '#0d1117';
+  cmapCtx.fillRect(0, 0, w, h);
+
+  const curve = (fn, colour, width) => {
+    cmapCtx.beginPath();
+    for (let n2 = N2_LO; n2 <= 1.0001; n2 += 0.01) {
+      const px = x(n2);
+      const py = y(fn(n2));
+      if (n2 === N2_LO) cmapCtx.moveTo(px, py);
+      else cmapCtx.lineTo(px, py);
+    }
+    cmapCtx.strokeStyle = colour;
+    cmapCtx.lineWidth = width;
+    cmapCtx.stroke();
+  };
+
+  // the unstable side, so the boundary reads as a region rather than a line
+  cmapCtx.beginPath();
+  for (let n2 = N2_LO; n2 <= 1.0001; n2 += 0.01) cmapCtx.lineTo(x(n2), y(surgeLine(n2)));
+  cmapCtx.lineTo(x(1), y(PR_MAX));
+  cmapCtx.lineTo(x(N2_LO), y(PR_MAX));
+  cmapCtx.closePath();
+  cmapCtx.fillStyle = 'rgba(255, 90, 60, 0.10)';
+  cmapCtx.fill();
+
+  curve(surgeLine, '#ff5a3c', 1.5);
+  curve(workingLine, '#4fc3ff', 1.5);
+
+  /* Where the engine is. The ordinate is recovered from the margin rather than
+     recomputed, so the dot cannot be anywhere the stability test would not put
+     it: sm = (1 + SM0)/ratio - 1, hence ratio = (1 + SM0)/(1 + sm), and the
+     operating pressure ratio is the working line times that ratio. */
+  if (eng.mode === 'run') {
+    const n2 = THREE.MathUtils.clamp(eng.n2, N2_LO, 1);
+    const pr = Math.min(PR_MAX, workingLine(n2) * ((1 + marginAt(n2)) / (1 + eng.sm)));
+    const surging = eng.surge !== 'clear';
+    cmapCtx.beginPath();
+    cmapCtx.arc(x(n2), y(pr), surging ? 4 : 3, 0, Math.PI * 2);
+    cmapCtx.fillStyle = surging ? '#ff5a3c' : '#ffffff';
+    cmapCtx.fill();
+    if (surging) {
+      cmapCtx.beginPath();
+      cmapCtx.arc(x(n2), y(pr), 7, 0, Math.PI * 2);
+      cmapCtx.strokeStyle = 'rgba(255, 90, 60, 0.55)';
+      cmapCtx.lineWidth = 1;
+      cmapCtx.stroke();
+    }
+  }
+}
+
+function updateMap() {
+  const h = eng.mode === 'run' ? eng.n2 * 997 + eng.sm * 503 : -2;
+  if (Math.abs(h - mapShown) < 0.05) return;
+  mapShown = h;
+  drawMap();
+}
+
+sizeMap();
+
 /* ------------------------ ambient conditions ------------------------- *
  *  The engine stays parked, but the air around it can be lifted to the
  *  cruise levels. Nothing inside the engine is recomputed - the speeds,
@@ -842,6 +939,7 @@ function animate() {
   if (eng.mode !== shownMode) refreshModeUI();
   if (eng.surge !== shownSurge) refreshSurgeUI();
   updateGauges();
+  updateMap();
 
   // rotors: N1 (fan/booster/LPT) and N2 (HPC/HPT) turn independently
   if (state.spin) {
@@ -944,6 +1042,9 @@ addEventListener('resize', () => {
   composer.setSize(innerWidth, innerHeight);
   haze.setSize(innerWidth, innerHeight);
   labelRenderer.setSize(innerWidth, innerHeight);
+  // the panel does not reflow, but the device pixel ratio can change when a
+  // window is dragged between displays
+  sizeMap();
 });
 
 /* ---------------------------- initialisation ------------------------- */

@@ -185,4 +185,13 @@ export default {
   'surge.hint.surging': 'Die Strömung ist abgerissen, und das Gas wird mehrmals pro Sekunde nach vorn durch den Einlauf ausgestoßen. Nehmen Sie den Schubhebel jetzt zurück, dann erholt sich das Triebwerk; lassen Sie ihn oben, verfestigt sich der Zustand.',
   'surge.hint.stall': 'Verfestigter Strömungsabriss: Die Wellen hängen, der Gaskanal überhitzt, der Schub ist weg. Keine Hebelbewegung behebt das — nur ein Abstellen.',
   'surge.hint.off': 'das Triebwerk muss laufen',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': 'Verdichterkennfeld',
+  'map.line.surge': 'Pumpgrenze',
+  'map.line.working': 'Betriebslinie',
+  'map.line.point': 'Betriebspunkt',
+  'map.axis.pr': '↑ Druckverhältnis',
+  'map.axis.flow': 'reduzierter Massenstrom →',
+  'map.caveat': 'Die Pumpgrenze ist eine Tabelle plausibler Werte, keine Berechnung: Das Modell löst keine gasdynamischen Gleichungen.',
 };

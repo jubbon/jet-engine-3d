@@ -185,4 +185,13 @@ export default {
   'surge.hint.surging': 'L\'écoulement a décroché et le gaz est refoulé vers l\'avant par l\'entrée d\'air, plusieurs fois par seconde. Réduisez la manette maintenant et le moteur récupérera ; maintenez-la et le régime se figera.',
   'surge.hint.stall': 'Décrochage figé : les rotors sont bloqués bas, la veine gazeuse chauffe et la poussée a disparu. Aucun mouvement de manette n\'y remédiera, seulement un arrêt.',
   'surge.hint.off': 'le moteur doit tourner',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': 'Champ du compresseur',
+  'map.line.surge': 'ligne de pompage',
+  'map.line.working': 'ligne de fonctionnement',
+  'map.line.point': 'point de fonctionnement',
+  'map.axis.pr': '↑ taux de compression',
+  'map.axis.flow': 'débit corrigé →',
+  'map.caveat': 'La ligne de pompage est un tableau de valeurs plausibles, non un calcul : le modèle ne résout aucune équation de gazodynamique.',
 };

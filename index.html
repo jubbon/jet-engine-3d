@@ -123,6 +123,27 @@
             <b id="val-sm">—</b>
           </label>
           <p class="hint" id="surge-hint"></p>
+          <!-- The compressor map. Every caption is DOM rather than painted into
+               the bitmap: canvas text has no copy in this file, so it would
+               escape the markup-against-dictionary check, and it would need the
+               chart redrawn on a language change. Only the curves and the dot
+               are in the canvas. -->
+          <div id="cmap-wrap">
+            <div class="caption" data-i18n="map.title">Compressor map</div>
+            <canvas id="cmap"></canvas>
+            <div class="maplegend">
+              <span class="k-surge" data-i18n="map.line.surge">surge line</span>
+              <span class="k-work" data-i18n="map.line.working">working line</span>
+              <span class="k-point" data-i18n="map.line.point">operating point</span>
+            </div>
+            <div class="mapaxes">
+              <span data-i18n="map.axis.pr">↑ pressure ratio</span>
+              <span data-i18n="map.axis.flow">corrected flow →</span>
+            </div>
+            <p class="hint" data-i18n="map.caveat">
+              The surge line is a table of plausible values, not a computation — the model solves no gas dynamics.
+            </p>
+          </div>
           <!-- N1, N2 and T4 are instrument markings, not words, and stay put -->
           <div class="gauges">
             <div><i>N1</i><b id="val-n1">—</b><small data-i18n="gauge.n1.sub">fan</small></div>

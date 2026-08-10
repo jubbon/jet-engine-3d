@@ -184,4 +184,13 @@ export default {
   'surge.hint.surging': '气流已经失稳，燃气每秒数次从进气道向前喷出。现在收回油门即可恢复；继续保持则会锁定。',
   'surge.hint.stall': '锁定失速：转子转速悬挂，燃气通道过热，推力消失。任何油门动作都无法解除，只能关车。',
   'surge.hint.off': '发动机必须处于运转状态',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': '压气机特性图',
+  'map.line.surge': '喘振边界',
+  'map.line.working': '工作线',
+  'map.line.point': '工作点',
+  'map.axis.pr': '↑ 增压比',
+  'map.axis.flow': '折合流量 →',
+  'map.caveat': '喘振边界是一组合理取值的表格，而非计算结果：本模型不求解气体动力学方程。',
 };

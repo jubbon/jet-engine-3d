@@ -185,4 +185,13 @@ export default {
   'surge.hint.surging': 'O escoamento se descolou e o gás é expelido para a frente pela tomada de ar, várias vezes por segundo. Recue a manete agora e o motor se recupera; mantenha-a e o quadro se trava.',
   'surge.hint.stall': 'Stall travado: os eixos ficam pendurados, o duto de gás cozinha e o empuxo acabou. Nenhum movimento de manete resolve — apenas um corte.',
   'surge.hint.off': 'o motor precisa estar funcionando',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': 'Mapa do compressor',
+  'map.line.surge': 'linha de surge',
+  'map.line.working': 'linha de trabalho',
+  'map.line.point': 'ponto de operação',
+  'map.axis.pr': '↑ razão de pressão',
+  'map.axis.flow': 'vazão corrigida →',
+  'map.caveat': 'A linha de surge é uma tabela de valores plausíveis, não um cálculo: o modelo não resolve equações de gasdinâmica.',
 };

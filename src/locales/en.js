@@ -221,4 +221,13 @@ export default {
   'surge.hint.surging': 'The flow has broken down and the gas is being expelled forward through the intake, several times a second. Pull the throttle back now and it will recover; hold it up and it will lock.',
   'surge.hint.stall': 'A locked stall: the spools hang, the gas path is cooking and the thrust is gone. No throttle movement will clear it — only a shutdown.',
   'surge.hint.off': 'the engine must be running',
+
+  /* --------------------------- compressor map -------------------------- */
+  'map.title': 'Compressor map',
+  'map.line.surge': 'surge line',
+  'map.line.working': 'working line',
+  'map.line.point': 'operating point',
+  'map.axis.pr': '↑ pressure ratio',
+  'map.axis.flow': 'corrected flow →',
+  'map.caveat': 'The surge line is a table of plausible values, not a computation — the model solves no gas dynamics.',
 };
