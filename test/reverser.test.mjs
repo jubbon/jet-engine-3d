@@ -305,6 +305,17 @@ const deg = (r) => (r * 180) / Math.PI;
   const { createAirflow } = await import('../src/airflow.js');
   const N_BYPASS = 5200; // the split in airflow.js; core particles follow
 
+  /* A core particle outside this radius has been deflected, which is the one
+     thing the reverser must never do to it. The number has less headroom than
+     it looks: CORE_OUT in airflow.js tops out at 1.25 at the end of the domain
+     and the per-particle jitter adds up to 0.025, so the largest legitimate
+     core radius measured over twenty seconds is 1.274 and the margin here is
+     0.026, not the 0.4 that 1.30 suggests at a glance. It is ample against the
+     regression it exists for - a deflected particle overshoots it within a
+     third of a second - but widening CORE_OUT's tail would break this check
+     with nothing in the failure message pointing at the edit. */
+  const CORE_DUCT_MAX = 1.3;
+
   /* ONE particle system, deployed part-way through: that is what actually
      happens, and it avoids comparing two independently seeded runs. */
   const flow = createAirflow();
@@ -321,7 +332,7 @@ const deg = (r) => (r * 180) / Math.PI;
       if (i < N_BYPASS) {
         if (x < 0.11 && r > 1.75) escaping++;
         if (x > 1.16) throughNozzle++;
-      } else if (r > 1.3) strayCore++;
+      } else if (r > CORE_DUCT_MAX) strayCore++;
     }
     return { escaping, throughNozzle, strayCore };
   };

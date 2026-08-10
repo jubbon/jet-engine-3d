@@ -98,6 +98,30 @@ swings four to one cannot detect a change of a few per cent. Where the core air
 *is* does not oscillate: no particle of it may leave the core duct, whatever the
 reverser is doing.
 
+### The cohorts, and why the obvious fix is not one
+
+Particles travel at a speed that depends on station alone, so two particles that
+set off together stay together for ever: the field never mixes. The initial
+seeding spreads them over the whole domain, but `respawn()` returns them to a
+0.8-unit window at the inlet, so after the first transit the population is a
+train of cohorts. Measured on a mid-duct slice, the count swings 113…240 about a
+mean of 179 — a coefficient of variation of 0.20, with the period of a transit.
+
+The tempting fix is to widen that window, and it does work: at 4.0 units the
+variation falls to 0.085. It also breaks something else. `edgeFade()` fades
+particles in over the first 1.6 units, which is exactly why the respawn window
+is narrower than that — a particle returned beyond it appears at full brightness
+in open view, and at 4.0 that means popping into existence inside the intake.
+Widening only as far as the fade allows buys almost nothing: 0.193 against
+0.201.
+
+So it stands, deliberately. Removing it properly means giving each particle a
+speed of its own — a few per cent either way, which is what turbulent diffusion
+does anyway — and that is a change to how the whole visualisation looks, not a
+tuning of a constant. It is recorded here because it is the reason a test that
+counted particles could not be made to hold still, and the next person to reach
+for such a count should know before writing it rather than after.
+
 That is what a cascade reverser is: it turns the fan stream, which is five
 sixths of the mass flow, and does nothing to the core. The exhaust plume, the
 heat haze and the contrail are therefore unchanged in reverse — if that ever
