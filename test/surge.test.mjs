@@ -17,7 +17,7 @@ import {
   RECOVER_HOLD,
   STALL_CHOKE,
 } from '../src/surge.js';
-import { IDLE_N2 } from '../src/engineState.js';
+import { IDLE_N2, createEngineState } from '../src/engineState.js';
 
 /* ------------------------------------------------------------------ *
  *  Compressor stability.
@@ -262,6 +262,142 @@ function run(margin, secs, running = true, s = createSurge(), n2 = 0.7) {
   const cellRevs = (s.cell - before) / (Math.PI * 2);
   check('the stall cells run slower than the rotor', cellRevs < 0.7 && cellRevs > 0,
     `${cellRevs.toFixed(2)} turns against the rotor's 0.70 in the same second`);
+}
+
+/* ================================================================== *
+ *  The fuel command.
+ *
+ *  `burn` now follows `wf` instead of following keff directly, and
+ *  `burn` is the one variable every visual effect in the model reads.
+ *  The guard below is why that change was worth a commit of its own: in
+ *  the steady state the two expressions must agree to floating point, so
+ *  no documented number can have moved.
+ * ================================================================== */
+
+console.log('\n=== FUEL COMMAND ===');
+
+const settle = (throttle, seconds = 90) => {
+  const eng = createEngineState(throttle);
+  for (let i = 0; i < 60 * seconds; i++) eng.update(DT, throttle);
+  return eng;
+};
+
+{
+  let worst = 0;
+  let worstAt = 0;
+  for (let i = 0; i <= 100; i += 2) {
+    const thr = i / 100;
+    const eng = settle(thr);
+    const old = 0.1 + 0.9 * eng.keff; // what the burn target used to be
+    if (Math.abs(eng.wf - old) > worst) {
+      worst = Math.abs(eng.wf - old);
+      worstAt = thr;
+    }
+  }
+  check('settled, the fuel command IS the old burn target', worst < 1e-9,
+    `largest disagreement ${worst.toExponential(1)} at ${(worstAt * 100).toFixed(0)} % throttle`);
+}
+
+{
+  // A slam now runs hot before it runs fast, which a real slam does and the
+  // model previously had exactly backwards - it ran COLD through an
+  // acceleration, because burn followed the LP rotor's lag.
+  const eng = settle(0);
+  const t4Idle = eng.t4;
+  let peak = 0;
+  for (let i = 0; i < 60 * 4; i++) {
+    eng.update(DT, 1.0);
+    peak = Math.max(peak, eng.wf - (0.1 + 0.9 * eng.keff));
+  }
+  check('a slam commands more fuel than the speed calls for', peak > 0.2,
+    `${peak.toFixed(3)} above the steady command at its worst`);
+  check('and the gas path is hotter than it was at idle', eng.t4 > t4Idle,
+    `${eng.t4.toFixed(0)} °C against ${t4Idle.toFixed(0)} °C`);
+}
+
+{
+  // and a chop commands less, which moves the point away from the boundary
+  const eng = settle(1.0);
+  let low = Infinity;
+  for (let i = 0; i < 60 * 2; i++) {
+    eng.update(DT, 0);
+    low = Math.min(low, eng.wf - (0.1 + 0.9 * eng.keff));
+  }
+  check('a chop commands less fuel than the speed calls for', low < -0.05,
+    `${low.toFixed(3)} below the steady command at its worst`);
+  check('and the command never goes negative', low + 0.1 + 0.9 >= 0 && settle(0).wf >= 0);
+}
+
+/* --------------- starting, and where the lever was left ---------------- *
+ *  The mode gate on `wf` is what keeps the lead term out of a start.
+ *  Without it the term applies during cranking - where n2 sits near
+ *  START_N2 while the lever is wherever it was left - and the
+ *  application boots at 85 % throttle, so every start would surge on the
+ *  default path.
+ *
+ *  With the gate, the start itself is clean. What is NOT clean, and
+ *  should not be, is the moment the start ends: an engine arriving at
+ *  idle with the lever still advanced is being asked to slam, and it
+ *  surges. That is not a defect to be papered over - it is the model
+ *  reproducing why the checklist puts the thrust levers at idle before a
+ *  start, and it is the same event as a reverser cap releasing onto a
+ *  lever left up.
+ * ----------------------------------------------------------------------- */
+function coldStart(lever) {
+  const eng = createEngineState(0.85);
+  eng.setMode('stop');
+  for (let i = 0; i < 60 * 120; i++) eng.update(DT, lever);
+  eng.setMode('start');
+  let leaded = 0;
+  let worstSM = Infinity;
+  let worstDuringSpool = Infinity;
+  for (let i = 0; i < 60 * 80; i++) {
+    eng.update(DT, lever);
+    /* Classified AFTER the update, not before. The state machine promotes
+       `start` to `run` part-way through the very update in which the HP rotor
+       reaches idle, and the fuel command in that same update is already the run
+       one - so the transition belongs to `run`, which is exactly where the
+       lever starts to apply. Read the other way round it looks as though the
+       spool itself surged. */
+    const spooling = eng.mode === 'start';
+    if (spooling && eng.wf > 0.3 + 1e-9) leaded++;
+    const sm = surgeMargin(eng.n2, eng.wf);
+    worstSM = Math.min(worstSM, sm);
+    if (spooling) worstDuringSpool = Math.min(worstDuringSpool, sm);
+  }
+  return { leaded, worstSM, worstDuringSpool, eng };
+}
+
+{
+  const idle = coldStart(0);
+  check('the fuel command carries no lead term during a start', idle.leaded === 0,
+    `${idle.leaded} updates commanded more than the start value of 0.3`);
+  check('a start with the lever at idle never surges', idle.worstSM > 0,
+    `lowest margin ${idle.worstSM.toFixed(3)}`);
+
+  /* THE FOURTH CONSTRAINT ON THE SM0 TABLE, and the reason it is spelled out
+     here rather than left implicit. During the spool the fuel command is held
+     at the start value of 0.3 while the reference temperature is still the idle
+     one, so the margin is thin by construction - about two hundredths. Shave
+     the low end of SM0 and every start begins to surge, with nothing in the
+     edit to suggest why. */
+  check('and the margin during the spool is thin but positive', idle.worstDuringSpool > 0,
+    `lowest margin ${idle.worstDuringSpool.toFixed(3)} while spooling — SM0 cannot be lowered much`);
+
+  const advanced = coldStart(0.85);
+  check('but reaching idle with the lever left advanced does surge', advanced.worstSM < 0,
+    `lowest margin ${advanced.worstSM.toFixed(3)} at 85 % — arriving at idle against an advanced lever is a slam`);
+  check('and that happens at the end of the start, not during it',
+    advanced.worstDuringSpool > 0,
+    `${advanced.worstDuringSpool.toFixed(3)} while spooling against ${advanced.worstSM.toFixed(3)} overall`);
+}
+
+{
+  // a fuel cut zeroes the command at once, whatever the lever is doing
+  const eng = settle(1.0);
+  eng.setMode('stop');
+  eng.update(DT, 1.0);
+  check('a fuel cut zeroes the command immediately', eng.wf === 0, `wf = ${eng.wf}`);
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);

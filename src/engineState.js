@@ -9,6 +9,8 @@
  *  stop  - fuel cut, rotors coasting down
  * ------------------------------------------------------------------ */
 
+import { t4Of } from './surge.js';
+
 export const IDLE_N1 = 0.18; // idle, fraction of maximum speed
 export const IDLE_N2 = 0.56;
 export const START_N2 = 0.3; // speed the starter cranks the HP rotor to
@@ -43,6 +45,40 @@ const TAU = {
 const FRICTION_N1 = 0.0022;
 const FRICTION_N2 = 0.0035;
 
+/**
+ * How far the fuel command runs ahead of the speed on a transient.
+ *
+ * A real engine's fuel valve moves in a fraction of a second while a rotor with
+ * real inertia does not, so for the interval in between the burner is being fed
+ * for a speed the compressor has not reached. That mismatch is what an
+ * acceleration schedule exists to ration - and this model has no acceleration
+ * schedule, which is exactly why it can be made to surge and a 737 cannot.
+ *
+ * The term is zero in the steady state, so nothing about the settled engine
+ * changes; it decays with the HP rotor's own time constant, so a slam's
+ * temperature overshoot lasts the few seconds one actually lasts; and it goes
+ * negative on a chop, which moves the operating point AWAY from surge. (A chop
+ * risks a lean blow-out instead - a different failure, not modelled.)
+ *
+ * 0.32 is not chosen, it is cornered. Solving SM = 0 for this constant:
+ * below 0.203 an instantaneous idle-to-full slam cannot reach the boundary at
+ * all; below 0.274 a half-second flick of the lever cannot, and a slider is
+ * dragged rather than stepped, so that is the bound that binds; above 0.406 an
+ * instant advance to only 50 % would surge, which it must not. 0.32 sits inside
+ * 0.274…0.406 with clearance either side. test/surge.test.mjs states all three.
+ */
+const LEAD = 0.32;
+
+/* Ceiling on the fuel command. Before the surge work `burn` could not exceed 1;
+   it can now, because a surge adds to it - the air stops arriving while the
+   fuel keeps going in. Every consumer was checked (heathaze clamps at 1.15,
+   contrailView at 1, airflow through the colour ramp; the flame and plume
+   shaders simply get brighter, which is what a surge should look like), but
+   sound.js reads it unbounded in four places, so the excursion is bounded here.
+   1.2 is T4 = 2090 °C: an over-temperature, visibly past the 1800 of take-off
+   power, which is the honest thing for a surge to show. */
+const BURN_MAX = 1.2;
+
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function createEngineState(initialThrottle = 0.85) {
@@ -51,6 +87,7 @@ export function createEngineState(initialThrottle = 0.85) {
     n1: IDLE_N1 + (1 - IDLE_N1) * initialThrottle, // speeds, fraction of maximum
     n2: IDLE_N2 + (1 - IDLE_N2) * initialThrottle,
     fuel: 1, // fuel supply
+    wf: initialThrottle, // commanded fuel flow - the valve, ahead of the flame
     burn: initialThrottle, // combustion intensity
     t4: 350 + 1450 * initialThrottle, // gas temperature ahead of the turbine, °C
     keff: initialThrottle, // effective regime derived from LP speed
@@ -132,14 +169,34 @@ export function createEngineState(initialThrottle = 0.85) {
       eng.keff = clamp((eng.n1 - IDLE_N1) / (1 - IDLE_N1), 0, 1);
       // while fuel is on but light-off has not happened, there is no flame and the gas path stays cold
       const burning = eng.fuel && eng.lightOff;
-      const burnTarget = !burning ? 0 : eng.mode === 'start' ? 0.3 : 0.1 + 0.9 * eng.keff;
-      const tauB = burnTarget > eng.burn ? 0.7 : 0.35;
-      eng.burn += (burnTarget - eng.burn) * (1 - Math.exp(-dt / tauB));
+
+      /* The fuel command: what the valve is doing, as against `burn`, which is
+         what the flame is doing, and `t4`, which is what the instrument says.
+         The three are deliberately different: fuel reaches the flame within a
+         combustor residence time, while the flame and a thermocouple both lag.
+
+         The mode structure is the same one the burn target has always had, and
+         only `run` carries the lead term. Written without that gate the model
+         surges on the DEFAULT path: during cranking n2 sits near START_N2 while
+         the lever stays wherever it was left, and the application boots with
+         the throttle at 85 % - which puts the command far above what a rotor at
+         30 % could ever swallow. And the `!burning` branch has to win, or a fuel
+         cut would leave fuel commanded, and a fuel cut is the only thing that
+         clears a locked stall. */
+      const n2cmd = IDLE_N2 + (1 - IDLE_N2) * throttle;
+      eng.wf = !burning
+        ? 0
+        : eng.mode === 'start'
+          ? 0.3
+          : clamp(0.1 + 0.9 * eng.keff + (LEAD * (n2cmd - eng.n2)) / (1 - IDLE_N2), 0, BURN_MAX);
+
+      const tauB = eng.wf > eng.burn ? 0.7 : 0.35;
+      eng.burn += (eng.wf - eng.burn) * (1 - Math.exp(-dt / tauB));
       if (!burning && eng.burn < 0.004) eng.burn = 0;
 
       // gas temperature: rises fast, cools slowly, so the brief burst of
       // combustion at light-off produces a noticeable T4 overshoot
-      const t4Target = burning ? 350 + 1450 * eng.burn : 15;
+      const t4Target = burning ? t4Of(eng.burn) : 15;
       const tauT = !burning ? 7.0 : t4Target > eng.t4 ? 0.6 : 2.2;
       eng.t4 += (t4Target - eng.t4) * (1 - Math.exp(-dt / tauT));
 

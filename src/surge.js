@@ -23,9 +23,11 @@
  *
  *      W * sqrt(T4) / P4 = const
  *
- *  At a fixed corrected speed the compressor delivers a fixed W, so the
- *  pressure the compressor works against - and hence its pressure ratio
- *  - must rise as the square root of the turbine entry temperature:
+ *  At a fixed corrected speed the compressor delivers a fixed CORRECTED
+ *  flow, and with no ram compression in this model the inlet temperature
+ *  is fixed too - so the pressure the compressor works against, and
+ *  hence its pressure ratio, must rise as the square root of the turbine
+ *  entry temperature:
  *
  *      PR_op / PR_work = sqrt( T4 / T4ref(n2) )
  *
@@ -68,19 +70,32 @@ export const t4K = (burn) => KELVIN + t4Of(burn);
 /* Surge margin along the working line, as a fraction of the working pressure
    ratio, against HP speed.
 
-   The SHAPE is the point, not the individual numbers. The margin is narrowest
-   just above idle and widens towards take-off power. That is why surge is a
-   low-speed transient phenomenon rather than something that happens at full
-   power; it is why a real HP compressor carries variable stator vanes and
-   handling bleed valves, which are open at exactly these speeds and are the
-   reason the real surge line sits where it does; and it is why a FADEC's
-   acceleration schedule is at its most restrictive precisely where the engine
-   feels most sluggish.
+   This is the boundary of a compressor whose variable stator vanes and handling
+   bleed valves are ON SCHEDULE. Neither is modelled as hardware - the geometry
+   has no VSV rings to turn - so their effect is folded in here, which is the
+   honest place for it: they move the boundary, and the boundary is what this
+   table is.
 
-   Neither the vanes nor the bleed valves are modelled as hardware - the
-   geometry has no VSV rings to turn - so their effect is folded into this
-   table. That is the honest place for it: they change where the boundary is,
-   and the boundary is what this table is. */
+   The residual narrowing just above idle is what those devices do not quite
+   remove - stage mismatching in the region where the front and the rear of a
+   multistage compressor want different flow. It is NOT the reason surge is a
+   low-speed phenomenon in this model, and it would be circular to say so: the
+   vanes and the bleeds exist precisely to restore low-speed margin, so a table
+   that already accounts for them cannot also be the argument that low speed is
+   where the danger is.
+
+   What actually makes surge a low-speed transient here is the other half of the
+   mechanism: for a given overfuelling the excursion off the working line is
+   largest when the rotor has the least speed to answer with. That falls out of
+   LEAD and the rotor time constants in engineState.js and would still hold if
+   this table were flat. The table decides where the threshold sits, not why
+   there is one.
+
+   One consequence is load-bearing and easy to lose: during a start the fuel
+   command sits at 0.3 while the reference temperature is still the idle one, so
+   the margin down here is only about two hundredths. Lower the 0.50 or 0.60
+   entries much and every start begins to surge. test/surge.test.mjs states it
+   as its own check so the connection is not left to be rediscovered. */
 export const SM0 = [
   [0.30, 0.30],
   [0.50, 0.20],
@@ -165,6 +180,14 @@ export const refT4 = (n2) => t4K(steadyBurn(n2));
  * running `wf` equals `steadyBurn(n2)`, the square root is exactly 1, and this
  * returns the tabulated `marginAt(n2)` unchanged - which is what makes the
  * number checkable against the table rather than against itself.
+ *
+ * Which definition of surge margin: this is the ratio of pressure ratios,
+ * PR_surge / PR_op - 1, the constant-corrected-FLOW definition. The tabulated
+ * margin it is measured against is looked up at the operating point's speed,
+ * which is a constant-corrected-SPEED quantity. Conflating the two is normal in
+ * a model at this level and it costs nothing here, because the model has no
+ * mass flow to distinguish them with - but the two are not the same definition,
+ * and a reader who knows that should see it acknowledged rather than glossed.
  *
  * `wf` is the COMMANDED fuel flow, not the indicated temperature. Fuel reaches
  * the flame within a combustor residence time and the back-pressure follows it

@@ -317,9 +317,10 @@ regime that matters, so it passes a fixed corrected mass flow:
 W · √T4 / P4 = const
 ```
 
-At a fixed corrected speed the compressor delivers a fixed `W`, so the pressure
-it works against — and hence its pressure ratio — must rise as the square root
-of the turbine entry temperature:
+At a fixed corrected speed the compressor delivers a fixed **corrected** flow,
+and with no ram compression in this model the inlet temperature is fixed too —
+so the pressure it works against, and hence its pressure ratio, must rise as the
+square root of the turbine entry temperature:
 
 ```
 PR_op / PR_work = √( T4 / T4ref(n2) )
@@ -338,22 +339,42 @@ by a tabulated margin:
 |---|---|---|---|---|---|---|---|
 | margin | 0.30 | 0.20 | 0.16 | 0.17 | 0.20 | 0.25 | 0.28 |
 
-The **shape** is the point, not the individual numbers: the margin is narrowest
-just above idle and widens towards take-off power. That is why surge is a
-low-speed transient phenomenon rather than something that happens at full power;
-why a real HP compressor carries variable stator vanes and handling bleed
-valves, which are open at exactly these speeds; and why a FADEC's acceleration
-schedule is most restrictive precisely where the engine feels most sluggish.
-Neither the vanes nor the bleed valves are modelled as hardware — the geometry
-has no VSV rings to turn — so their effect is folded into this table, which is
-the honest place for it: they change where the boundary is, and the boundary is
-what the table is.
+This is the boundary of a compressor whose **variable stator vanes and handling
+bleed valves are on schedule**. Neither is modelled as hardware — the geometry
+has no VSV rings to turn — so their effect is folded into the table, which is
+the honest place for it: they move the boundary, and the boundary is what the
+table is. The residual narrowing just above idle is what those devices do not
+quite remove, stage mismatching where the front and the rear of a multistage
+compressor want different flow.
+
+It would be **circular** to call that shape the reason surge is a low-speed
+phenomenon: the vanes and the bleeds exist precisely to restore low-speed
+margin, so a table that already accounts for them cannot also be the argument
+that low speed is where the danger lies. What actually makes surge a low-speed
+transient here is the other half of the mechanism — for a given overfuelling,
+the excursion off the working line is largest when the rotor has the least speed
+to answer with. That comes out of the fuel lead and the rotor time constants,
+and would still hold if this table were flat. The table decides where the
+threshold sits, not why there is one.
+
+One consequence is load-bearing: during a start the fuel command sits at its
+fixed start value while the reference temperature is still the idle one, so the
+margin down there is only about two hundredths. Lowering the table's low end
+much would make every start surge — `test/surge.test.mjs` states that as a check
+of its own so the connection is not left to be rediscovered.
 
 The margin itself, positive stable and zero on the boundary:
 
 ```
 SM = (1 + margin(n2)) / √( T4(wf) / T4ref(n2) ) − 1
 ```
+
+This is the ratio of pressure ratios, the constant-corrected-*flow* definition,
+while the tabulated margin it is measured against is looked up at the operating
+point's speed, a constant-corrected-*speed* quantity. Conflating the two is
+normal at this level and costs nothing here — the model has no mass flow to
+distinguish them with — but they are not the same definition, and a reader who
+knows that should see it acknowledged rather than glossed.
 
 In steady running `wf` is the fuel the speed would settle at, the square root is
 exactly 1, and `SM` is the tabulated margin unchanged. That identity is what
