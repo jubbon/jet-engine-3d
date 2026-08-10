@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildEngine, ST, MATS } from '../src/engine.js';
-import { STROKE, blockedFraction } from '../src/reverser.js';
+import { STROKE, DOORS, blockedFraction } from '../src/reverser.js';
 import { createAirflow } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
@@ -230,13 +230,16 @@ const cowlR = (x) => {
  * The doors are one InstancedMesh - all twelve are always at the same angle -
  * so the world position of a vertex is the instance matrix on top of the mesh
  * matrix. Reading only the mesh matrix would put every door at twelve o'clock
- * and find a clearance that no door has. */
+ * and find a clearance that no door has.
+ *
+ * Found by name rather than by probing its geometry: the doors were a
+ * CylinderGeometry segment until they had to be tapered, and a test that
+ * identifies its subject by construction detail stops testing anything the day
+ * the construction changes, without failing. */
 const doorMesh = (() => {
   let found = null;
   engine.parts.mRev.traverse((o) => {
-    if (!o.isInstancedMesh || o.geometry?.type !== 'CylinderGeometry') return;
-    if (Math.abs(o.geometry.parameters.radiusTop - 1.69) > 1e-6) return;
-    found = o;
+    if (o.isInstancedMesh && o.name === 'blockerDoors') found = o;
   });
   return found;
 })();
@@ -282,23 +285,135 @@ check(
   `closest ${(minGap * 500).toFixed(0)} mm at travel ${minAt.toFixed(2)} of ${STROKE}`
 );
 
-// And having got there without hitting anything, they have to do their job.
+/* And having got there without hitting anything, they have to do their job.
+ *
+ * The number reverser.js hands the thrust, the flow and the sound is a fraction
+ * of the duct AREA, so that is what is measured here: how far in the doors
+ * reach, times how much of the circumference they cover. Measuring the radial
+ * reach alone - which this check did at first - agrees with a radial-only
+ * blockedFraction for the wrong reason, and neither notices that a ring of
+ * twelve plates has gaps in it. */
 {
+  engine.setReverser(STROKE);
+  engine.parts.mRev.updateWorldMatrix(true, true);
   const pts = doorPoints(STROKE);
   const tip = pts.reduce((lo, p) => (p[1] < lo[1] ? p : lo), pts[0]);
   const wall = 1.69; // the duct wall the doors are hinged to
-  const closed = (wall - tip[1]) / (wall - cowlR(tip[0]));
+  const radial = (wall - tip[1]) / (wall - cowlR(tip[0]));
+
+  // angular coverage: the widest angular extent of one door, times twelve
+  const pos = doorMesh.geometry.attributes.position;
+  let spread = 0;
+  doorMesh.getMatrixAt(0, _im);
+  _im.premultiply(doorMesh.matrixWorld);
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).applyMatrix4(_im);
+    spread = Math.max(spread, Math.abs(Math.atan2(v.z, v.y)));
+  }
+  const angular = (DOORS * 2 * spread) / (2 * Math.PI);
+  const closed = radial * angular;
+
   check(
     'The doors close the bypass duct',
     closed > 0.85,
-    `${(100 * closed).toFixed(0)} % of the duct at x = ${tip[0].toFixed(2)}`
+    `${(100 * closed).toFixed(0)} % of it — ${(100 * radial).toFixed(0)} % radially, ${(100 * angular).toFixed(0)} % round`
   );
-  // what reverser.js believes about the same thing, computed from the linkage
+  // what reverser.js believes about the same thing, from the linkage and its
+  // own coverage constant
   check(
     'and the linkage agrees with the metal',
-    Math.abs(closed - blockedFraction(STROKE)) < 0.06,
+    Math.abs(closed - blockedFraction(STROKE)) < 0.04,
     `mesh ${closed.toFixed(3)}, linkage ${blockedFraction(STROKE).toFixed(3)}`
   );
+}
+
+/* And the doors must clear EACH OTHER. Twelve doors on a 30° pitch swing from
+ * a radius of 1.69 to one of 1.19, and the circumference available to them
+ * shrinks with it: a plate wide enough to close the gaps at the hinge overlaps
+ * its neighbours at the tip. That is why the door is tapered, and this is the
+ * check that keeps it so - measured as each vertex's angle away from its own
+ * door's centre line, which must stay inside half a pitch. */
+{
+  const half = Math.PI / DOORS; // half of the 30° sector each door owns
+  let worst = 0;
+  let worstAt = 0;
+  for (let k = 0; k <= 20; k++) {
+    const travel = (STROKE * k) / 20;
+    engine.setReverser(travel);
+    engine.parts.mRev.updateWorldMatrix(true, true);
+    const pos = doorMesh.geometry.attributes.position;
+    for (let d = 0; d < doorMesh.count; d++) {
+      const centre = (d / doorMesh.count) * Math.PI * 2;
+      doorMesh.getMatrixAt(d, _im);
+      _im.premultiply(doorMesh.matrixWorld);
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(_im);
+        // the clock convention here is y = r cos a, z = r sin a
+        let off = Math.atan2(v.z, v.y) - centre;
+        off = Math.atan2(Math.sin(off), Math.cos(off));
+        if (Math.abs(off) > worst) {
+          worst = Math.abs(off);
+          worstAt = travel;
+        }
+      }
+    }
+  }
+  check(
+    'No door reaches into its neighbour',
+    worst < half,
+    `widest ${((worst * 180) / Math.PI).toFixed(1)}° of a ${((half * 180) / Math.PI).toFixed(1)}° half-pitch, at travel ${worstAt.toFixed(2)}`
+  );
+  engine.setReverser(STROKE);
+}
+
+/* The cascade band has to be SEALED when the sleeve is home and OPEN when it is
+ * not — that is the entire mechanism, and until this check existed it was more
+ * than half wrong without a single test noticing. The fixed duct wall reached
+ * 0.50 units too far aft, so with the reverser deployed the forward 56 % of the
+ * band was still walled off and 144 of the 288 vanes had no duct to draw from.
+ * Nothing downstream complained: the flow model turns its particles round at a
+ * station of its own, so the picture looked right whatever the metal did.
+ *
+ * Measured as coverage of the duct wall radius over the band: wall pieces and
+ * stowed doors both count as closing it. */
+{
+  const wallSpans = (travel, withDoors) => {
+    engine.setReverser(travel);
+    engine.root.updateWorldMatrix(true, true);
+    const spans = [];
+    engine.root.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || o.material !== MATS.nacelle) return;
+      o.geometry.computeBoundingBox();
+      const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+      spans.push([b.min.x, b.max.x]);
+    });
+    // Stowed, the doors ARE the wall over their own length and count as closing
+    // the band. Deployed they stand across the duct at its aft edge and lean a
+    // little way into it, which is the mechanism working rather than the band
+    // being obstructed - so the deployed question is asked of the walls alone.
+    if (withDoors) {
+      const pts = doorPoints(travel);
+      spans.push([Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[0]))]);
+    }
+    return spans;
+  };
+  const coveredFraction = (spans) => {
+    const N = 200;
+    let covered = 0;
+    for (let i = 0; i < N; i++) {
+      const x = ST.sleeve + ((ST.cascadeAft - ST.sleeve) * (i + 0.5)) / N;
+      if (spans.some(([a, b]) => x >= a - 1e-6 && x <= b + 1e-6)) covered++;
+    }
+    return covered / N;
+  };
+
+  const stowed = coveredFraction(wallSpans(0, true));
+  const deployed = coveredFraction(wallSpans(STROKE, false));
+  check('Stowed, the cascade band is closed off from the duct', stowed > 0.999,
+    `${(100 * stowed).toFixed(0)} % of the band covered`);
+  check('Deployed, no wall is left across the band', deployed < 0.001,
+    `${(100 * deployed).toFixed(0)} % of the band still walled off`);
+  engine.setReverser(STROKE);
 }
 
 // The sleeve translates over the core cowl, which narrows aft: it must clear it.

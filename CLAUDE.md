@@ -128,7 +128,7 @@ Worth knowing before making changes:
   every frame all groups of a spool are assigned a **common angle**, so the
   rotors stay in sync even when their parent modules have moved apart in the
   exploded view.
-* **Picking goes through invisible proxy cylinders** (`engine.pickables`, 12 of
+* **Picking goes through invisible proxy cylinders** (`engine.pickables`, 13 of
   them) rather than the real geometry: the scene holds ~777 thousand triangles
   and raycasting them on every mouse move is unacceptable. Add a module and add
   a proxy for it to the `PROXY` array, otherwise it simply will not be
@@ -176,7 +176,7 @@ failure. Write new ones in the same style.
 | `atmosphere.test.mjs` | The standard atmosphere and water vapour against published tables: T, P, ρ at the round levels, the join at the tropopause, a real day, saturation over water and over ice, the dew point |
 | `contrail.test.mjs` | The Schmidt — Appleman criterion, checked through tangency of the mixing line to the saturation curve rather than against its own fit |
 | `geometry.test.mjs` | Dimensions against the reference, stage counts, intake depth, station ordering |
-| `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin |
+| `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin, the reverser's doors clear the core cowl and each other over the whole sweep, and the cascade band is sealed stowed and open deployed |
 | `i18n.test.mjs` | The eight dictionaries agree: same keys, same `{placeholders}`, nothing empty. Locale matching, number formatting, and that the English left in `index.html` still says what the dictionary says |
 | `reverser.test.mjs` | The thrust reverser: deployment and stow timing, the interlocks, the drag-link kinematics of the blocker doors, reverse thrust through the real engine state, and where the bypass particles end up |
 
@@ -220,8 +220,8 @@ rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
 The yardstick as of today (recount it, do not copy it): 777 thousand triangles,
-132 draw calls, 37 blade rows holding 2350 blades, 12 picking proxies, 285
-checks across nine test files. The build is 749 kB of JS, 206 kB gzipped.
+132 draw calls, 37 blade rows holding 2350 blades, 13 picking proxies, 288
+checks across nine test files. The build is 750 kB of JS, 206 kB gzipped.
 
 The bundle grew by 64 kB when the interface was localised into eight languages:
 the dictionaries are about 8 kB apiece and all of them ship, since lazy loading

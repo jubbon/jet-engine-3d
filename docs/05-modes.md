@@ -132,13 +132,13 @@ sleeve position.
   [geometry](02-geometry.md#the-doors-are-dragged-not-driven));
 * N1 falls to idle while the sleeve moves, then climbs to 80 % if the throttle
   is up;
-* the thrust read-out crosses zero part-way through the stroke and settles near
-  **−19 kN**;
+* the thrust read-out crosses zero part-way through the stroke and settles at
+  **−19.4 kN**;
 * with the flows on, the fan air turns round at the doors and leaves forward and
   outward through the cascades, while the core jet carries on aft exactly as
   before;
 * the sound loses the fan jet, the fan broadband gets louder and darker, and the
-  cascades roar — about 4 dB up overall at the same N1
+  cascades roar — 3.6 dB up overall at the same N1
   ([sound](06-sound.md#reverse)).
 
 The model designation on the cowl splits in two as the sleeve carries the aft
@@ -186,14 +186,14 @@ the bypass air ends up:
 ```
 === DEPLOYMENT ===
   t=0.5s  travel=0.233  door=7.2°   blocked=0.12
-  t=1.0s  travel=0.450  door=27.3°  blocked=0.44
-  t=1.5s  travel=0.682  door=57.1°  blocked=0.81
-  t=2.0s  travel=0.900  door=85.1°  blocked=0.96
+  t=1.0s  travel=0.450  door=27.3°  blocked=0.43
+  t=1.5s  travel=0.682  door=57.1°  blocked=0.78
+  t=2.0s  travel=0.900  door=85.1°  blocked=0.92
 fully deployed: 2.02 s
 
 === WHERE THE BYPASS AIR GOES ===
-  stowed:   out of the cascades 0, out of the fan nozzle 1749, core 324
-  deployed: out of the cascades 1115, out of the fan nozzle 0, core 321
+  stowed:   out of the cascades 0, out of the fan nozzle 1770, core 309
+  deployed: out of the cascades 1106, out of the fan nozzle 0, core 323
 ```
 
 The second of those is the check that a cascade reverser does nothing to the

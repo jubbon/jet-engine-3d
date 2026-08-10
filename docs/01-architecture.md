@@ -76,26 +76,27 @@ check the rotor rundown other than watching the screen.
 
 | File | Lines | Responsibility |
 |---|---:|---|
-| `src/locales/*.js` | 1416 | Eight dictionaries, 141 keys each |
-| `src/engine.js` | 1614 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 901 | Scene, lighting, post-processing, cutaway, UI, frame loop |
-| `src/heathaze.js` | 367 | Screen-space pass for the exhaust gas aft of the nozzle |
-| `src/style.css` | 359 | Panel styling |
-| `src/sound.js` | 386 | Sound synthesis on Web Audio |
+| `src/locales/*.js` | 1467 | Eight dictionaries, 141 keys each |
+| `src/engine.js` | 1725 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 905 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/heathaze.js` | 385 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/style.css` | 363 | Panel styling |
+| `src/sound.js` | 396 | Sound synthesis on Web Audio |
 | `src/airflow.js` | 390 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/contrailView.js` | 220 | The trail itself: a camera-facing strip along the axis |
 | `index.html` | 233 | Markup of the panel, the legend and the module card |
-| `src/livery.js` | 348 | Joints, service doors and titles painted on the nacelle skin |
+| `src/livery.js` | 363 | Joints, service doors and titles painted on the nacelle skin |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
 | `src/engineState.js` | 163 | Regime state machine: start, running, shutdown, rundown, gross thrust |
-| `src/reverser.js` | 241 | Thrust reverser: deployment, door linkage, reverse thrust |
+| `src/reverser.js` | 275 | Thrust reverser: deployment, door linkage, reverse thrust |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
-| `src/i18n.js` | 96 | Lookup, interpolation, number formatting, locale matching |
+| `src/i18n.js` | 110 | Lookup, interpolation, number formatting, locale matching |
 
-`engine.js` gained 376 lines to the thrust reverser, which is the largest single
+`engine.js` gained 487 lines to the thrust reverser, which is the largest single
 addition it has taken: the aft nacelle is now a module of its own with a
-translating sleeve, a cascade box and twelve blocker doors on a linkage.
+translating sleeve, a cascade box and twelve tapered blocker doors on a
+linkage.
 
 ## Data flow within a frame
 
@@ -190,7 +191,8 @@ have moved apart.
   and the doors and links have their matrices rewritten only when the sleeve
   moves.
 * Module picking goes **not** through the real geometry but through invisible
-  proxy cylinders (`engine.pickables`, 12 objects — one per module): raycasting
+  proxy cylinders (`engine.pickables`, 13 objects — one per module, and two for
+  the reverser because half of it moves): raycasting
   777 thousand triangles on every mouse move would be unacceptably expensive.
   The proxy material has `visible: false` — it is not rendered, but stays
   visible to ray tracing.

@@ -84,12 +84,27 @@ function radiusAt(profile, x) {
   return THREE.MathUtils.lerp(profile[i - 1][0], profile[i][0], t);
 }
 
-function arcLength(profile) {
-  let s = 0;
+/* Drawing scale along the axis, in px per model unit.
+ *
+ * v is handed out by point INDEX, so the honest conversion is "pixels per
+ * index step" divided by "model units per index step" - not H / arcLength.
+ * The two agree only while the samples are evenly spaced, and they no longer
+ * are: engine.js inserts a point at each station where the skin comes apart,
+ * which leaves one interval split in two and every other one carrying a
+ * slightly larger share of v than the arc length says. At one cut that is a
+ * 1.6 % error in the size of every marking; with the three or four cuts a full
+ * structural breakdown would need it becomes 5 %.
+ *
+ * The median segment stands in for the uniform spacing: it is unmoved by a
+ * handful of inserted points, which is exactly the property wanted here. */
+function pxPerModelUnit(profile, height) {
+  const seg = [];
   for (let i = 1; i < profile.length; i++) {
-    s += Math.hypot(profile[i][0] - profile[i - 1][0], profile[i][1] - profile[i - 1][1]);
+    seg.push(Math.hypot(profile[i][0] - profile[i - 1][0], profile[i][1] - profile[i - 1][1]));
   }
-  return s;
+  seg.sort((a, b) => a - b);
+  const median = seg[seg.length >> 1];
+  return height / ((profile.length - 1) * median);
 }
 
 /**
@@ -112,7 +127,7 @@ export function createNacelleLivery(profile, ST) {
 
   // Texture v grows aft, canvas y grows downwards, and CanvasTexture is
   // flipped on load - so aft ends up at the top of the image.
-  const pxPerV = H / arcLength(profile);
+  const pxPerV = pxPerModelUnit(profile, H);
   const yOf = (x) => (1 - vAt(profile, x)) * H;
   const pxPerU = (x) => W / (2 * Math.PI * radiusAt(profile, x));
 

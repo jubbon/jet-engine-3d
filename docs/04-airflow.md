@@ -84,8 +84,12 @@ particle set after ten seconds of running:
 
 | | Out of the cascades | Out of the fan nozzle | Core, past the nozzle |
 |---|---:|---:|---:|
-| Stowed | 0 | 1749 | 324 |
-| Deployed | 1115 | 0 | 321 |
+| Stowed | 0 | ~1770 | ~310 |
+| Deployed | ~1110 | 0 | ~320 |
+
+(The particles are seeded randomly, so the counts move by a few per cent
+between runs. The two that matter are exact: zero out of the cascades stowed,
+zero out of the fan nozzle deployed.)
 
 That is what a cascade reverser is: it turns the fan stream, which is five
 sixths of the mass flow, and does nothing to the core. The exhaust plume, the

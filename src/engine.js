@@ -155,6 +155,26 @@ export const MATS = {
   composite: mat({ color: 0x33383f, metalness: 0.45, roughness: 0.45, side: THREE.DoubleSide }),
   titanium: mat({ color: 0xa9b1b8, metalness: 0.95, roughness: 0.28, side: THREE.DoubleSide }),
   steel: mat({ color: 0x8f979e, metalness: 0.9, roughness: 0.35, side: THREE.DoubleSide }),
+  /* The reverser structure repeats three materials that already exist, and
+     cannot use them: the cutaway cuts `shell` materials only, and composite,
+     titanium and steel are the fan, compressor and stator BLADE materials.
+     Flagging those would cut the blades, which is the one thing the cutaway
+     deliberately leaves whole. So the reverser gets its own three, identical in
+     appearance and flagged - it is structure, it is part of the nacelle, and a
+     cutaway that opens the cowl onto an intact cascade box would be showing the
+     one assembly here that has an inside worth seeing. */
+  revBox: mat(
+    { color: 0x33383f, metalness: 0.45, roughness: 0.45, side: THREE.DoubleSide },
+    { shell: true }
+  ),
+  revVane: mat(
+    { color: 0xa9b1b8, metalness: 0.95, roughness: 0.28, side: THREE.DoubleSide },
+    { shell: true }
+  ),
+  revLink: mat(
+    { color: 0x8f979e, metalness: 0.9, roughness: 0.35, side: THREE.DoubleSide },
+    { shell: true }
+  ),
   nickel: mat({ color: 0xbfa887, metalness: 0.9, roughness: 0.4, side: THREE.DoubleSide }),
   turbineHot: mat({
     color: 0xa8825c,
@@ -217,6 +237,42 @@ function latheSlice(profile, i0, i1, material, segments = 96) {
   return mesh;
 }
 
+/* A blocker door: a curved plate that TAPERS from the hinge to the free end.
+   Built in the pivot's frame - the hinge line at the origin, the plate curving
+   about the engine axis, which lies at y = -R.
+
+   The taper is not decoration. A door swings from the duct wall at r = 1.69 to
+   a tip at r = 1.19, and the circumference available to it shrinks in the same
+   proportion: the pitch of twelve doors is 0.885 at the hinge and 0.624 at the
+   tip. A constant-width plate wide enough to close the gaps at the hinge
+   overlaps its neighbours by 0.176 at the tip - twelve doors interpenetrating
+   in a ring, which no test looks for and which reads as a solid collar rather
+   than as separate doors. Tapered, each door very nearly abuts its neighbours
+   at both ends, which is what the real fan-shaped ones do. */
+function blockerDoorGeometry(R, chord, wHinge, wTip, nChord = 4, nAcross = 8) {
+  const pos = [];
+  const idx = [];
+  for (let j = 0; j <= nChord; j++) {
+    const s = j / nChord;
+    const half = THREE.MathUtils.lerp(wHinge, wTip, s) / (2 * R);
+    for (let i = 0; i <= nAcross; i++) {
+      const a = THREE.MathUtils.lerp(-half, half, i / nAcross);
+      pos.push(s * chord, R * Math.cos(a) - R, R * Math.sin(a));
+    }
+  }
+  for (let j = 0; j < nChord; j++) {
+    for (let i = 0; i < nAcross; i++) {
+      const k = j * (nAcross + 1) + i;
+      idx.push(k, k + 1, k + nAcross + 1, k + 1, k + nAcross + 2, k + nAcross + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 /* Resamples a profile along a spline through its control points, at even
    spacing. Two things come out of it, and both matter for the nacelle skin.
    The silhouette stops being a chain of straight segments - lathe() joins the
@@ -230,29 +286,55 @@ function smoothProfile(points, samples) {
   return curve.getSpacedPoints(samples).map((p) => [p.x, p.y]);
 }
 
-/* Inserts a point at a station into a profile, and says where it landed.
-   Profiles here run either way along x - the outer skin from the lip aft, the
-   inner gas path from the nozzle forward - so the segment is found by
+/* Inserts points at the given stations into a profile, and says where they
+   landed. Profiles here run either way along x - the outer skin from the lip
+   aft, the inner gas path from the nozzle forward - so segments are found by
    bracketing rather than by comparison.
 
-   The insertion is what lets one profile be lathed as two meshes: both pieces
-   then share an exact edge instead of meeting at whatever the nearest sample
-   happened to be. It has to happen BEFORE the profile is handed to livery.js,
-   because LatheGeometry lays out the texture coordinate v by point index and
-   the markings are placed against that index; a point added afterwards would
-   shift every marking aft of it. */
-function insertStation(profile, x) {
+   The insertions are what let one profile be lathed as several meshes: the
+   pieces then share exact edges instead of meeting at whatever the nearest
+   sample happened to be. They have to happen BEFORE the profile is handed to
+   livery.js, because LatheGeometry lays out the texture coordinate v by point
+   index and the markings are placed against that index; a point added
+   afterwards would shift every marking aft of it.
+
+   All the stations go in at once, and the returned indices are in the caller's
+   order. Doing them one call at a time does not work and does not complain:
+   each splice shifts every index at or after it, so an earlier call's index
+   quietly stops meaning what it meant. */
+function insertStations(profile, stations) {
+  let points = profile.slice();
+  const marks = stations.map((x) => ({ x, cut: -1 }));
+  // furthest along the array first, so an insertion never moves an index that
+  // has already been handed out
+  const ordered = marks
+    .map((m) => ({ m, i: segmentFor(points, m.x) }))
+    .sort((a, b) => b.i - a.i);
+  for (const { m, i } of ordered) {
+    const [r0, x0] = points[i - 1];
+    const [r1, x1] = points[i];
+    const t = (m.x - x0) / (x1 - x0);
+    points = points.slice();
+    points.splice(i, 0, [THREE.MathUtils.lerp(r0, r1, t), m.x]);
+    m.cut = i;
+    // every mark already placed further along has moved up by one
+    for (const other of marks) if (other !== m && other.cut >= i) other.cut++;
+  }
+  return { points, cuts: marks.map((m) => m.cut) };
+}
+
+/* Index of the profile segment that contains a station, or throws: a station
+   outside the profile is a mistake in the layout, not something to paper over
+   with a clamp. */
+function segmentFor(profile, x) {
   for (let i = 1; i < profile.length; i++) {
-    const [r0, x0] = profile[i - 1];
-    const [r1, x1] = profile[i];
+    const x0 = profile[i - 1][1];
+    const x1 = profile[i][1];
     if (x0 === x1) continue; // the annular faces: no room between them
     const t = (x - x0) / (x1 - x0);
-    if (t <= 0 || t >= 1) continue;
-    const points = profile.slice();
-    points.splice(i, 0, [THREE.MathUtils.lerp(r0, r1, t), x]);
-    return { points, cut: i };
+    if (t > 0 && t < 1) return i;
   }
-  throw new Error(`insertStation: ${x} is not inside the profile`);
+  throw new Error(`insertStations: ${x} is not inside the profile`);
 }
 
 /* Radius of the outer skin at a station. Reads NAC_OUTER, which is declared
@@ -460,7 +542,7 @@ const NAC_OUTER_CTL = [
 
    The extra point at ST.sleeve is where the skin comes apart: everything aft
    of it belongs to the translating sleeve and slides away from the rest. */
-const OUTER_SPLIT = insertStation(smoothProfile(NAC_OUTER_CTL, 64), ST.sleeve);
+const OUTER_SPLIT = insertStations(smoothProfile(NAC_OUTER_CTL, 64), [ST.sleeve]);
 const NAC_OUTER = OUTER_SPLIT.points;
 
 /* Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
@@ -482,12 +564,20 @@ const NAC_INNER_CTL = [
   [1.7, ST.lip],
 ];
 
-/* The duct wall comes apart further aft than the skin does: over the forward
-   half of the cascade band the wall is the blocker doors themselves, lying
-   flush, and they are hinged to the sleeve. So the wall that belongs to the
-   sleeve starts where the stowed doors end. */
-const INNER_SPLIT = insertStation(NAC_INNER_CTL, ST.sleeve + LINK.chord);
+/* The duct wall is cut TWICE, and the middle piece is never drawn.
+
+   Over the length of the stowed doors the wall IS the doors: they are panels
+   filling a cut-out in it, hinged to the sleeve. Draw wall there as well and
+   the cut-out is sealed by fixed structure - which is what happened at first,
+   and it blanked off 56 % of the cascade band with the reverser deployed while
+   every test still passed. Nothing downstream of the doors noticed, because the
+   flow model deflects particles at a station of its own.
+
+   Forward piece: fixed, lip to the sleeve. Middle: the door cut-out, left to
+   the doors. Aft piece: the sleeve's own wall, which travels with it. */
+const INNER_SPLIT = insertStations(NAC_INNER_CTL, [ST.sleeve, ST.sleeve + LINK.chord]);
 const NAC_INNER = INNER_SPLIT.points;
+const [INNER_CUT_FWD, INNER_CUT_AFT] = INNER_SPLIT.cuts;
 
 MATS.nacelleSkin.map = createNacelleLivery(NAC_OUTER, ST);
 
@@ -567,19 +657,19 @@ export function buildEngine() {
      forward, so the piece that is the sleeve is the second slice of one and the
      first slice of the other. */
   const skinFwd = flattenBelly(
-    latheSlice(NAC_OUTER, 0, OUTER_SPLIT.cut, MATS.nacelleSkin, 120),
+    latheSlice(NAC_OUTER, 0, OUTER_SPLIT.cuts[0], MATS.nacelleSkin, 120),
     outerBelly
   );
   const skinAft = flattenBelly(
-    latheSlice(NAC_OUTER, OUTER_SPLIT.cut, NAC_OUTER.length - 1, MATS.nacelleSkin, 120),
+    latheSlice(NAC_OUTER, OUTER_SPLIT.cuts[0], NAC_OUTER.length - 1, MATS.nacelleSkin, 120),
     outerBelly
   );
   const wallAft = flattenBelly(
-    latheSlice(NAC_INNER, 0, INNER_SPLIT.cut, MATS.nacelle, 120),
+    latheSlice(NAC_INNER, 0, INNER_CUT_AFT, MATS.nacelle, 120),
     innerBelly
   );
   const wallFwd = flattenBelly(
-    latheSlice(NAC_INNER, INNER_SPLIT.cut, NAC_INNER.length - 1, MATS.nacelle, 120),
+    latheSlice(NAC_INNER, INNER_CUT_FWD, NAC_INNER.length - 1, MATS.nacelle, 120),
     innerBelly
   );
   mNac.add(skinFwd);
@@ -656,7 +746,12 @@ export function buildEngine() {
   sleeveGroup.add(wallAft);
 
   const R_HINGE = 1.69; // the duct wall the doors stow flush with
-  const DOOR_W = 0.8; // tangential width; the pitch at 12 doors is 0.885
+  /* Tangential width at each end. The pitch is 0.885 at the hinge radius and
+     0.624 at the radius the tip reaches, so the door is cut to leave about
+     25 mm of gap at both - close-fitting, as blocker doors are, without
+     twelve plates trying to occupy the same air. */
+  const DOOR_W_HINGE = 0.86;
+  const DOOR_W_TIP = 0.6;
 
   /* ---- the cascade box: fixed, and hidden under the sleeve when home ---- *
    *  Everything in the box has to stay under the skin, and the skin at the
@@ -678,7 +773,7 @@ export function buildEngine() {
   // end frames, closing the band against the skin at each end
   [ST.sleeve, ST.cascadeAft].forEach((x) => {
     mRev.add(
-      flattenBelly(tube(x - 0.03, x + 0.03, 1.66, skinRadiusAt(x) - 0.02, MATS.composite, 96), outerBelly)
+      flattenBelly(tube(x - 0.03, x + 0.03, 1.66, skinRadiusAt(x) - 0.02, MATS.revBox, 96), outerBelly)
     );
   });
   /* Ribs dividing the band into cascade segments, one per door. Twelve of
@@ -689,7 +784,7 @@ export function buildEngine() {
   const RIB_H = 1; // the box is built at unit height and scaled per instance
   const ribs = new THREE.InstancedMesh(
     new THREE.BoxGeometry(ST.cascadeAft - ST.sleeve, RIB_H, 0.05),
-    MATS.composite,
+    MATS.revBox,
     DOORS
   );
   {
@@ -719,7 +814,7 @@ export function buildEngine() {
   const VANE_AROUND = 72;
   const vaneTilt = THREE.MathUtils.degToRad(135);
   const vaneGeo = new THREE.BoxGeometry(0.14, 0.012, 0.14);
-  const vanes = new THREE.InstancedMesh(vaneGeo, MATS.titanium, VANE_ROWS * VANE_AROUND);
+  const vanes = new THREE.InstancedMesh(vaneGeo, MATS.revVane, VANE_ROWS * VANE_AROUND);
   {
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -751,13 +846,7 @@ export function buildEngine() {
    *  split is the mechanism: if both ends travelled together the link would
    *  have nothing to pull against.
    */
-  const doorHalf = DOOR_W / (2 * R_HINGE);
-  const doorGeo = new THREE.CylinderGeometry(
-    R_HINGE, R_HINGE, LINK.chord, 12, 1, true,
-    -Math.PI / 2 - doorHalf, 2 * doorHalf
-  );
-  doorGeo.rotateZ(-Math.PI / 2);
-  doorGeo.translate(LINK.chord / 2, -R_HINGE, 0);
+  const doorGeo = blockerDoorGeometry(R_HINGE, LINK.chord, DOOR_W_HINGE, DOOR_W_TIP);
   // A rigid link never changes length, so the rod is built once at its own
   // length and only ever moved: a unit cylinder rescaled every frame would say
   // the opposite about the thing being modelled.
@@ -770,10 +859,16 @@ export function buildEngine() {
      sleeve moves. All twelve doors are always at the same angle - one
      actuator, one linkage repeated round the ring - so there is nothing to
      gain from twelve independent groups and a draw call each. */
-  const doors = new THREE.InstancedMesh(doorGeo, MATS.titanium, DOORS);
+  const doors = new THREE.InstancedMesh(doorGeo, MATS.revVane, DOORS);
+  doors.name = 'blockerDoors';
+  // the instance matrices are rewritten as the sleeve moves, and three caches a
+  // bounding sphere computed at whatever travel it first saw
+  doors.frustumCulled = false;
   doors.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   sleeveGroup.add(doors); // the hinge travels with the sleeve
-  const dragLinks = new THREE.InstancedMesh(linkGeo, MATS.steel, DOORS);
+  const dragLinks = new THREE.InstancedMesh(linkGeo, MATS.revLink, DOORS);
+  dragLinks.name = 'dragLinks';
+  dragLinks.frustumCulled = false;
   dragLinks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mRev.add(dragLinks); // the anchor does not
 
@@ -781,7 +876,7 @@ export function buildEngine() {
   // to anything.
   const brackets = new THREE.InstancedMesh(
     new THREE.BoxGeometry(0.1, 0.09, 0.1),
-    MATS.steel,
+    MATS.revLink,
     DOORS
   );
   {
@@ -1491,7 +1586,12 @@ export function buildEngine() {
     // the nacelle stops where the reverser starts, or the two would fight over
     // every ray that hits the aft half of the cowl
     [mNac, ST.lip, ST.reverser, 2.3, true],
-    [mRev, ST.reverser, ST.bypassExit, 2.3, true],
+    /* The reverser needs two, because half of it moves. The fixed half covers
+       the torque box and the cascade band; the sleeve gets its own further
+       down, parented to the group that translates. One static proxy over the
+       whole module would leave the aft third of a deployed sleeve unclickable
+       and would go on answering for the space the sleeve has left. */
+    [mRev, ST.reverser, ST.cascadeAft, 2.3, true],
     [mFan, ST.fan - 1.05, -2.72, 1.55, false],
     [mBoost, ST.splitter, -2.26, 0.95, false],
     [mHpc, -2.26, -0.94, 0.8, false],
@@ -1515,6 +1615,17 @@ export function buildEngine() {
     box.position.set(-2.56, -1.5, 0);
     accSide.add(box); // the proxy swings to the side with the accessories
     pickables.push(box);
+  }
+  {
+    // the sleeve's own proxy, inside the group that translates: it follows the
+    // sleeve aft instead of staying where the sleeve used to be
+    const len = ST.bypassExit - ST.sleeve;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, len, 20, 1, true), pickMat);
+    mesh.rotation.z = -Math.PI / 2;
+    mesh.position.x = (ST.sleeve + ST.bypassExit) / 2;
+    mesh.userData.shell = true;
+    sleeveGroup.add(mesh);
+    pickables.push(mesh);
   }
 
   /* --------------------- spinner spiral smear ---------------------- */

@@ -383,22 +383,27 @@ counts against the engine:
 
 ```
 factor(b) = CORE + FAN·(1 − b) − FAN·TURN·b
-          = 0.20 + 0.80·(1 − b) − 0.80·0.62·b
+          = 0.20 + 0.80·(1 − b) − 0.80·0.68·b
 ```
 
 At `b` = 0 this is exactly 1 — a stowed reverser must not change the thrust by a
 rounding error, which is why `blockerAngle()` returns the datum exactly at zero
-travel instead of the 10⁻¹⁷ the closed form gives. The doors reach `b` = 0.96,
-not 1, because they do not seal against the core cowl; the factor there is
-−0.244.
+travel instead of the 10⁻¹⁷ the closed form gives. The doors reach `b` = 0.92,
+not 1: they seal neither against the core cowl nor against each other, and both
+gaps are folded into the figure. The factor there is −0.243.
 
-`TURN` = 0.62 is the one number in the model tuned to an outcome rather than
+`TURN` = 0.68 is the one number in the model tuned to an outcome rather than
 derived. The angle a cascade actually turns the flow through is not something
 the geometry drawn here could be asked, so it is set against the result: at the
 reverse power limit the throttle commands 0.75 of the range, N1 = 0.18 + 0.82 ·
 0.75 = 79.5 %, `keff` = 0.75, gross thrust 121.4 · 0.75^1.45 = 80.0 kN, and the
-model shows **−19.5 kN**. Published figures for the type put maximum reverse
+model shows **−19.4 kN**. Published figures for the type put maximum reverse
 thrust at roughly a fifth of take-off thrust.
+
+It was 0.62 while the blocked fraction ignored the gaps between the doors and
+read 0.96. That is the right way round for a calibration constant to move: the
+fraction became more honest, and `TURN` is the free parameter that holds the
+result against the published figure.
 
 ### The blocker door linkage
 

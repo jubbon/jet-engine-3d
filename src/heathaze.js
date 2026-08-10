@@ -27,13 +27,25 @@ const PLUME = {
   r1: 4.0, // radius of the dissolved jet at the tail
 };
 
-// Engine bodies that occlude the jet: seen from the front, the nacelle stands
-// between the eye and the jet, and nothing there should shimmer.
-// Three cylinders: nacelle (Ø 2.44 m), core cowl, exhaust plug.
+/* Engine bodies that occlude the jet: seen from the front, the nacelle stands
+   between the eye and the jet, and nothing there should shimmer.
+   Four cylinders: nacelle (Ø 2.44 m), core cowl, exhaust plug, and the
+   translating sleeve of the thrust reverser.
+
+   The fourth is there because the nacelle occluder ends at the fan nozzle exit
+   (1.16) and the plume begins at 1.60 - which is fine until the reverser is
+   deployed and the sleeve reaches 2.06, straight through the front of the
+   plume. It is a separate cylinder rather than an extension of the first
+   because the sleeve is a third of the radius of the nacelle barrel: stretching
+   the 2.44 cylinder aft would occlude the shimmer all round the sleeve as well
+   as over it. Its length is written every frame from the sleeve travel, and at
+   zero travel it is degenerate and hits nothing. */
+const SLEEVE_R = 1.72; // outer skin at the sleeve trailing edge, plus a margin
 const OCCLUDERS = [
   [2.44, -5.35, 1.16],
   [1.2, 1.16, 2.9],
   [0.56, 2.9, 4.85],
+  [SLEEVE_R, 1.16, 1.16],
 ];
 
 // Effect strength. amp is displacement in pixels, blur is the smear radius in
@@ -324,8 +336,11 @@ export function createHeatHaze(camera, width, height) {
    * @param {number} dt seconds
    * @param {number} burn combustion intensity 0..1
    * @param {number} n1 fan speed 0..1
+   * @param {number} sleeve thrust reverser sleeve travel, model units. The
+   *        sleeve slides aft into the front of the plume, and the shimmer must
+   *        not pass through it.
    */
-  function update(dt, burn, n1) {
+  function update(dt, burn, n1, sleeve = 0) {
     time += dt;
     const power = hazePower(burn, n1);
     // while the engine is cold the pass need not run at all
@@ -335,6 +350,9 @@ export function createHeatHaze(camera, width, height) {
     uniforms.uTime.value = time;
     uniforms.uPower.value = power;
     uniforms.uFlow.value = 2.0 + 7.0 * n1;
+    // z is the aft end of the sleeve occluder; with the sleeve home it equals
+    // its own start and the cylinder has no interior to hit
+    uniforms.uOcc.value[3].z = 1.16 + sleeve;
 
     camera.updateMatrixWorld();
     uniforms.uCam.value.setFromMatrixPosition(camera.matrixWorld);

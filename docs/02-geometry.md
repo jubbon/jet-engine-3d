@@ -299,10 +299,12 @@ second time. What the model chose, and against what:
 * **Twelve doors, six per half.** A 30° pitch reads as a ring of doors rather
   than as four big flaps, and leaves room between them for the hinge and link
   fittings.
-* **Door chord 0.50 units (0.25 m).** The duct is 0.50…0.53 units high across
-  the doors' sweep, and 0.50 of chord closes 96 % of it at the angle the linkage
-  delivers. A longer door does not close it better — it sweeps *through* the
-  core cowl on the way round, at ninety degrees, where nobody thinks to look.
+* **Door chord 0.50 units (0.25 m), tapered 0.86 → 0.60 across.** The duct is
+  0.50…0.53 units high across the doors' sweep, and 0.50 of chord closes 95 % of
+  it radially at the angle the linkage delivers. A longer door does not close it
+  better — it sweeps *through* the core cowl on the way round, at ninety
+  degrees, where nobody thinks to look. The taper is what lets twelve of them
+  share a ring: see below.
 
 ### The doors are dragged, not driven
 
@@ -322,18 +324,28 @@ but inside the duct. Most of the parameter space fails at least one of them.
 
 | Travel | 0 | ⅓ | ½ | ⅔ | 1 |
 |---|---:|---:|---:|---:|---:|
-| Door angle | 0° | 12° | 33° | 59° | 85° |
-| Duct blocked | 0 | 0.20 | 0.53 | 0.84 | 0.96 |
+| Door angle | 0° | 12° | 27° | 46° | 85° |
+| Duct blocked | 0 | 0.20 | 0.43 | 0.67 | 0.92 |
 
 The doors close **late**, and that is the point of computing them rather than
-authoring a curve: a third of the stroke does a fifth of the blocking. Reverse
-thrust arrives towards the end of the deployment instead of in proportion to it,
-which is what a reverser does. It never reaches 1.00 because a blocker door does
-not seal against the core cowl, and the few per cent left open are real.
+authoring a curve: a third of the stroke does a fifth of the blocking, and half
+the stroke less than half. Reverse thrust arrives towards the end of the
+deployment instead of in proportion to it, which is what a reverser does.
 
-`test/clearance.test.mjs` measures the same two facts off the vertices, over the
-whole sweep rather than at the ends: closest approach to the core cowl 12 mm, at
-full travel, and 95 % of the duct closed against the 96 % the linkage predicts.
+It never reaches 1.00, for two reasons that are both real. A blocker door does
+not seal against the core cowl — 12 mm of gap at full travel — and twelve doors
+in a ring do not seal against each other either: the pitch shrinks from 0.885 at
+the hinge to 0.624 at the radius the tip reaches, so a plate that closed the
+gaps at both ends at once would have to change width as it swung. Hence the
+**taper**: 0.86 wide at the hinge, 0.60 at the free end, leaving about 25 mm of
+gap at each. Constant-width doors wide enough to close the hinge gaps overlap
+their neighbours by 0.176 at the tip — twelve plates interpenetrating in a ring,
+which reads as a solid collar and which no test looked for until one did.
+
+`test/clearance.test.mjs` measures all of it off the vertices, over the whole
+sweep rather than at the ends: closest approach to the core cowl 12 mm at full
+travel, no door reaching past its own 15° half-pitch, and 90 % of the duct
+closed — 95 % radially by 94 % round — against the 92 % the linkage predicts.
 
 ### Splitting the skin
 

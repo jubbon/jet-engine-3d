@@ -84,6 +84,19 @@ export const LINK_L = Math.hypot(LINK.u0 + LINK.a, LINK.v);
    which measures the real vertices instead of trusting this number. */
 const DUCT_H = 0.52;
 
+/* And how much of the CIRCUMFERENCE the ring of doors covers. Twelve tapered
+   doors leave about 25 mm of gap at each end of each door - close-fitting, but
+   not sealed, and they cannot be made to seal: the pitch shrinks from 0.885 at
+   the hinge to 0.624 at the radius the tip reaches, so a plate that closed the
+   gaps at both ends at once would have to change width as it swung.
+
+   Left out, this is a 3.5 % error in the wrong direction on a number that
+   drives the thrust, the flow and the sound alike. It is folded in here rather
+   than at the three call sites, and clearance.test.mjs measures the same
+   product off the real vertices - radial reach times angular coverage - rather
+   than trusting either number. */
+const DOOR_COVERAGE = 0.965;
+
 /* Shares of the thrust, and what the cascades do with the fan's share.
 
    At a bypass ratio of 5.1 the fan makes about 80 % of the thrust and the core
@@ -94,10 +107,15 @@ const DUCT_H = 0.52;
    at the reverse power limit it puts the model at -19 kN, and published
    figures for the type put maximum reverse thrust at roughly a fifth of
    take-off thrust. The angle a cascade actually turns the flow through is not
-   something the geometry this model draws could be asked. */
+   something the geometry this model draws could be asked.
+
+   It moved from 0.62 to 0.68 when the gaps between the doors were accounted
+   for. That is the right thing for a calibration constant to do: the blocked
+   fraction became more honest, and TURN is the free parameter that holds the
+   result against the published figure. */
 const CORE_SHARE = 0.2;
 const FAN_SHARE = 0.8;
-const TURN = 0.62;
+const TURN = 0.68;
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -130,9 +148,16 @@ export function blockerAngle(travel) {
   const c = LINK_L * LINK_L - u * u - v * v - a * a;
   const h = Math.hypot(p, q);
   const phi = Math.atan2(q, p);
-  // Driven past the point where the link can reach, the geometry has to give
-  // an angle anyway: a NaN would put a hole in the model rather than raise.
-  // At the limit the door is simply as far round as the linkage can take it.
+  /* Driven past the point where the link can reach, the geometry has to give
+     an angle anyway: a NaN would put a hole in the model rather than raise. At
+     the limit the door is simply as far round as the linkage can take it.
+
+     With the constants above only the lower clamp can ever engage - the link
+     length is derived from theta(0) = 0 with u0 + a = 0, which reduces c to
+     -(u^2 + a^2), negative everywhere - and it first does so at travel 1.25,
+     well past the stroke. The upper clamp is kept because those constants came
+     out of a search and the next search need not preserve that identity; it
+     costs a comparison. */
   if (h < 1e-9) return 0;
   const ratio = c / h;
   if (ratio <= -1) return phi + Math.PI;
@@ -147,17 +172,26 @@ export function blockerAngle(travel) {
  * @param {number} travel sleeve travel, model units
  */
 export function blockedFraction(travel) {
-  return clamp((LINK.chord * Math.sin(blockerAngle(travel))) / DUCT_H, 0, 1);
+  const radial = clamp((LINK.chord * Math.sin(blockerAngle(travel))) / DUCT_H, 0, 1);
+  return radial * DOOR_COVERAGE;
 }
 
 /**
- * Signed multiplier on gross thrust. Exactly +1 with the sleeve home - a
- * stowed reverser must not change the thrust by a rounding error - and about
- * -0.24 fully deployed.
- * @param {number} travel sleeve travel, model units
+ * Signed multiplier on gross thrust. Exactly +1 with the duct open - a stowed
+ * reverser must not change the thrust by a rounding error - and about -0.24 at
+ * the 0.96 the doors actually reach.
+ *
+ * It takes the blocked fraction rather than the travel on purpose. The cascades
+ * turn whatever the doors send them, and how the doors got to that position is
+ * a separate fact about a linkage; keeping the seam here means the thrust
+ * arithmetic does not depend on the mechanism, and the caller passes the number
+ * it already has instead of paying for two trigonometric solves a frame to
+ * recover it.
+ *
+ * @param {number} blocked how much of the bypass duct is closed, 0..1
  */
-export function thrustFactor(travel) {
-  const b = blockedFraction(travel);
+export function thrustFactor(blocked) {
+  const b = clamp(blocked, 0, 1);
   return CORE_SHARE + FAN_SHARE * (1 - b) - FAN_SHARE * TURN * b;
 }
 

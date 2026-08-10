@@ -447,7 +447,11 @@ $('chk-xray').onchange = (e) => {
   setXray(state.xray);
 };
 $('chk-nac').onchange = (e) => {
+  // The reverser is the aft section of the same cowl, and it is a module of its
+  // own: hide one without the other and the sleeve, the cascade box and twelve
+  // doors are left hanging in the air around a bare engine.
   engine.parts.mNac.visible = e.target.checked;
+  engine.parts.mRev.visible = e.target.checked;
 };
 $('chk-labels').onchange = (e) => {
   state.labels = e.target.checked;
@@ -565,7 +569,7 @@ function updateGauges() {
 
   // Reverse turns this negative: the fan stream, four fifths of the thrust, is
   // sent forward through the cascades while the core carries on aft.
-  const thrust = eng.grossThrust * thrustFactor(rev.travel);
+  const thrust = eng.grossThrust * thrustFactor(rev.blocked);
   $('val-n1').textContent = `${n(eng.n1 * 100, 0)} %`;
   $('val-n2').textContent = `${n(eng.n2 * 100, 0)} %`;
   $('val-t4').textContent = `${n(eng.t4, 0)} °C`;
@@ -837,7 +841,7 @@ function animate() {
   // only the bypass stream knows about the reverser; the core plume, the heat
   // haze and the contrail are the same in reverse as they are in forward thrust
   airflow.update(dt, eng.n1, burn, rev.blocked);
-  haze.update(dt, burn, eng.n1);
+  haze.update(dt, burn, eng.n1, rev.travel);
   // the verdict is about the air, but the water is the engine's: fuel cut, and
   // the trail dies with the flame
   trail.update(dt, verdict, burn);

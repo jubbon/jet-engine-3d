@@ -242,12 +242,16 @@ const deg = (r) => (r * 180) / Math.PI;
 /* --------------------------- 6. the thrust -------------------------- */
 {
   check('a stowed reverser changes nothing', thrustFactor(0) === 1);
-  check('a deployed one reverses the thrust', thrustFactor(STROKE) < 0);
+  check(
+    'a deployed one reverses the thrust',
+    thrustFactor(blockedFraction(STROKE)) < 0,
+    `factor ${thrustFactor(blockedFraction(STROKE)).toFixed(3)}`
+  );
 
   let monotone = true;
   let prev = 2;
   for (let i = 0; i <= 100; i++) {
-    const f = thrustFactor((STROKE * i) / 100);
+    const f = thrustFactor(blockedFraction((STROKE * i) / 100));
     if (f > prev + 1e-12) monotone = false;
     prev = f;
   }
@@ -256,11 +260,11 @@ const deg = (r) => (r * 180) / Math.PI;
   // through the real state machine, at the power the interlock allows
   const eng = createEngineState(0);
   for (let i = 0; i < 60 * 60; i++) eng.update(DT, REV_MAX_THROTTLE);
-  const net = eng.grossThrust * thrustFactor(STROKE);
+  const net = eng.grossThrust * thrustFactor(blockedFraction(STROKE));
   console.log('\n=== REVERSE THRUST ===');
   console.log(
     `  N1=${(eng.n1 * 100).toFixed(1)} %  gross=${eng.grossThrust.toFixed(1)} kN  ` +
-      `factor=${thrustFactor(STROKE).toFixed(3)}  net=${net.toFixed(1)} kN\n`
+      `factor=${thrustFactor(blockedFraction(STROKE)).toFixed(3)}  net=${net.toFixed(1)} kN\n`
   );
   check(
     'reverse thrust is about a fifth of take-off thrust',

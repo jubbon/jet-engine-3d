@@ -54,7 +54,7 @@ only.
 ```
 dist/index.html                13.1 kB  (3.7 kB gzip)
 dist/assets/index-*.css         8.2 kB  (2.4 kB gzip)
-dist/assets/index-*.js        749 kB  (206 kB gzip)
+dist/assets/index-*.js        750 kB  (206 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Nine files, 285 checks. There is no framework: each test is a plain Node script
+Nine files, 288 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
@@ -166,7 +166,7 @@ reference breaks the test rather than silently diverging from the model. The
 nacelle envelope is computed from vertices rather than from the `lathe` profile
 — otherwise the flattened bottom would not be included.
 
-`test/clearance.test.mjs` — 22 checks of the layout clearances: blade rows do
+`test/clearance.test.mjs` — 25 checks of the layout clearances: blade rows do
 not intersect one another (overlapping both axially and radially), the tips of
 the fan and outlet guide vanes stay under their own wall, and the accessory
 gearbox holds the overall engine width without piercing the nacelle skin. This
@@ -174,7 +174,7 @@ is insurance against the main risk of a tight layout: the core is short, the
 stage pitch is small, and any addition to a blade chord drops the rows onto each
 other.
 
-The last five check the exhaust plume against the nozzle it leaves. That cone is
+Five of them check the exhaust plume against the nozzle it leaves. That cone is
 built from constants of its own rather than from the gas path, so nothing tied
 it to the metal, and it spent a long time Ø 1.5 m wide at a nozzle of Ø 0.82 m —
 a rim standing outside the cowl against the sky, which the eye reads as a sleeve
@@ -182,6 +182,17 @@ pulled over the engine rather than gas leaving a pipe. The lip is measured off
 the model rather than copied from `cowlPts`, and the measurement skips invisible
 meshes on purpose: `mExh` carries a picking proxy of radius 1.24 that would
 answer the question wrongly and plausibly.
+
+The last six are the thrust reverser, and they are the ones that measure the
+whole sweep rather than the ends. The doors must clear the core cowl at every
+travel, not merely stowed and deployed — the closest approach is 12 mm and a
+longer door grazes the cowl at ninety degrees on the way round, which is
+invisible in both of the screenshots anyone would take. They must clear each
+other, which is why they are tapered. And the cascade band must be sealed with
+the sleeve home and open with it out: the duct wall reached 0.50 units too far
+aft to begin with, so more than half the band stayed walled off with the
+reverser deployed while every other test passed, because the flow model turns
+its particles round at a station of its own and never asked the metal.
 
 `test/i18n.test.mjs` — 82 checks of the localisation, and most of them are about
 agreement rather than content. All eight dictionaries must carry exactly the key
