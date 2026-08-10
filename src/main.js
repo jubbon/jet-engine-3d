@@ -222,6 +222,8 @@ let n2Angle = 0;
 // the last bang count consumed by the frame loop; the surge state machine
 // counts them, and everything downstream latches on a change
 let shownBangs = 0;
+// brightness left over from the last bang, decaying; folded into bloom.strength
+let flash = 0;
 
 /* ---------------------------- engine state --------------------------- */
 const eng = createEngineState(state.throttle);
@@ -839,7 +841,12 @@ function animate() {
   MATS.turbineHot.emissive.setRGB(0.55 * glow * glow, 0.13 * glow * glow, 0.02 * glow * glow);
   MATS.diskHot.emissive.setRGB(0.3 * glow * glow, 0.06 * glow * glow, 0.01 * glow * glow);
   MATS.combLiner.emissive.setRGB(0.42 * glow, 0.1 * glow, 0.02 * glow);
-  bloom.strength = 0.12 + glow * 0.2;
+  /* The flash of a surge, folded into the one assignment that owns the bloom
+     rather than written beside it. This line runs unconditionally every frame,
+     so a pulse written before it would be overwritten and one written after it
+     would never decay. */
+  flash = Math.max(0, flash - dt * 4);
+  bloom.strength = 0.12 + glow * 0.2 + flash * 0.55;
 
   /* The bang is an event, and it is latched here - once per frame, however many
      cycles the state machine got through. Everything that reacts to a bang
@@ -849,6 +856,7 @@ function animate() {
   const bang = eng.bangs !== shownBangs;
   shownBangs = eng.bangs;
   const surgeView = { state: eng.surge, bang, reverse: eng.reverse, cell: eng.cell };
+  if (bang) flash = 1;
 
   // only the bypass stream knows about the reverser; the core plume, the heat
   // haze and the contrail are the same in reverse as they are in forward thrust
@@ -869,8 +877,12 @@ function animate() {
       burn,
       tmp.x,
       THREE.MathUtils.clamp(1 - (dist - 3) / 16, 0, 1),
-      rev.blocked
+      rev.blocked,
+      surgeView
     );
+    // one one-shot per frame however many cycles the state machine got through:
+    // two bangs five milliseconds apart is worse than one
+    if (bang) sound.bang(0.6 + 0.4 * eng.reverse);
   }
 
   // camera

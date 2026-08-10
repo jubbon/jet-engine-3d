@@ -107,6 +107,11 @@ export function createEngineSound(opts = {}) {
   let fanBbBand, fanBbGain;
   let revBand, revGain, revTurbGain;
   let wander, wanderGain, turb, turbGain;
+  /* The noise buffers are held on the closure rather than left local to build().
+     bang() needs the brown one, and a one-shot cannot reach a `const` inside the
+     function that created the graph. */
+  let brownBuf, whiteBuf;
+  let liveBangs = 0;
 
   function build() {
     ctx = makeContext();
@@ -141,6 +146,8 @@ export function createEngineSound(opts = {}) {
 
     const brown = noiseBuffer(ctx, 4, true);
     const white = noiseBuffer(ctx, 4, false);
+    brownBuf = brown;
+    whiteBuf = white;
     const src = (buf) => {
       const s = ctx.createBufferSource();
       s.buffer = buf;
@@ -294,6 +301,85 @@ export function createEngineSound(opts = {}) {
 
   const set = (param, value, tc = 0.09) => param.setTargetAtTime(value, ctx.currentTime, tc);
 
+  /* ---- The bang ---- *
+   * A surge is the one thing in this model that makes an IMPULSIVE noise, and
+   * the graph above has no impulsive component whatever: every source is a
+   * steady loop and every control is a slew. So a bang is built per call, as a
+   * one-shot - the standard Web Audio idiom - and disposes of itself.
+   *
+   * Two components. A thump at 90 Hz, the note the duct already rumbles at, and
+   * a brighter 300 Hz crack. Both come off the same slice of the existing brown
+   * noise, so a bang is the duct's own noise gated hard rather than a new
+   * timbre arriving from nowhere.
+   *
+   * There is deliberately NO "refuse a new bang while the last is decaying"
+   * guard. At these constants that rule is inverted - the decay is 350 ms and
+   * the cycle 250 ms, so it would be permanently satisfied and would drop every
+   * second bang, halving the audible rate while a test that counts bangs out of
+   * the state machine stayed perfectly green. Nothing needs bounding: a finite
+   * buffer source ends by itself, steady-state concurrency is under two, and a
+   * surge is capped at about seventeen bangs by LOCK_TIME. The counter below is
+   * a backstop against a pathological frame rate, not a rate limit, and the
+   * real rate limiting is done by the caller latching one bang per frame.
+   *
+   * onended is used for disposal ONLY. It fires after an offline render rather
+   * than during one, so nothing that has to be correct may depend on it.
+   */
+  const BANG_MAX = 4; // concurrent one-shots; never reached in practice
+
+  /**
+   * @param {number} strength 0..1
+   * @param {number} [when] absolute context time. The browser omits it and gets
+   *        "now". It exists because an OfflineAudioContext renders with no
+   *        JavaScript between quanta, so every bang in an offline render has to
+   *        be scheduled BEFORE startRendering() - and without an explicit time
+   *        they would all stack at t = 0, which is the difference between this
+   *        component being measurable and not.
+   */
+  function bang(strength = 1, when) {
+    if (!ready || !enabled) return;
+    if (liveBangs >= BANG_MAX) return;
+    const t0 = when === undefined ? ctx.currentTime : when;
+    const s = Math.max(0, Math.min(1, strength));
+
+    const src = ctx.createBufferSource();
+    src.buffer = brownBuf;
+    // an arbitrary offset, so repeated bangs are not identical slices
+    const offset = (t0 * 7.3) % Math.max(0.001, brownBuf.duration - 0.5);
+    const env = ctx.createGain();
+
+    const thump = ctx.createBiquadFilter();
+    thump.type = 'bandpass';
+    thump.frequency.value = 90;
+    thump.Q.value = 1.4;
+    const crack = ctx.createBiquadFilter();
+    crack.type = 'bandpass';
+    crack.frequency.value = 300;
+    crack.Q.value = 0.8;
+    const crackGain = ctx.createGain();
+    crackGain.gain.value = 0.45;
+
+    src.connect(thump).connect(env);
+    src.connect(crack).connect(crackGain).connect(env);
+    env.connect(bus);
+
+    /* 5 ms of attack against the bus compressor's 12 ms. The transient
+       therefore passes before the compressor has closed on it and only the tail
+       is ducked, which is the right way round for a bang. */
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.linearRampToValueAtTime(2.6 * s, t0 + 0.005);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+
+    liveBangs++;
+    src.onended = () => {
+      liveBangs--;
+      src.disconnect();
+      env.disconnect();
+    };
+    src.start(t0, offset, 0.4);
+    src.stop(t0 + 0.4);
+  }
+
   /**
    * @param {number} n1      LP rotor speed, fraction of maximum 0..1
    * @param {number} n2      HP rotor speed, fraction of maximum 0..1
@@ -303,9 +389,23 @@ export function createEngineSound(opts = {}) {
    * @param {number} rev     0..1, how much of the bypass duct the thrust
    *        reverser's blocker doors have closed. Defaults to 0 so the offline
    *        rendering snippet in test/audio/README.md keeps working unchanged.
+   * @param {object} [surge] compressor stability, `{ state, reverse }`, or null.
+   *        Defaulted for the same reason `rev` is: the snippet in
+   *        test/audio/README.md calls this with five arguments.
    */
-  function update(n1, n2, burn, pan = 0, nearness = 0.5, rev = 0) {
+  function update(n1, n2, burn, pan = 0, nearness = 0.5, rev = 0, surge = null) {
     if (!ready || !enabled) return;
+
+    /* A surge is heard as much in what STOPS as in the bangs. With the flow
+       broken down there is momentarily no jet leaving the nozzle, so the jet
+       noise drops out and comes back between cycles - the characteristic
+       stuttering roar - while the low-frequency content rises, because what is
+       happening is happening in the duct rather than downstream of it. A locked
+       stall is the same thing held: no jet, and a rough, unsteady rumble. */
+    const surging = surge ? surge.reverse : 0;
+    const stalled = surge && surge.state === 'stall' ? 1 : 0;
+    const flowing = 1 - 0.85 * surging - 0.6 * stalled;
+    const shaking = 1 + 1.3 * surging + 0.7 * stalled;
 
     const shaft = (n1 * CFM.n1MaxRpm) / 60; // LP shaft frequency, Hz
     const bpf = shaft * CFM.fanBlades; // blade passing frequency
@@ -339,8 +439,12 @@ export function createEngineSound(opts = {}) {
      *
      * The buzz-saw comb is deliberately untouched. It radiates forward out of
      * the intake, and the intake has not changed. */
-    set(jetGain.gain, 0.16 * Math.pow(n1, 1.2) * (1 - 0.85 * rev) + 0.66 * Math.pow(burn, 1.4));
-    set(rumbleGain.gain, 0.30 * (0.30 * n1 + 0.70 * burn));
+    set(
+      jetGain.gain,
+      (0.16 * Math.pow(n1, 1.2) * (1 - 0.85 * rev) + 0.66 * Math.pow(burn, 1.4)) *
+        Math.max(0, flowing)
+    );
+    set(rumbleGain.gain, 0.30 * (0.30 * n1 + 0.70 * burn) * shaking);
     set(fanBbGain.gain, 0.011 * (0.35 + 0.65 * n1) * (1 + 1.4 * rev));
     set(revGain.gain, 0.95 * rev * Math.pow(n1, 0.8));
     set(revTurbGain.gain, 0.09 * rev);
@@ -390,6 +494,7 @@ export function createEngineSound(opts = {}) {
       if (ready && enabled && ctx.state === 'suspended') ctx.resume();
     },
     update,
+    bang,
     /** engine parameters - used by the tests */
     spec: CFM,
   };

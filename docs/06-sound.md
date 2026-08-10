@@ -186,6 +186,64 @@ is limited to 80 % N1 in any case.
 that the offline rendering snippet in `test/audio/README.md` keeps working with
 its five arguments.
 
+## The bang of a surge
+
+Everything above is steady: every source is a loop and every control a slew.
+A compressor surge is the one thing in this model that makes an **impulsive**
+noise, so there was nothing in the graph to make it with and `bang()` builds one
+per call as a one-shot.
+
+Two components off the same slice of the existing brown noise — a thump at
+90 Hz, the note the duct already rumbles at, and a brighter 300 Hz crack — under
+a 5 ms attack and a 350 ms decay. Taking both from the noise already in the
+graph means a bang is the duct's own sound gated hard, rather than a new timbre
+arriving from nowhere.
+
+The 5 ms attack sits against the bus compressor's 12 ms. That is the right way
+round: the transient passes before the compressor has closed on it, and only the
+tail gets ducked.
+
+Between the bangs the steady components change too, and a surge is heard as much
+in what stops as in what starts. With the flow broken down there is momentarily
+no jet leaving the nozzle, so the jet noise drops out and returns each cycle —
+the characteristic stuttering roar — while the low-frequency content rises,
+because what is happening is happening inside the duct rather than downstream of
+it. A locked stall is that held: no jet, and a rough unsteady rumble.
+
+### No decay-window guard
+
+The obvious safety net — refuse a new bang while the previous one is still
+decaying — is **inverted** at these constants and was removed after review. The
+decay is 350 ms and the surge cycle is 250 ms, so the condition is permanently
+true: it would drop every second bang, halving the audible rate against a
+simulated 4 Hz, and it would do so silently, because the test counts bangs out
+of the state machine rather than out of the audio graph.
+
+Nothing needs bounding anyway. A source node with a finite buffer ends on its
+own, steady-state concurrency is under two, and `LOCK_TIME` caps an episode at
+about seventeen bangs. The rate limiting that does exist is in `main.js`, which
+fires one one-shot per frame however many cycles the state machine got through:
+two bangs five milliseconds apart is worse than one.
+
+`onended` is used for disposal only — it fires *after* an offline render rather
+than during one, so nothing that has to be correct may depend on it.
+
+### It is the one part with no automated coverage, and that should be said
+
+`npm test` never touches `sound.js`: Node has no Web Audio, and `test/audio/`
+holds Python analysis scripts and recordings, not a test of the graph. The
+offline render described below is a **manual browser-console procedure**, not
+something the suite runs. Automating it is still open as BL-16.
+
+`bang()` therefore takes an explicit time — `bang(strength, when)` — and that is
+what makes it measurable at all. `OfflineAudioContext.startRendering()` runs the
+whole render with no JavaScript between quanta, so nothing can call `bang()`
+*during* one; every call has to be scheduled before rendering starts, where
+`currentTime` is 0, and without an explicit time every impulse would stack at
+zero. With it, the snippet in [`test/audio/README.md`](../test/audio/README.md)
+can place bangs at known instants and the attack, decay and spectral content can
+be measured with the existing scripts.
+
 ## Verification
 
 The module accepts a substitute audio context:
