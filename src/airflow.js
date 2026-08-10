@@ -36,6 +36,22 @@ function edgeFade(x) {
    fan plane -3.22, splitter -2.86, fan nozzle exit 1.16, core nozzle exit
    2.90, plug tip 4.80. */
 
+/* Where the bypass air turns round when the reverser is out: the blocker doors
+   stand across the duct at the aft edge of the cascade band, and the way out is
+   the band itself, immediately forward of them. The station is ST.cascadeAft in
+   engine.js, copied rather than imported for the same reason as the tables
+   above - this module depends on nothing, and importing engine.js for one
+   number would drag the materials, the livery canvas and buildEngine into its
+   graph. */
+const X_DOORS = 0.11;
+// The cascades turn the flow to about 45° forward of radial. Any steeper and
+// the air would appear to leave along the nacelle rather than away from it.
+const TURN_COS = Math.SQRT1_2;
+// How far out a deflected particle is followed before it is recycled. The skin
+// is 0.7 units out from the duct at that station, so this is comfortably clear
+// of the nacelle.
+const TURN_REACH = 1.5;
+
 // Bypass duct: inner and outer boundaries of the channel
 const BYPASS_IN = [
   [X_START, 0.6], [-5.2, 0.66], [-3.22, 0.98], [-2.86, 1.0], [-1.86, 1.1],
@@ -161,12 +177,18 @@ export function createAirflow() {
   const phase = new Float32Array(N);
   const jitter = new Float32Array(N);
   const isCore = new Uint8Array(N);
+  // has this particle been turned round by the blocker doors, and how far out
+  // through the cascades it has got since
+  const turned = new Uint8Array(N);
+  const outward = new Float32Array(N);
 
   function respawn(i, initial) {
     px[i] = initial ? THREE.MathUtils.lerp(X_START, X_END, Math.random()) : X_START + Math.random() * 0.8;
     lane[i] = Math.random();
     phase[i] = Math.random() * Math.PI * 2;
     jitter[i] = (Math.random() - 0.5) * 0.05;
+    turned[i] = 0;
+    outward[i] = 0;
   }
   for (let i = 0; i < N; i++) {
     isCore[i] = i >= N_BYPASS ? 1 : 0;
@@ -282,8 +304,12 @@ export function createAirflow() {
    * @param {number} dt
    * @param {number} level - fan speed 0..1 (airflow)
    * @param {number} burn  - combustion intensity 0..1 (heating of the core duct)
+   * @param {number} blocked - how much of the bypass duct the reverser's
+   *        blocker doors have closed, 0..1. Only the bypass stream is affected:
+   *        a cascade reverser does nothing to the core, which is why the plume,
+   *        the heat haze and the contrail all carry on unchanged.
    */
-  function update(dt, level, burn = 1) {
+  function update(dt, level, burn = 1, blocked = 0) {
     if (!group.visible) return;
     time += dt;
     plumeMat.uniforms.uTime.value = time;
@@ -301,12 +327,32 @@ export function createAirflow() {
       const tT = core ? CORE_T : BYPASS_T;
 
       const v = pw(vT, px[i]) * speedK;
-      px[i] += v * dt;
-      if (px[i] > X_END) respawn(i, false);
+
+      if (turned[i]) {
+        /* Out through the cascades: forward and outward at the turning angle.
+           The particle keeps the speed of the duct it came from - what a
+           cascade does is change the direction of the momentum, not destroy
+           it, which is the whole reason the manoeuvre is worth anything. */
+        px[i] -= v * dt * TURN_COS;
+        outward[i] += v * dt * TURN_COS;
+        if (outward[i] > TURN_REACH) respawn(i, false);
+      } else {
+        const prev = px[i];
+        px[i] += v * dt;
+        /* Whether this particle is one of the ones the doors caught is decided
+           ONCE, as it reaches them, and not re-rolled every frame: rolling per
+           frame would turn a half-closed duct into a fog of particles changing
+           their minds. Half-closed doors send half the air back, which is the
+           honest linear reading of a transient that lasts two seconds. */
+        if (!core && blocked > 0 && prev < X_DOORS && px[i] >= X_DOORS && Math.random() < blocked) {
+          turned[i] = 1;
+        }
+        if (px[i] > X_END) respawn(i, false);
+      }
 
       const x = px[i];
       phase[i] += pw(sT, x) * speedK * dt;
-      const r = THREE.MathUtils.lerp(pw(inT, x), pw(outT, x), lane[i]) + jitter[i];
+      const r = THREE.MathUtils.lerp(pw(inT, x), pw(outT, x), lane[i]) + jitter[i] + outward[i];
       const a = phase[i];
       positions[i * 3] = x;
       positions[i * 3 + 1] = r * Math.cos(a);
@@ -314,7 +360,9 @@ export function createAirflow() {
 
       const t = core ? pw(tT, x) * heat : pw(tT, x);
       tempColor(t, col);
-      const fade = edgeFade(x);
+      // clear of the nacelle, the deflected air is dispersing and out of the
+      // story: it fades rather than stopping at an invisible wall
+      const fade = edgeFade(x) * (turned[i] ? 1 - THREE.MathUtils.smoothstep(outward[i], 0.7, TURN_REACH) : 1);
       colors[i * 3] = col.r * fade;
       colors[i * 3 + 1] = col.g * fade;
       colors[i * 3 + 2] = col.b * fade;

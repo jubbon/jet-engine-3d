@@ -274,5 +274,61 @@ const deg = (r) => (r * 180) / Math.PI;
   );
 }
 
+/* ------------------- 7. where the bypass air goes ------------------- *
+ *  The one claim in this feature that is about the picture rather than
+ *  about numbers, and it is still worth checking numerically: with the
+ *  doors closed the fan air must leave FORWARD and OUTWARD through the
+ *  cascades, and the core stream must be exactly as it was.
+ *
+ *  This is why the import of airflow.js appears in an otherwise
+ *  dependency-free test: the behaviour belongs to the reverser, the
+ *  particles are where it shows, and counting them is a great deal more
+ *  reliable than looking at a screenshot of eight thousand dots.
+ * -------------------------------------------------------------------- */
+{
+  const { createAirflow } = await import('../src/airflow.js');
+  const N_BYPASS = 5200; // the split in airflow.js; core particles follow
+
+  const run = (blocked) => {
+    const flow = createAirflow();
+    flow.setVisible(true);
+    for (let i = 0; i < 600; i++) flow.update(1 / 60, 0.8, 0.6, blocked);
+    const p = flow.group.children[0].geometry.attributes.position;
+    let escaping = 0; // bypass air forward of the doors and outside the duct
+    let throughNozzle = 0; // bypass air still leaving aft
+    let core = 0; // core air past the core nozzle
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i);
+      const r = Math.hypot(p.getY(i), p.getZ(i));
+      if (i < N_BYPASS) {
+        if (x < 0.11 && r > 1.75) escaping++;
+        if (x > 1.16) throughNozzle++;
+      } else if (x > 2.9) core++;
+    }
+    return { escaping, throughNozzle, core };
+  };
+
+  const fwd = run(0);
+  const rev = run(1);
+  console.log('\n=== WHERE THE BYPASS AIR GOES ===');
+  console.log(`  stowed:   out of the cascades ${fwd.escaping}, out of the fan nozzle ${fwd.throughNozzle}, core ${fwd.core}`);
+  console.log(`  deployed: out of the cascades ${rev.escaping}, out of the fan nozzle ${rev.throughNozzle}, core ${rev.core}\n`);
+
+  check('Stowed, nothing leaves through the cascades', fwd.escaping === 0);
+  check('Deployed, the fan air does', rev.escaping > 100, `${rev.escaping} particles`);
+  check(
+    'and almost none of it still leaves aft',
+    rev.throughNozzle < 0.1 * fwd.throughNozzle,
+    `${rev.throughNozzle} against ${fwd.throughNozzle} stowed`
+  );
+  // A cascade reverser does nothing to the core. If this ever changes, the
+  // plume, the heat haze and the contrail are all wrong too.
+  check(
+    'The core stream is untouched',
+    Math.abs(rev.core - fwd.core) < 0.15 * fwd.core,
+    `${rev.core} against ${fwd.core}`
+  );
+}
+
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

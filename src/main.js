@@ -834,7 +834,9 @@ function animate() {
   MATS.combLiner.emissive.setRGB(0.42 * glow, 0.1 * glow, 0.02 * glow);
   bloom.strength = 0.12 + glow * 0.2;
 
-  airflow.update(dt, eng.n1, burn);
+  // only the bypass stream knows about the reverser; the core plume, the heat
+  // haze and the contrail are the same in reverse as they are in forward thrust
+  airflow.update(dt, eng.n1, burn, rev.blocked);
   haze.update(dt, burn, eng.n1);
   // the verdict is about the air, but the water is the engine's: fuel cut, and
   // the trail dies with the flame
@@ -845,7 +847,14 @@ function animate() {
     tmp.set(-0.3, 0, 0);
     const dist = camera.position.distanceTo(tmp);
     tmp.project(camera);
-    sound.update(eng.n1, eng.n2, burn, tmp.x, THREE.MathUtils.clamp(1 - (dist - 3) / 16, 0, 1));
+    sound.update(
+      eng.n1,
+      eng.n2,
+      burn,
+      tmp.x,
+      THREE.MathUtils.clamp(1 - (dist - 3) / 16, 0, 1),
+      rev.blocked
+    );
   }
 
   // camera
