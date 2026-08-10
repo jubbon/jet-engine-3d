@@ -265,6 +265,8 @@ function refreshModeUI() {
   // the reverser can only be selected on a running engine, so its button
   // changes with the mode as well
   refreshReverserUI();
+  // and the stability bar has nothing to say about a stopped engine
+  refreshSurgeUI();
 }
 
 function setMode(mode) {
@@ -311,6 +313,25 @@ function refreshReverserUI() {
 function toggleReverser() {
   rev.request(rev.mode === 'stowed' || rev.mode === 'stowing', eng.mode);
   refreshReverserUI();
+}
+
+/* -------------------------- compressor surge ------------------------- *
+ *  Class names only, as above. Amber for a surge and red for a locked
+ *  stall: one is a transient the reader can fly out of, the other is not.
+ * --------------------------------------------------------------------- */
+const SURGE_CLASS = { clear: 'off', surging: 'busy', stall: 'stop' };
+
+// as with the engine mode and the reverser, every transition here is made by
+// the state machine rather than by a click - the lock into a stall especially,
+// which happens four seconds after the reader stops doing anything at all
+let shownSurge = null;
+
+function refreshSurgeUI() {
+  shownSurge = eng.surge;
+  $('surge-bar').className = `statusbar ${SURGE_CLASS[eng.surge]}`;
+  $('val-surge').textContent = t(`surge.${eng.surge}`);
+  // a stopped engine has no stability to report, exactly as it has no reverser
+  $('surge-hint').textContent = t(eng.mode === 'run' ? `surge.hint.${eng.surge}` : 'surge.hint.off');
 }
 
 /* ----------------------------- elements ------------------------------ */
@@ -568,7 +589,11 @@ function updateGauges() {
   // The sleeve is in the hash because the thrust follows it: at a steady N1
   // through a deployment nothing else here changes, and the read-out would
   // freeze at the forward figure while the number it shows goes negative.
-  const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001 + rev.travel * 3;
+  /* The margin is in the hash because in a locked stall it is the only thing
+     moving: N2 hangs and T4 creeps slowly enough to sit inside the tolerance
+     below, and the read-out would freeze while the engine cooked. Same trap the
+     sleeve travel was added for. */
+  const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001 + rev.travel * 3 + eng.sm * 11;
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
 
@@ -579,6 +604,7 @@ function updateGauges() {
   $('val-n2').textContent = `${n(eng.n2 * 100, 0)} %`;
   $('val-t4').textContent = `${n(eng.t4, 0)} °C`;
   $('val-thrust').textContent = `${n(thrust, 0)} kN`;
+  $('val-sm').textContent = eng.mode === 'run' ? n(eng.sm, 3) : '—';
 
   const v = {
     fan: eng.n1 * eng.n1,
@@ -814,6 +840,7 @@ function animate() {
 
   const keff = eng.update(dt * state.timeScale, Math.min(state.throttle, rev.throttleLimit()));
   if (eng.mode !== shownMode) refreshModeUI();
+  if (eng.surge !== shownSurge) refreshSurgeUI();
   updateGauges();
 
   // rotors: N1 (fan/booster/LPT) and N2 (HPC/HPT) turn independently

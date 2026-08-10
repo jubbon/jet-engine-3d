@@ -210,4 +210,15 @@ export default {
   'module.accessory.title': 'Accessory gearbox and accessories',
   'module.accessory.info':
     'A bevel drive off the HP shaft powers the fuel and oil pumps, the generators and the starter. The bleed air pipework and the FADEC units live here too. On the 737 the gearbox is moved from underneath the engine to the side - which is what allowed the bottom of the nacelle to be flattened.',
+
+  /* ------------------------ compressor stability ---------------------- */
+  'panel.stability': 'Stability',
+  'panel.sm': 'Surge margin',
+  'surge.clear': 'STABLE',
+  'surge.surging': 'SURGE',
+  'surge.stall': 'STALLED',
+  'surge.hint.clear': 'The compressor is working inside its margin. Flick the throttle from idle to the stop and it will not be: fuel arrives in a fraction of a second, the rotor takes seconds, and for the interval between them the burner is fed for a speed the compressor has not reached.',
+  'surge.hint.surging': 'The flow has broken down and the gas is being expelled forward through the intake, several times a second. Pull the throttle back now and it will recover; hold it up and it will lock.',
+  'surge.hint.stall': 'A locked stall: the spools hang, the gas path is cooking and the thrust is gone. No throttle movement will clear it — only a shutdown.',
+  'surge.hint.off': 'the engine must be running',
 };

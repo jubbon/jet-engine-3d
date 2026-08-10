@@ -174,4 +174,15 @@ export default {
   'module.accessory.title': 'Caja de accesorios y equipos',
   'module.accessory.info':
     'Una transmisión cónica desde el eje de alta acciona las bombas de combustible y de aceite, los generadores y el motor de arranque. Aquí están también las tuberías de sangrado y las unidades FADEC. En el 737 la caja se trasladó de debajo del motor a un lateral, y eso es lo que permitió achatar la parte inferior de la góndola.',
+
+  /* ------------------------ compressor stability ---------------------- */
+  'panel.stability': 'Estabilidad',
+  'panel.sm': 'Margen de bombeo',
+  'surge.clear': 'ESTABLE',
+  'surge.surging': 'BOMBEO',
+  'surge.stall': 'EN PÉRDIDA',
+  'surge.hint.clear': 'El compresor trabaja dentro de su margen. Mueva de golpe la palanca de ralentí a tope y dejará de estarlo: el combustible llega en una fracción de segundo, el rotor tarda segundos, y en ese intervalo la cámara recibe combustible para un régimen que el compresor aún no alcanza.',
+  'surge.hint.surging': 'El flujo se ha desprendido y el gas sale hacia adelante por la admisión varias veces por segundo. Reduzca la palanca ahora y se recuperará; manténgala arriba y quedará enganchado.',
+  'surge.hint.stall': 'Pérdida enganchada: los ejes están colgados, el conducto de gas se recalienta y no hay empuje. Ningún movimiento de la palanca lo resolverá, solo una parada.',
+  'surge.hint.off': 'el motor debe estar en marcha',
 };

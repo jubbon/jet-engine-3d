@@ -110,6 +110,19 @@
             <span data-i18n="panel.reverser">Reverser</span>
             <b id="val-rev">STOWED</b>
           </div>
+          <!-- Compressor stability. Deliberately no button: a surge is a
+               consequence of how the engine is handled, and a button would
+               destroy the only thing it has to teach. It is provoked by
+               flicking the throttle above, which is why it sits under it. -->
+          <div class="statusbar off" id="surge-bar">
+            <span data-i18n="panel.stability">Stability</span>
+            <b id="val-surge">STABLE</b>
+          </div>
+          <label class="row">
+            <span data-i18n="panel.sm">Surge margin</span>
+            <b id="val-sm">—</b>
+          </label>
+          <p class="hint" id="surge-hint"></p>
           <!-- N1, N2 and T4 are instrument markings, not words, and stay put -->
           <div class="gauges">
             <div><i>N1</i><b id="val-n1">—</b><small data-i18n="gauge.n1.sub">fan</small></div>

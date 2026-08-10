@@ -174,4 +174,15 @@ export default {
   'module.accessory.title': 'Boîtier d’accessoires et équipements',
   'module.accessory.info':
     'Un renvoi d’angle sur l’arbre HP entraîne les pompes à carburant et à huile, les générateurs et le démarreur. La tuyauterie de prélèvement d’air et les calculateurs FADEC sont là aussi. Sur le 737, le boîtier a été déplacé de dessous le moteur vers le côté — et c’est précisément ce qui a permis d’aplatir le bas de la nacelle.',
+
+  /* ------------------------ compressor stability ---------------------- */
+  'panel.stability': 'Stabilité',
+  'panel.sm': 'Marge au pompage',
+  'surge.clear': 'STABLE',
+  'surge.surging': 'POMPAGE',
+  'surge.stall': 'DÉCROCHÉ',
+  'surge.hint.clear': 'Le compresseur travaille dans sa marge. Poussez la manette d\'un coup du ralenti à la butée et ce ne sera plus le cas : le carburant arrive en une fraction de seconde, le rotor met des secondes, et dans cet intervalle la chambre est alimentée pour un régime que le compresseur n\'a pas atteint.',
+  'surge.hint.surging': 'L\'écoulement a décroché et le gaz est refoulé vers l\'avant par l\'entrée d\'air, plusieurs fois par seconde. Réduisez la manette maintenant et le moteur récupérera ; maintenez-la et le régime se figera.',
+  'surge.hint.stall': 'Décrochage figé : les rotors sont bloqués bas, la veine gazeuse chauffe et la poussée a disparu. Aucun mouvement de manette n\'y remédiera, seulement un arrêt.',
+  'surge.hint.off': 'le moteur doit tourner',
 };

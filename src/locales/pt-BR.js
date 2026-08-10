@@ -174,4 +174,15 @@ export default {
   'module.accessory.title': 'Caixa de acessórios e equipamentos',
   'module.accessory.info':
     'Uma transmissão cônica a partir do eixo de alta aciona as bombas de combustível e de óleo, os geradores e o motor de partida. A tubulação de sangria e as unidades FADEC também ficam aqui. No 737 a caixa foi deslocada de baixo do motor para a lateral — e foi isso que permitiu achatar a parte de baixo da nacele.',
+
+  /* ------------------------ compressor stability ---------------------- */
+  'panel.stability': 'Estabilidade',
+  'panel.sm': 'Margem de surge',
+  'surge.clear': 'ESTÁVEL',
+  'surge.surging': 'SURGE',
+  'surge.stall': 'EM STALL',
+  'surge.hint.clear': 'O compressor trabalha dentro da sua margem. Avance a manete de uma vez da marcha lenta até o batente e deixará de estar: o combustível chega em uma fração de segundo, o rotor leva segundos, e nesse intervalo a câmara recebe combustível para uma rotação que o compressor ainda não alcançou.',
+  'surge.hint.surging': 'O escoamento se descolou e o gás é expelido para a frente pela tomada de ar, várias vezes por segundo. Recue a manete agora e o motor se recupera; mantenha-a e o quadro se trava.',
+  'surge.hint.stall': 'Stall travado: os eixos ficam pendurados, o duto de gás cozinha e o empuxo acabou. Nenhum movimento de manete resolve — apenas um corte.',
+  'surge.hint.off': 'o motor precisa estar funcionando',
 };

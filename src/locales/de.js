@@ -174,4 +174,15 @@ export default {
   'module.accessory.title': 'Hilfsgerätegetriebe und Hilfsgeräte',
   'module.accessory.info':
     'Ein Kegelradabtrieb von der HD-Welle treibt die Kraftstoff- und Ölpumpen, die Generatoren und den Anlasser an. Auch die Zapfluftleitungen und die FADEC-Rechner sitzen hier. Bei der 737 wurde das Getriebe von unterhalb des Triebwerks an die Seite verlegt — und genau das erlaubte es, die Unterseite der Gondel abzuflachen.',
+
+  /* ------------------------ compressor stability ---------------------- */
+  'panel.stability': 'Stabilität',
+  'panel.sm': 'Pumpgrenzenabstand',
+  'surge.clear': 'STABIL',
+  'surge.surging': 'PUMPEN',
+  'surge.stall': 'ABGERISSEN',
+  'surge.hint.clear': 'Der Verdichter arbeitet innerhalb seines Abstands. Schieben Sie den Schubhebel ruckartig vom Leerlauf an den Anschlag, und das ist er nicht mehr: Der Kraftstoff kommt im Bruchteil einer Sekunde, der Rotor braucht Sekunden, und dazwischen erhält die Brennkammer Kraftstoff für eine Drehzahl, die der Verdichter noch nicht erreicht hat.',
+  'surge.hint.surging': 'Die Strömung ist abgerissen, und das Gas wird mehrmals pro Sekunde nach vorn durch den Einlauf ausgestoßen. Nehmen Sie den Schubhebel jetzt zurück, dann erholt sich das Triebwerk; lassen Sie ihn oben, verfestigt sich der Zustand.',
+  'surge.hint.stall': 'Verfestigter Strömungsabriss: Die Wellen hängen, der Gaskanal überhitzt, der Schub ist weg. Keine Hebelbewegung behebt das — nur ein Abstellen.',
+  'surge.hint.off': 'das Triebwerk muss laufen',
 };
