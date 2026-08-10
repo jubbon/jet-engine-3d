@@ -165,8 +165,41 @@ On a transient it leads, by the HP speed error — which is what a fuel schedule
 is a function of:
 
 ```
-wf = 0.1 + 0.9·keff + LEAD · (n2cmd − n2) / (1 − IDLE_N2)
+wf = 0.1 + 0.9·keff + LEAD · (n2cmd − n2) / (1 − IDLE_N2)     in `run`
 ```
+
+**The mode gate is not optional, and it is the easiest thing here to get
+wrong.** `wf` replaces `burn`'s target, so it must follow the *same* mode
+structure `burnTarget` already has, and only the `run` branch carries the lead
+term:
+
+```
+wf = 0                                    when not burning (fuel cut, or before light-off)
+wf = 0.3                                  in `start`
+wf = 0.1 + 0.9·keff + LEAD·(…)  clamped to 0…BURN_MAX   in `run`
+```
+
+Written without the gate it produces a surge on **the default path**. During
+cranking `n2` sits near `START_N2 = 0.30` while the lever stays wherever it was
+left, and `main.js` boots at `throttle = 0.85`: the unguarded formula gives
+`wf = 0.561` against `T4ref(0.30) = 495 °C`, so `SM = −0.049` and *every start
+surges* — flatly contradicting this spec's own requirement that a start never
+does. The `!burning → 0` branch matters just as much at the other end: if it did
+not win, a fuel cut would leave fuel commanded, and the fuel cut is the one
+thing that clears a locked stall.
+
+Correspondingly, **the margin is only meaningful in `run` with the flame lit**.
+`surge.update()` is passed a `running` flag and returns to `clear` whenever it
+is false, so the sub-state machine cannot be entered from `start`, `stop` or
+`off` at all. That rule lives in `surge.js` rather than at the call site, so it
+is testable.
+
+`wf` is floored at zero before the margin is taken. On a deceleration the lead
+term is negative by design, and `T4(wf)` going negative would make the square
+root `NaN` — a hole in the model rather than an exception. No realistic chop
+gets there (a settled 100 % to idle leaves `wf = 0.68`, since `n2` decays faster
+than `keff`), but nothing in the arithmetic bounds it, and this is the same
+class of defect as the reverser's clamp on an unreachable link angle.
 
 `LEAD = 0.32`. The term is zero in the steady state and decays with the HP
 rotor's own time constant (2.0 s accelerating), so the overshoot lasts the few
@@ -175,35 +208,47 @@ negative — the fuel is cut back below the steady value — which moves the poi
 away from surge, correctly: a chop risks a lean blow-out, a different failure
 that this spec does not model.
 
+**When the margin is evaluated.** Once, and it has to be said once: the margin
+quoted anywhere in this document is the value **at the instant the lever moves**
+— settled engine, lever displaced, `n2` not yet moved. That instant is the
+*minimum* of the whole transient, because `n2` only ever catches up afterwards,
+so it decides the outcome by itself; and it is analytic, so the test can assert
+it to floating point instead of hunting for a minimum in a trace. Numbers
+sampled from the integration a few hundredths of a second later run 0.01–0.03
+higher, which is larger than several of the margins below — mixing the two would
+flip verdicts, and an earlier draft of this spec did exactly that.
+
 **Where 0.32 comes from.** It is not chosen, it is cornered. Three requirements
-bracket it, and they were checked by sweeping the constant against the real
-integration rather than argued:
+bracket it; each bound below is the exact solution of `SM = 0` for `LEAD`, not a
+sweep:
 
 | Requirement | Bound on LEAD |
 |---|---|
-| A slam from idle to full power must surge, and for long enough to see | > 0.24 |
-| An advance from idle to 50 % must not surge, even taken instantly | < 0.36 |
-| A slam from cruise power to full must not surge | (satisfied throughout) |
+| An instant idle → 100 % must cross the boundary | > 0.203 |
+| A 0.5 s **flick** idle → 100 % must cross it — the binding lower bound, because a slider is dragged, not stepped | > 0.274 |
+| An instant idle → 50 % must **not** cross it | < 0.406 |
 
-0.32 sits in the middle of that window with room on both sides: at 0.32 the
-50 % advance keeps a margin of +0.031, and the slam crosses the boundary by
-−0.071.
+The window is therefore 0.274…0.406. 0.32 sits inside it with at least 0.045 of
+clearance on either side, which is what "pinned" is allowed to mean for a
+constant with two free neighbours.
 
-**The input is a drag, not a step.** The throttle is a slider, and `oninput`
-fires continuously as it is dragged, so the user never applies a step. What
-decides the outcome is how *long* the drag takes, which is the honest control
-and turns out to be nicely graded at this constant:
+**The input is a drag, not a step.** The throttle is a slider and `oninput`
+fires continuously as it moves, so the reader never applies a step. What decides
+the outcome is how *long* the drag takes, and at this constant that comes out
+nicely graded:
 
-| Drag from idle to full | Outcome |
-|---|---|
-| under 0.5 s (a flick) | surges |
-| about 0.7 s | on the boundary |
-| 1 s or slower | no surge |
-| 2 s (deliberate) | margin never falls below +0.071 |
+| Drag from idle to full | lowest SM | Outcome |
+|---|---|---|
+| instant | −0.071 | surges, 0.35 s across the boundary |
+| 0.25 s | −0.047 | surges, 0.30 s |
+| 0.50 s | −0.023 | surges, 0.23 s |
+| 0.75 s | +0.002 | on the boundary |
+| 1.0 s | +0.024 | no surge |
+| 2.0 s | +0.071 | no surge, comfortably |
 
 So the reader provokes a surge by *flicking* the lever and avoids one by
-*advancing* it — which is exactly the distinction the phenomenon is about, and
-it needs no instruction to discover.
+*advancing* it — exactly the distinction the phenomenon is about, and it needs
+no instruction to discover.
 
 `burn` then follows `wf` instead of following `0.1 + 0.9·keff` directly. Since
 the two are equal in the steady state, every settled number in the existing
@@ -254,32 +299,38 @@ a tabulated shape with the right behaviour, not a solution.
 From a settled idle (`n1 = 0.180`, `n2 = 0.560`, `T4 = 495 °C`), lever to the
 stop:
 
-From a settled idle, lever to the stop, **with the surge mechanism inactive** —
-that is, the bare question of whether the point crosses at all:
+From a settled idle, lever displaced instantly — the bare question of whether
+the operating point crosses at all:
 
-| Slam from idle to | lowest SM reached | crosses? |
+| Instant advance from idle to | SM | crosses? |
 |---|---|---|
-| 50 % | +0.046 | no |
-| 70 % | +0.005 | no, barely |
-| 75 % | −0.005 | yes |
-| 100 % | −0.049 | yes |
+| 50 % | +0.031 | no |
+| 60 % | +0.007 | no |
+| 70 % | −0.014 | yes |
+| 100 % | −0.071 | yes |
 
-and slammed to full power from a *settled* starting power instead of from idle:
+The threshold is a lever position of **63.4 %**: below it no instantaneous
+movement from idle can reach the boundary, above it every one does.
 
-| Slammed to 100 % from | lowest SM | crosses? |
+And slammed to full power from a *settled* starting power instead of from idle:
+
+| Slammed to 100 % from | SM | crosses? |
 |---|---|---|
-| idle | −0.049 | yes |
-| 10 % | −0.022 | yes |
-| 20 % | +0.016 | no |
-| 50 % | +0.117 | no |
-| 80 % | +0.226 | no |
+| idle | −0.071 | yes |
+| 10 % | −0.041 | yes |
+| 30 % | +0.033 | no |
+| 50 % | +0.107 | no |
+| 80 % | +0.223 | no |
+
+(20 % power falls at −0.001, on the boundary to within rounding, and is left out
+rather than quoted as a property — a figure that close decides nothing.)
 
 Surge is therefore reachable only from low power and only on a fast movement,
 which is exactly what it is in life, and both facts are properties of the model
 rather than cases written into it.
 
-(These figures were produced by sweeping the real integration; they are to be
-**recomputed by the test**, never copied into the documentation from here.)
+(These figures are to be **recomputed by the test**, never copied into the
+documentation from here.)
 
 ## The surge event
 
@@ -362,8 +413,12 @@ the temperature sits high in a stall instead of settling back with the speed,
 and it is the whole reason a stall is a hazard rather than an inconvenience.
 
 Because `wf` stays high while `n2` hangs low, the margin stays firmly negative
-(around −0.17) and the state cannot exit on its own. It clears only on a fuel
-cut — leaving `run` — which is the correct real answer as well.
+and the state cannot exit on its own. With the lever at 100 % and the spools
+hung, `keff = 0.146`, `wf = 0.632` and `T4(wf) = 1266 °C` against
+`T4ref(0.45) = 495 °C`, giving **SM = −0.135** — far below `SM_RECOVER = 0.04`,
+and it is a consequence of leaving `wf` uncapped rather than a rule asserted
+anywhere. It clears only on a fuel cut, which leaves `run`, and that is the
+correct real answer as well.
 
 A stall cell angle advances at `STALL_CELL = 0.48` of rotor speed for the flow
 view.
@@ -472,6 +527,16 @@ how `rev` was added; `bang()` is separate because it is an event, not a state.
   whether the engine surges, so the chart cannot disagree with the behaviour.
   It redraws only when the point has actually moved, on the same hash discipline
   as `updateGauges`.
+
+  **"Corrected flow" has to be defined, because the model has no mass flow.**
+  There is no `W` anywhere in `engineState.js` or `main.js`; the working line
+  here is a pressure ratio as a function of `n2` and nothing else. So
+  `correctedFlow(n2)` is defined explicitly in `surge.js` as proportional to
+  `n2` — the stand-in a compressor map's abscissa usually correlates with
+  anyway — and the axis is labelled as the stand-in it is, not as a computed
+  quantity. Without that, the promise that the chart is "drawn from the same
+  functions that decide whether the engine surges" would be false for one of its
+  two axes.
 * A **bloom flash** on each bang: `bloom.strength` pulses. The flash out of the
   intake is real and this is the cheapest honest way to show it; no new shader.
 
@@ -497,8 +562,15 @@ The propositions worth checking:
 *The map and the margin*
 * in the steady state the margin equals the tabulated `SM0(n2)` exactly — the
   check compares the two halves of one fact rather than a consequence;
-* the margin is positive at every steady throttle position from idle to
-  take-off, swept in 1 % steps: a settled engine must never sit on the boundary;
+* every entry of the `SM0` table is positive, and the interpolation never dips
+  below the lower of its two endpoints. **This replaces** the obvious-looking
+  "the margin is positive at every steady throttle position, swept in 1 %
+  steps", which is a tautology: in the steady state `keff = throttle` and
+  `keff_steady(n2) = throttle` identically, so `T4(wf) = T4ref` and
+  `SM = SM0(n2)` by construction. That sweep can only fail if the table contains
+  a negative number — so check the table, and do not dress it up as a sweep. The
+  repository has learned this one before, with the cascade-band check that
+  compared the model against its own constants;
 * the surge line is above the working line everywhere;
 * the working line is monotone in `n2`.
 
@@ -532,9 +604,12 @@ The trace it prints (the house style: every state-machine test prints one) is
 the slam — margin, N2, T4 and the bangs, at 0.1 s resolution — which is also
 the tuning tool for `LEAD` and the `SM0` table.
 
-`engine-state.test.mjs` gets one addition: that the *settled* numbers it already
-checks are unchanged is what it does anyway, so if `wf` were wired wrongly that
-file would fail. That is the intended safety net and it needs no new check.
+`engine-state.test.mjs` needs no new check, but its role should not be
+overstated. The settled numbers are unchanged **by construction** — `wf` in the
+steady state is identically the old burn target — so that file can only catch a
+wiring error that breaks the steady state. It cannot catch anything about the
+transient, which is the entire feature. It is a regression guard, not a safety
+net.
 
 ## Documentation
 
@@ -573,8 +648,10 @@ in `CLAUDE.md`, not copied out of this spec.
   boost is added to its target. Every consumer was checked: `heathaze.hazePower`
   clamps at 1.15, `contrailView` clamps at 1, `airflow` feeds it through
   `tempColor` which clamps, and the flame and plume shaders simply get brighter
-  — which is what a surge should look like. Only `sound.js` uses it unbounded,
-  in `0.66·burn^1.4`, and that runs into a compressor. A documented ceiling
+  — which is what a surge should look like. `sound.js` uses it unbounded in
+  **four** places, not one — `jetGain` (`0.66·burn^1.4`), `rumbleGain`,
+  `turbGain` and `jetBand.frequency` (which reaches 336 Hz at the ceiling) —
+  and all four run into a compressor. A documented ceiling
   `BURN_MAX = 1.2` (T4 = 2090 °C) is applied at the target so the excursion is
   bounded and visible as an over-temperature rather than unbounded. In practice
   the simulated worst case reaches burn ≈ 0.96.

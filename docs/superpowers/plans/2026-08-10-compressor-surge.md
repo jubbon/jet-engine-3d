@@ -102,6 +102,16 @@ same expression `main.js` already uses in the station table. Do not invent a
 second one; if that formula ever changes, both must move together, and a comment
 in each place must say so.
 
+`correctedFlow(n2)` must be **defined**, not implied: the model has no mass flow
+anywhere, so it is a stand-in proportional to `n2`, and both the function's
+comment and the chart's axis label have to say so. A chart promising to be drawn
+from the functions that decide the behaviour cannot have an undefined axis.
+
+`surgeMargin` floors `wf` at zero before taking the square root. On a chop the
+lead term is negative by design, and a negative `T4(wf)` would return `NaN` — a
+hole in the model rather than an error. No realistic chop reaches it; nothing in
+the arithmetic prevents it either.
+
 Write the block comment that explains the choked-nozzle derivation and states
 the caveat: the working line is the model's own formula, the surge line is a
 table, and only the temperature–pressure relation between them is physics.
@@ -113,8 +123,12 @@ table, and only the temperature–pressure relation between them is physics.
 * the working line is monotone increasing in `n2`;
 * `surgeMargin` at the steady fuel command equals `SM0(n2)` exactly (to 1e-12)
   at every `n2` — the two halves of one fact compared directly;
-* the margin is positive at every settled throttle position from 0 to 100 %,
-  and the worst case is reported in the trace;
+* every `SM0` entry is positive and the interpolation never dips below the lower
+  of its endpoints. Do **not** write "the margin is positive at every settled
+  throttle position, swept in 1 %": in the steady state that is `SM = SM0(n2)`
+  by construction and can only fail if the table holds a negative number. Check
+  the table; do not dress it up as a sweep;
+* `surgeMargin` returns a finite number for a `wf` driven far negative;
 * `correctedFlow` is monotone.
 
 Add `node test/surge.test.mjs` to the `test` script in `package.json`, at the
@@ -184,16 +198,26 @@ independently of the engine that will feed it:
 **Files:** `src/engineState.js`, `test/surge.test.mjs`, `docs/03-physics.md`,
 `docs/05-modes.md`
 
-Add `eng.wf` and re-point `burn` at it:
+Add `eng.wf` and re-point `burn` at it. **`wf` must carry the same mode
+structure `burnTarget` already has** — this is the single most important line in
+the task:
 
 ```js
 const n2cmd = IDLE_N2 + (1 - IDLE_N2) * throttle;
-eng.wf = clamp(0.1 + 0.9 * eng.keff + LEAD * (n2cmd - eng.n2) / (1 - IDLE_N2), 0, BURN_MAX);
+eng.wf = !burning ? 0
+  : eng.mode === 'start' ? 0.3
+  : clamp(0.1 + 0.9 * eng.keff + LEAD * (n2cmd - eng.n2) / (1 - IDLE_N2), 0, BURN_MAX);
 ```
 
-with `LEAD = 0.32` and `BURN_MAX = 1.2`, and `burnTarget = eng.wf` in `run`.
-`start` keeps its fixed 0.3 and `stop` its zero — the lead is a fact about a
-throttle being moved, and there is no throttle in either.
+with `LEAD = 0.32` and `BURN_MAX = 1.2`, and `burnTarget = eng.wf` throughout.
+
+Write the lead term **only** in the `run` branch. Without that gate the model
+surges on the default path: during cranking `n2` sits near `START_N2 = 0.30`
+while the lever stays where it was left, and `main.js` boots at `throttle =
+0.85`, giving `wf = 0.561` against `T4ref(0.30) = 495 °C` — `SM = −0.049`, so
+every start would surge. The `!burning → 0` branch matters equally at the other
+end: if it did not win, a fuel cut would leave fuel commanded, and the fuel cut
+is the one thing that clears a locked stall in Task 4.
 
 The block comment must carry the two things a reader will otherwise get wrong:
 why the margin is computed from the fuel command rather than from the indicated
@@ -208,7 +232,9 @@ Tests added to `test/surge.test.mjs`:
   task is a commit of its own.
 * a slam produces a T4 overshoot above the settled value for that throttle;
 * a chop produces a temporary undershoot;
-* the lead is zero throughout a start.
+* **`wf` carries no lead term at any point of a start**, with the throttle left
+  at the 0.85 `main.js` boots with — the regression test for the gate above;
+* a fuel cut drives `wf` to zero immediately, whatever the lever is doing.
 
 `docs/03-physics.md` §3/§4 and `docs/05-modes.md` (throttle response): the
 overshoot on a slam is new visible behaviour and has to be described.
