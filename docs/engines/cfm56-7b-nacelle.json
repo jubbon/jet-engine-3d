@@ -307,7 +307,14 @@
         "value": "The lengthened 737NG nacelle improved cruise performance: better internal flow organisation and reduced cruise drag",
         "source": "b737org_powerplant",
         "confidence": "documented"
-      }
+      },
+      "not_published": [
+        "Translating sleeve stroke",
+        "Axial length of the cascade band",
+        "Blocker door count and chord",
+        "Angle the cascades turn the flow through",
+        "Deployment and stow times"
+      ]
     },
     "core_cowl_and_exhaust": {
       "core_nozzle_exit_station": {
