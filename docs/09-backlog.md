@@ -23,7 +23,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-17 | Fuel supply visualisation | Flows | P1 | M |
 | BL-18 | Journey of an air particle from intake to nozzle | Flows | P1 | L |
 | BL-21 | Contrail behind the engine (done) | Flows | P2 | — |
-| BL-05 | Thrust reverser | Geometry and flows | P2 | L |
+| BL-05 | Thrust reverser (done) | Geometry and flows | P2 | — |
 | BL-06 | The engine at altitude: characteristics (ambient conditions done) | Physics | P2 | M |
 | BL-23 | Engine selection: CFM56, LEAP, geared, three-spool | Geometry and sound | P1 | L |
 | BL-19 | Real dimensions: dimension lines and a figure for scale | Geometry | P1 | S |
@@ -398,12 +398,47 @@ the horizon — a real one is kilometres long, hundreds of times past the far
 plane. The ice crystals are not modelled as such, only the verdict
 on their fate.
 
-### BL-05. Thrust reverser
+### BL-05. Thrust reverser — done
 
-The reverser doors in the bypass duct, their deployment by a button and the
-rearrangement of the flow: the bypass duct turns forward and outward, the core
-carries on aft. A heavy task — it needs both new geometry with animation
-(`src/engine.js`) and a switch of the ducts in `src/airflow.js`.
+A cascade reverser of the bypass duct: the sleeve slides 0.45 m aft to uncover
+288 turning vanes, twelve blocker doors swing across the duct, the fan air
+leaves forward and outward, the core carries on aft, and the thrust read-out
+settles near −19 kN. Button, `R` key, and a state machine of its own with the
+interlocks that matter.
+
+The entry described this as geometry plus a switch of the ducts, which is the
+easy half. The hard half is that a cascade reverser is a **mechanism**: one
+actuator translates the sleeve, and the doors are dragged across the duct by
+links to the fixed structure, so door angle is a function of sleeve travel and
+never of time. Modelling them on a timer would be indistinguishable in a
+screenshot and wrong about the only thing worth teaching — the doors close late,
+a third of the stroke doing a fifth of the blocking, and that is why reverse
+thrust arrives when it does.
+
+Two layouts were thrown away first. One put the cascades forward of the sleeve
+and had the sleeve translate away from them, leaving the cascades in plain sight
+when stowed. The other kept a longer door that swept through the core cowl at
+ninety degrees on its way round — visible in neither the stowed nor the deployed
+screenshot, and caught only by measuring the whole sweep.
+
+The reference has no dimensions for any of it: the stroke, the band, the door
+count and chord, the turning angle and the deployment times are now listed under
+`components.thrust_reverser.not_published`, and the numbers the model chose are
+declared as its own, the way `02-geometry` declares the intake-length ratio.
+
+Done: [geometry](02-geometry.md#thrust-reverser),
+[physics](03-physics.md#reverse-thrust), [flows](04-airflow.md#reverse-where-the-bypass-air-goes-instead),
+[modes](05-modes.md#thrust-reverser), [sound](06-sound.md#reverse),
+[interface](07-ui.md#thrust-reverser). 34 checks in `test/reverser.test.mjs`,
+plus the doors measured against the core cowl over the whole sweep in
+`test/clearance.test.mjs`.
+
+**What is left, and why.** No failure cases — asymmetric deployment, in-flight
+deploy, an unlock warning: those belong with BL-01 and BL-02, which are about
+failures generally. No weight-on-wheels interlock, because there is no aircraft;
+"the engine must be running" is the same rule expressed in terms the model has.
+The streamlines still show the stowed duct — they are static geometry and the
+shape of the channel rather than of the flow of the moment.
 
 ### BL-06. The engine at altitude: ambient conditions and characteristics
 
@@ -689,8 +724,13 @@ prototype becomes a choice from a list and the nacelle a part of the engine
 description, including the depth of the flattening and the rotation angle of the
 accessories. Then it is sensible to run both tasks together.
 
-Related: with BL-05 (thrust reverser) — the doors live in the bypass cowls, so
-the structural breakdown should be designed with them in mind from the start.
+Related: BL-05 (thrust reverser) is done, and it did half of this. The aft
+section of the nacelle is now a group of its own with its own stations, the skin
+is lathed as two meshes that keep one texture between them, and the reverser is
+a module with a card, a label and a picking proxy. Whoever splits the intake and
+the fan cowls off next should follow that pattern rather than invent another:
+the awkward part, keeping the markings from sliding when a lathe is cut in two,
+is solved in `latheSlice()`.
 With BL-19 — dimension lines only become meaningful once the dimensions are
 taken from sources.
 

@@ -143,6 +143,44 @@ the fan whine keeps falling in pitch until the rotors stop.
 Liveliness is added by two slow oscillators: a wander of the shaft frequency
 (0.13 Hz) and a breathing of the jet (0.31 Hz).
 
+## Reverse
+
+Three things change when the thrust reverser is deployed, and the rest is
+deliberately left alone.
+
+| Component | In reverse | Why |
+|---|---|---|
+| Jet noise, the part driven by N1 | ×(1 − 0.85·rev) | With the duct blocked there is no high-velocity stream leaving the fan nozzle |
+| Jet noise, the part driven by combustion | unchanged | The core is still doing exactly what it was |
+| Broadband fan noise | ×(1 + 1.4·rev), centre frequency ×(1 − 0.35·rev) | It no longer leaves down a lined duct but sideways through a grille, so the duct is no longer filtering it |
+| Cascade roar | new: brown noise, bandpass 320 Hz, gain 0.95·rev·N1^0.8 | Air turning through better than a right angle in a few hundred small vanes is the loudest single thing about a reverser, and it is broadband rather than tonal |
+| Buzz-saw comb | unchanged | It radiates forward out of the intake, and the intake has not changed |
+
+The cascade branch breathes on the same turbulence oscillator as the jet: it is
+the same turbulence, and two independent wobbles would beat against each other.
+
+The gain was set against the rendered spectrum rather than by ear, and the first
+value was wrong in a way listening would not have diagnosed. At 0.42 the
+250…450 Hz band — the one the cascades are supposed to own — went **down** 3.6 dB
+in reverse, because the jet noise being replaced was louder than the branch
+replacing it, and the compressor flattened the difference. At 0.95, measured at
+N1 = 80 %, burn 0.6:
+
+| Band | Forward | Reverse |
+|---|---:|---:|
+| 80…160 Hz | 56.5 dB | 62.2 dB |
+| 250…450 Hz | 51.4 dB | 54.2 dB |
+| 800…1600 Hz | 18.4 dB | 37.2 dB |
+| 2…3.5 kHz | 21.4 dB | 26.3 dB |
+
+Overall 4.3 dB louder at the same rotor speed, and distinctly darker. Peak 0.55
+against the 0.52 quoted below at take-off power: still no clipping, and reverse
+is limited to 80 % N1 in any case.
+
+`update()` takes the blocked fraction as a sixth parameter, defaulting to 0 so
+that the offline rendering snippet in `test/audio/README.md` keeps working with
+its five arguments.
+
 ## Verification
 
 The module accepts a substitute audio context:

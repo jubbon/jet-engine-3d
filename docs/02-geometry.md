@@ -49,6 +49,7 @@ flowchart LR
   H --> I["Rear frame<br/>1.48 · 3.34 m"]
   I --> J["Core nozzle exit<br/>2.90 · 4.05 m"]
   C --> K["Bypass duct"] --> L["Fan nozzle exit<br/>1.16 · 3.18 m"]
+  K --> M["Reverser<br/>−1.19…1.16 · 2.01…3.18 m"]
 ```
 
 | Station | X, units | m from the lip | What is there |
@@ -64,6 +65,9 @@ flowchart LR
 | `hptIn…Out` | −0.18…0.12 | 2.51…2.66 | High-pressure turbine, 1 |
 | `lptIn…Out` | 0.36…1.11 | 2.78…3.16 | Low-pressure turbine, 4 |
 | `frame` | 1.48 | 3.34 | Rear frame, also the engine rear flange |
+| `reverser` | −1.19 | 2.01 | Fan cowl / thrust reverser joint |
+| `sleeve` | −0.79 | 2.21 | Translating sleeve leading edge, stowed |
+| `cascadeAft` | 0.11 | 2.66 | Aft edge of the cascade band |
 | `bypassExit` | 1.16 | 3.18 | Fan nozzle exit |
 | `coreExit` | 2.90 | 4.05 | Core nozzle exit |
 | `plugTip` | 4.80 | 5.00 | Plug tip |
@@ -153,7 +157,8 @@ counts.
 
 | Module | What is modelled |
 |---|---|
-| Nacelle | Intake barrel with a flattened bottom, polished lip, cowls, wing attachment pylon |
+| Nacelle | Intake barrel with a flattened bottom, polished lip, fan cowls, wing attachment pylon |
+| Thrust reverser | Translating sleeve, cascade box with 288 turning vanes, 12 blocker doors and their drag links |
 | Fan | 24 wide-chord blades with sweep and lean, spinner with spiral, disc, fan case |
 | Outlet guide vanes | 44 vanes in the bypass duct |
 | Booster | 3 rotor stages (34/40/46 blades) + stator vanes, flow splitter, casing |
@@ -261,6 +266,104 @@ through the barrel underneath at the lip, because the barrel was cut *up* there.
 Now the skin is carried *down* instead, and the tightest margin between the
 lowest bypass streamline and the skin is 54 mm, at the fan nozzle rather than at
 the lip.
+
+## Thrust reverser
+
+The aft section of the nacelle, and the only part of it that moves. The
+prototype's unit (`docs/engines/cfm56-7b-nacelle.json`, ATA 78) is a **cascade
+reverser of the bypass duct with a translating sleeve and blocker doors**,
+hinged on the pylon like the fan cowls, and structurally part of the nacelle
+rather than a thing bolted to it.
+
+| Part | X, units | m from the lip | Length |
+|---|---:|---:|---:|
+| Fixed structure (torque box) | −1.19…−0.79 | 2.01…2.21 | 0.20 m |
+| Cascade band | −0.79…0.11 | 2.21…2.66 | 0.45 m |
+| Sleeve, stowed | −0.79…1.16 | 2.21…3.18 | 0.98 m |
+| Sleeve, deployed | 0.11…2.06 | 2.66…3.63 | — |
+
+### The numbers here are the model's own
+
+The reference gives the reverser's type, mounting and role, and **no dimensions
+at all**. The stroke, the band length, the door count, the door chord, the
+turning angle and the deployment times are absent from the ACAP, the TCDS and
+the NTSB report alike; they are listed under
+`components.thrust_reverser.not_published` so that nobody searches for them a
+second time. What the model chose, and against what:
+
+* **Stroke 0.90 units (0.45 m)** — it *is* the cascade band length, and
+  `ST.cascadeAft` is derived from it rather than stated. The sleeve has to
+  uncover the whole band and no more: shorter leaves the cascades half covered
+  and the air with nowhere to go, longer opens a gap of bare structure. Tying
+  the two together removes a free number instead of adding one.
+* **Twelve doors, six per half.** A 30° pitch reads as a ring of doors rather
+  than as four big flaps, and leaves room between them for the hinge and link
+  fittings.
+* **Door chord 0.50 units (0.25 m).** The duct is 0.50…0.53 units high across
+  the doors' sweep, and 0.50 of chord closes 96 % of it at the angle the linkage
+  delivers. A longer door does not close it better — it sweeps *through* the
+  core cowl on the way round, at ninety degrees, where nobody thinks to look.
+
+### The doors are dragged, not driven
+
+There is one actuator. Each door is hinged to the sleeve and tied by a drag link
+to an anchor on the fixed inner wall of the duct; the sleeve carries the hinge
+aft, the anchor stays where it is, and the link — which cannot stretch — pulls
+the door round across the duct. Door angle is therefore a function of sleeve
+travel and never of time.
+
+That is one equation, and `blockerAngle()` in `src/reverser.js` solves it in
+closed form. The three free constants (where the anchor sits, how far along the
+door the link attaches, the chord) came out of a search against four
+requirements at once: the angle monotone over the whole stroke, no part of any
+door closer than 0.02 units to the core cowl at any point of the sweep, at least
+88 % of the duct closed at full travel, and an anchor standing clear of the cowl
+but inside the duct. Most of the parameter space fails at least one of them.
+
+| Travel | 0 | ⅓ | ½ | ⅔ | 1 |
+|---|---:|---:|---:|---:|---:|
+| Door angle | 0° | 12° | 33° | 59° | 85° |
+| Duct blocked | 0 | 0.20 | 0.53 | 0.84 | 0.96 |
+
+The doors close **late**, and that is the point of computing them rather than
+authoring a curve: a third of the stroke does a fifth of the blocking. Reverse
+thrust arrives towards the end of the deployment instead of in proportion to it,
+which is what a reverser does. It never reaches 1.00 because a blocker door does
+not seal against the core cowl, and the few per cent left open are real.
+
+`test/clearance.test.mjs` measures the same two facts off the vertices, over the
+whole sweep rather than at the ends: closest approach to the core cowl 12 mm, at
+full travel, and 95 % of the duct closed against the 96 % the linkage predicts.
+
+### Splitting the skin
+
+The nacelle skin is one profile lathed as **two meshes**, cut at `ST.sleeve`;
+the inner duct wall likewise, cut where the stowed doors end. The obstacle was
+the paint: `LatheGeometry` hands out `v` by point index, and `livery.js` places
+every marking by station against that index, so a profile lathed in two pieces
+restarts `v` at each piece and slides the markings aft.
+
+The profile therefore stays whole. One point is inserted at the cut so the
+pieces share an exact edge, and each piece's `v` is remapped into the range it
+occupies in the whole — one canvas, one material, two draw calls, and the two
+pieces meet at `v` = 0.69231 from both sides. The insertion has to happen
+*before* `livery.js` sees the profile: a point added afterwards is the same trap
+in the other direction.
+
+A consequence worth watching for: the model designation straddles both joints,
+so deploying the reverser splits `BOEING 737-800` in two and carries the tail of
+it aft. That is what happens on the aircraft.
+
+### What the flat bottom does to the cascade box
+
+Everything in the cascade box has to stay under the skin, and the skin at six
+o'clock is not where a radius says it is — `flattenBelly()` cuts it off at
+`BELLY_FLOOR`, so the band is 0.40 units deep at the bottom against 0.64 at the
+sides. The two lathed end frames go through the same flattening as the skin. The
+ribs and the vanes are not surfaces of revolution and are clamped one by one, by
+clock angle. Built to a radius they stood out through the flat, which the
+geometry test caught only because it measures the underside from the vertices
+rather than from the profile.
 
 ## Markings on the skin
 

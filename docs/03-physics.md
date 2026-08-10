@@ -370,6 +370,62 @@ exponent 1.45 is empirical, chosen so that 100 % power gives 121.4 kN (27 300
 pounds — a CFM56-7B27). When the fuel is cut the thrust goes to zero
 immediately, without waiting for the rotors to stop.
 
+That is `eng.grossThrust`, computed in `engineState.js`: what the engine
+produces, before anything downstream redirects it.
+
+### Reverse thrust
+
+A cascade reverser turns the **fan** stream and leaves the core alone. At a
+bypass ratio of 5.1 the fan makes about 80 % of the thrust; whatever fraction
+`b` of it the blocker doors have closed is sent out through the cascades, and it
+leaves at an angle rather than straight ahead, so only part of its momentum
+counts against the engine:
+
+```
+factor(b) = CORE + FAN·(1 − b) − FAN·TURN·b
+          = 0.20 + 0.80·(1 − b) − 0.80·0.62·b
+```
+
+At `b` = 0 this is exactly 1 — a stowed reverser must not change the thrust by a
+rounding error, which is why `blockerAngle()` returns the datum exactly at zero
+travel instead of the 10⁻¹⁷ the closed form gives. The doors reach `b` = 0.96,
+not 1, because they do not seal against the core cowl; the factor there is
+−0.244.
+
+`TURN` = 0.62 is the one number in the model tuned to an outcome rather than
+derived. The angle a cascade actually turns the flow through is not something
+the geometry drawn here could be asked, so it is set against the result: at the
+reverse power limit the throttle commands 0.75 of the range, N1 = 0.18 + 0.82 ·
+0.75 = 79.5 %, `keff` = 0.75, gross thrust 121.4 · 0.75^1.45 = 80.0 kN, and the
+model shows **−19.5 kN**. Published figures for the type put maximum reverse
+thrust at roughly a fifth of take-off thrust.
+
+### The blocker door linkage
+
+The doors are not driven. Each is hinged to the translating sleeve and tied by a
+drag link to an anchor on the fixed inner wall, so as the sleeve carries the
+hinge aft the link pulls the door round. With the hinge at `H = (x₀ + s, R)`,
+the link point at distance `a` along the door and the door at angle `θ`:
+
+```
+| H + a·(cos θ, −sin θ) − A | = L
+```
+
+which expands to `p·cos θ + q·sin θ = c`, with `p = 2ua`, `q = −2va`,
+`c = L² − u² − v² − a²` and `(u, v)` the offset from anchor to hinge. That is
+`L·cos(θ − φ)= c` with `φ = atan2(q, p)`: a closed form, no solver, and of the
+two roots the one continuous with `θ(0) = 0` is taken. `L` is not a free
+constant — it follows from requiring the door to be flush when the sleeve is
+home.
+
+Driven past the point where the link can reach, the function clamps at the
+limiting angle rather than returning `NaN`. The geometry must never be able to
+produce a hole in the model.
+
+The curve this gives is the reason for solving it: see the table in
+[geometry](02-geometry.md#the-doors-are-dragged-not-driven). The doors do a
+fifth of their blocking in the first third of the stroke.
+
 ## 7. Gas path aerodynamics in the flow visualisation
 
 Implementation details are in the [airflow document](04-airflow.md); only the

@@ -52,9 +52,9 @@ only.
 ## Build size
 
 ```
-dist/index.html                12.3 kB  (3.5 kB gzip)
-dist/assets/index-*.css         8.1 kB  (2.4 kB gzip)
-dist/assets/index-*.js        734 kB  (200 kB gzip)
+dist/index.html                13.1 kB  (3.7 kB gzip)
+dist/assets/index-*.css         8.2 kB  (2.4 kB gzip)
+dist/assets/index-*.js        749 kB  (206 kB gzip)
 ```
 
 The Vite warning about a chunk larger than 500 kB refers to the Three.js library
@@ -70,7 +70,7 @@ site moves.
 
 ## Performance
 
-About 771 thousand triangles and 123 draw calls (the breakdown by module is in
+About 777 thousand triangles and 132 draw calls (the breakdown by module is in
 [Architecture](01-architecture.md#performance)). On a discrete or integrated GPU
 this runs with room to spare; the bottleneck is not the geometry but the
 transparent shells in x-ray mode together with the particles and the bloom.
@@ -91,21 +91,36 @@ If the scene needs lightening:
 A note on headless browsers: one renders this scene on a software rasteriser
 (SwiftShader) at about one frame per second. That says nothing about real
 hardware, but it does make checking long processes through a browser impossible
-— hence the extracted modules `engineState.js`, `atmosphere.js`, `contrail.js`,
-`sound.js` and `i18n.js`, which are checked directly.
+— hence the extracted modules `engineState.js`, `reverser.js`, `atmosphere.js`,
+`contrail.js`, `sound.js` and `i18n.js`, which are checked directly.
 
 ## Tests
 
-Eight files, 239 checks. There is no framework: each test is a plain Node script
+Nine files, 285 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
 
-`test/engine-state.test.mjs` — 20 checks of the regime state machine: full
+`test/engine-state.test.mjs` — 22 checks of the regime state machine: full
 shutdown, the impossibility of reviving the engine with the throttle, a restart
 with light-off and temperature overshoot, a realistic start duration, stable
 idle, throttle response. The test prints a trace of the processes, which also
 makes it a convenient tool for tuning the time constants.
+
+`test/reverser.test.mjs` — 34 checks of the thrust reverser: the deployment and
+stow times, the transitions the state machine makes on its own, the interlocks
+(refused unless the engine is running, throttle held at idle while the sleeve
+moves, N1 limited to 80 % deployed, stowed by a shutdown), and a stow that
+interrupts a deployment without the travel jumping. Then the drag-link
+kinematics — flush at zero exactly, monotone, finite everywhere including past
+the end of the stroke, and closing late: less than a quarter of the duct blocked
+at a third of the travel. Then the thrust, driven through the real
+`createEngineState()`: exactly ×1 stowed, and −19 kN at the reverse power limit.
+Finally the flows, which is why the one Three.js import in an otherwise
+dependency-free test is there: with the reverser out, 1115 particles leave
+through the cascades, none through the fan nozzle, and the core count is
+unchanged. At one frame per second, counting eight thousand dots is a great deal
+more reliable than looking at them.
 
 `test/heat-haze.test.mjs` — 10 checks of the exhaust gas: on a cold engine there
 is no distortion at all, during a start it appears only after light-off, at
@@ -142,7 +157,7 @@ runs the whole length, a short-lived one breaks off at a third of it, and a
 shut-down engine leaves nothing whatever the air outside. The strip needs no
 renderer to answer those, only the shader does.
 
-`test/geometry.test.mjs` — 24 checks of the dimensions against the
+`test/geometry.test.mjs` — 30 checks of the dimensions against the
 [prototype reference data](engines/cfm56-7b-nacelle.json). The test reads the
 values straight from the JSON, and the tolerances are the ones the reference
 itself states (±0.15 m for measurements off the ACAP drawing, ±0.2…0.3 m for
@@ -151,7 +166,7 @@ reference breaks the test rather than silently diverging from the model. The
 nacelle envelope is computed from vertices rather than from the `lathe` profile
 — otherwise the flattened bottom would not be included.
 
-`test/clearance.test.mjs` — 16 checks of the layout clearances: blade rows do
+`test/clearance.test.mjs` — 22 checks of the layout clearances: blade rows do
 not intersect one another (overlapping both axially and radially), the tips of
 the fan and outlet guide vanes stay under their own wall, and the accessory
 gearbox holds the overall engine width without piercing the nacelle skin. This
@@ -374,8 +389,6 @@ picture.
 
 ## Possible extensions
 
-* **Thrust reverser** — the reverser doors in the bypass duct and the
-  corresponding rearrangement of the flows.
 * **Bleed air** from behind the compressor for turbine cooling and air
   conditioning: the bleed ports exist geometrically, but no flow goes through
   them.
@@ -399,6 +412,7 @@ src/livery.js           markings on the nacelle skin, drawn into a canvas
 src/airflow.js          flow ducts, particles, streamlines, plume
 src/heathaze.js         exhaust gas aft of the nozzle (screen-space pass)
 src/engineState.js      regime state machine: start, running, shutdown, rundown
+src/reverser.js         thrust reverser: deployment, door linkage, reverse thrust
 src/atmosphere.js       standard atmosphere and water vapour
 src/contrail.js         contrail formation criterion
 src/contrailView.js     the trail behind the engine

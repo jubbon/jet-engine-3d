@@ -20,7 +20,7 @@ npm install
 npm run dev      # Vite on port 5188, listening on 0.0.0.0
 npm run build    # build into dist/
 npm run preview
-npm test         # all eight test files in sequence
+npm test         # all nine test files in sequence
 ```
 
 A single test runs directly, with no runner and no flags:
@@ -63,9 +63,12 @@ taking it in.
   the lip = `(x + 5.2) / 2`.
 * `ST` is the single source of truth about the longitudinal layout. It is
   referenced by `airflow.js` (duct boundaries, velocity and temperature
-  profiles), `heathaze.js` (occluders, start of the plume) and `main.js` (camera
-  targets). Move a station and check all four files: the numbers there sit in
-  tables and drift apart silently.
+  profiles, the station the reverser turns the flow round at), `heathaze.js`
+  (occluders, start of the plume) and `main.js` (camera targets). Move a station
+  and check all four files: the numbers there sit in tables and drift apart
+  silently. `reverser.js` deliberately holds **no** station — its linkage is
+  written in the door's own frame, and `ST.cascadeAft` is derived from the
+  stroke it does own, so the two cannot disagree.
 
 ## Dimensions come from the reference data, not from memory
 
@@ -94,13 +97,16 @@ Dependencies run one way, and `main.js` is the only orchestrator:
 ```
 index.html → main.js → engine.js → blade.js
                                   → livery.js
+                                  → reverser.js
                      → airflow.js  heathaze.js  sound.js  engineState.js
+                     → reverser.js   (also imported by engine.js: the door
+                                      geometry IS the linkage)
                      → atmosphere.js → contrail.js → contrailView.js
                      → i18n.js → locales/*.js
 ```
 
-**`engineState.js`, `atmosphere.js`, `contrail.js`, `sound.js` and `i18n.js` deliberately know nothing about Three.js or
-the DOM.** This is not abstraction for its own sake: a headless browser renders
+**`engineState.js`, `reverser.js`, `atmosphere.js`, `contrail.js`, `sound.js` and `i18n.js` deliberately know nothing
+about Three.js or the DOM.** This is not abstraction for its own sake: a headless browser renders
 this scene on a software rasteriser at about 1 fps, so a forty-second engine
 start simply cannot be checked through a browser. The regime state machine is
 run under Node, the sound graph in an `OfflineAudioContext`
@@ -122,8 +128,8 @@ Worth knowing before making changes:
   every frame all groups of a spool are assigned a **common angle**, so the
   rotors stay in sync even when their parent modules have moved apart in the
   exploded view.
-* **Picking goes through invisible proxy cylinders** (`engine.pickables`, 11 of
-  them) rather than the real geometry: the scene holds ~771 thousand triangles
+* **Picking goes through invisible proxy cylinders** (`engine.pickables`, 12 of
+  them) rather than the real geometry: the scene holds ~777 thousand triangles
   and raycasting them on every mouse move is unacceptable. Add a module and add
   a proxy for it to the `PROXY` array, otherwise it simply will not be
   selectable.
@@ -172,6 +178,7 @@ failure. Write new ones in the same style.
 | `geometry.test.mjs` | Dimensions against the reference, stage counts, intake depth, station ordering |
 | `clearance.test.mjs` | Blade rows do not intersect, blade tips stay under their wall, accessories stay under the nacelle skin |
 | `i18n.test.mjs` | The eight dictionaries agree: same keys, same `{placeholders}`, nothing empty. Locale matching, number formatting, and that the English left in `index.html` still says what the dictionary says |
+| `reverser.test.mjs` | The thrust reverser: deployment and stow timing, the interlocks, the drag-link kinematics of the blocker doors, reverse thrust through the real engine state, and where the bypass particles end up |
 
 `geometry` and `clearance` build the **real scene** through `buildEngine()`
 right under Node — Three.js allows that without a renderer. The envelopes are
@@ -212,9 +219,9 @@ memory, compute it on the model — `buildEngine()` runs under Node, so triangle
 rows, blades and envelopes are obtained by walking the scene in a couple of
 lines.
 
-The yardstick as of today (recount it, do not copy it): 771 thousand triangles,
-123 draw calls, 37 blade rows holding 2341 blades, 11 picking proxies, 239
-checks across eight test files. The build is 734 kB of JS, 200 kB gzipped.
+The yardstick as of today (recount it, do not copy it): 777 thousand triangles,
+132 draw calls, 37 blade rows holding 2350 blades, 12 picking proxies, 285
+checks across nine test files. The build is 749 kB of JS, 206 kB gzipped.
 
 The bundle grew by 64 kB when the interface was localised into eight languages:
 the dictionaries are about 8 kB apiece and all of them ship, since lazy loading
@@ -222,4 +229,6 @@ would buy back 19 kB gzipped at the cost of a flash of untranslated text.
 
 It has accumulated before: `01` and `08` promised ~850 thousand triangles and
 ~50 draw calls for a long time, and the draw calls were off by a factor of three
-— the count was already wrong before three stages left the layout.
+— the count was already wrong before three stages left the layout. The blade
+count read 2341 against an actual 2350 until the reverser work recounted it; the
+row count was right, which is why nobody noticed.

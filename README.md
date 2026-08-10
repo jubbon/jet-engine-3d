@@ -60,7 +60,8 @@ The full description is in the [`docs/`](docs/README.md) directory:
 
 | Module | Details |
 |---|---|
-| Nacelle | Intake barrel with a flattened bottom (the "hamster pouch") and a thick polished lip, cowls, pylon |
+| Nacelle | Intake barrel with a flattened bottom (the "hamster pouch") and a thick polished lip, fan cowls, pylon |
+| Thrust reverser | Cascade reverser of the bypass duct: translating sleeve, 288 turning vanes, 12 blocker doors dragged across the duct by links as the sleeve travels |
 | Fan (N1) | 24 wide-chord blades Ø 1.549 m with sweep, spinner with a spiral (smearing with speed), disc, case with containment ring |
 | Outlet guide vanes | 44 OGVs in the bypass duct |
 | Booster / LP compressor (N1) | 3 rotor stages + stator vanes, flow splitter |
@@ -86,6 +87,7 @@ to tip), and wrapped around the circumference — as real blades are
 | **Transparent casings** (x-ray) | checkbox or `X` |
 | **Explode modules** | the "Explode modules" slider |
 | **Start / shut down the engine** | button or `E` |
+| **Thrust reverser** | button or `R` (only on a running engine; the throttle then commands reverse up to 80 % N1) |
 | **Engine sound** | button or `S`, volume by slider |
 | **Exhaust gas** (visible jet and heat haze) | checkbox or `H` |
 | Engine power (throttle) | slider (changes N1/N2, flame brightness, flow speed, instruments and sound) |

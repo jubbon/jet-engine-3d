@@ -79,6 +79,71 @@ their different moments of inertia, see the
 The start can be aborted at any moment — the button puts the engine into `stop`.
 And the other way round: during rundown the engine can be started again.
 
+## Thrust reverser
+
+A second state machine, in `src/reverser.js`, driven by the "Thrust reverser"
+button or the `R` key.
+
+```mermaid
+stateDiagram-v2
+  [*] --> stowed: application start-up
+  stowed --> deploying: button, engine running
+  deploying --> deployed: the sleeve has reached the stroke
+  deploying --> stowing: button (reverses from where it is)
+  deployed --> stowing: button, or engine shutdown
+  stowing --> stowed: the sleeve is home
+  stowing --> deploying: button
+
+  stowed: stowed — sleeve home<br/>cascades covered, doors flush in the duct wall
+  deploying: deploying — 2.0 s<br/>throttle held at idle
+  deployed: deployed — reverse<br/>throttle commands up to 80 % N1
+  stowing: stowing — 3.0 s<br/>throttle held at idle
+```
+
+As with the engine, the two transitions that are not commanded — `deploying →
+deployed` and `stowing → stowed` — happen **inside** the state machine when the
+sleeve actually arrives, so the panel is refreshed on a change rather than on a
+click.
+
+### Interlocks
+
+The model has no aircraft, so it cannot know about weight on wheels. The
+interlocks are written in terms it does have:
+
+| Rule | Behaviour |
+|---|---|
+| Reverse can only be selected in `run` | The button is disabled in `off`, `start` and `stop`, and the key is ignored |
+| Selection commands idle first | The throttle is capped at idle while the sleeve moves, in either direction — as on the aircraft, where the levers must be at idle before the reverse levers will lift |
+| Reverse power is limited | Deployed, the throttle commands up to 0.75 of the range: N1 ≈ 80 % |
+| Shutdown stows the reverser | The stow takes 3 s against a 35 s rundown, so it always completes; an engine that has stopped is never left with the sleeve out |
+| Stow can interrupt a deployment | And deploy can interrupt a stow. Travel is continuous, only its sign changes |
+| Repeating a request does nothing | The button is a selector, not a toggle that can be pumped |
+
+The cap is applied to what `main.js` passes to `eng.update()`, not by moving the
+slider: the slider is a lever position and levers do not move on their own. The
+reverser is updated **before** the engine so the cap belongs to this frame's
+sleeve position.
+
+### What can be seen and heard
+
+* the sleeve slides aft, uncovering the cascades, and the twelve blocker doors
+  swing across the bypass duct — late in the stroke, because they are dragged
+  round by links rather than driven (see
+  [geometry](02-geometry.md#the-doors-are-dragged-not-driven));
+* N1 falls to idle while the sleeve moves, then climbs to 80 % if the throttle
+  is up;
+* the thrust read-out crosses zero part-way through the stroke and settles near
+  **−19 kN**;
+* with the flows on, the fan air turns round at the doors and leaves forward and
+  outward through the cascades, while the core jet carries on aft exactly as
+  before;
+* the sound loses the fan jet, the fan broadband gets louder and darker, and the
+  cascades roar — about 4 dB up overall at the same N1
+  ([sound](06-sound.md#reverse)).
+
+The model designation on the cowl splits in two as the sleeve carries the aft
+half of it away. That happens on the aircraft as well.
+
 ## Throttle response
 
 In `run` mode the speeds follow the throttle not instantly but by a first-order
@@ -91,8 +156,8 @@ N1 and N2 chase the command at different rates.
 
 ## Tests
 
-`npm test` — 20 checks in `test/engine-state.test.mjs`, with the state machine
-stepped at 1/60 s. The test prints a trace of the shutdown and the start, which
+`npm test` — 22 checks in `test/engine-state.test.mjs` and 34 in
+`test/reverser.test.mjs`, with both state machines stepped at 1/60 s. The test prints a trace of the shutdown and the start, which
 is convenient when tuning the time constants:
 
 ```
@@ -114,6 +179,28 @@ fuel introduced: 16.6 s (N2 = 22 %)
 light-off: 19.1 s
 idle reached: 39.7 s
 ```
+
+`test/reverser.test.mjs` prints its own two traces — the deployment, and where
+the bypass air ends up:
+
+```
+=== DEPLOYMENT ===
+  t=0.5s  travel=0.233  door=7.2°   blocked=0.12
+  t=1.0s  travel=0.450  door=27.3°  blocked=0.44
+  t=1.5s  travel=0.682  door=57.1°  blocked=0.81
+  t=2.0s  travel=0.900  door=85.1°  blocked=0.96
+fully deployed: 2.02 s
+
+=== WHERE THE BYPASS AIR GOES ===
+  stowed:   out of the cascades 0, out of the fan nozzle 1749, core 324
+  deployed: out of the cascades 1115, out of the fan nozzle 0, core 321
+```
+
+The second of those is the check that a cascade reverser does nothing to the
+core. If it ever fails, the plume, the heat haze and the contrail are wrong too.
+
+The shutdown interlock is driven through the real `createEngineState()` rather
+than a mock: the sleeve is home at 3.0 s, the rotors stop at 35.2 s.
 
 The propositions being checked are listed in the
 [physics document](03-physics.md#11-what-has-been-verified-numerically).

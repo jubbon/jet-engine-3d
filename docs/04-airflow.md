@@ -62,6 +62,39 @@ phase += swirl(x) · speedK · dt
 
 where `speedK = 0.06 + 1.05 · n1` — with the fan stopped the flow freezes.
 
+## Reverse: where the bypass air goes instead
+
+With the thrust reverser deployed the bypass duct is closed by the blocker
+doors, and the only way out is the cascade band in front of them. A particle
+reaching the doors (`X_DOORS`, the station `ST.cascadeAft` in `engine.js`) is
+turned round **once** — marked at the crossing, with probability equal to how
+much of the duct the doors have closed — and from then on travels forward and
+outward at 45°, the angle the cascades turn the flow through, fading as it
+leaves the nacelle behind.
+
+Deciding it once at the crossing rather than re-rolling every frame is the whole
+difference between air being turned and a fog of particles changing their minds.
+Half-closed doors send half the air back, which is the honest linear reading of
+a transient that lasts two seconds; particles already past the doors when the
+reverser deploys carry on out of the fan nozzle, which is what actually happens
+in those two seconds.
+
+**The core stream is untouched**, and measurably so. Counted over the whole
+particle set after ten seconds of running:
+
+| | Out of the cascades | Out of the fan nozzle | Core, past the nozzle |
+|---|---:|---:|---:|
+| Stowed | 0 | 1749 | 324 |
+| Deployed | 1115 | 0 | 321 |
+
+That is what a cascade reverser is: it turns the fan stream, which is five
+sixths of the mass flow, and does nothing to the core. The exhaust plume, the
+heat haze and the contrail are therefore unchanged in reverse — if that ever
+stops being true, three other things in this model are wrong as well.
+
+The streamlines are static geometry built once at start-up and keep showing the
+stowed duct; they are the shape of the channel, not of the flow of the moment.
+
 ## Temperature and colour
 
 The colour ramp `RAMP` runs from cold to incandescent:

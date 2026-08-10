@@ -11,15 +11,18 @@ graph TD
   M --> H[heathaze.js<br/>exhaust gas:<br/>distortion and visible jet]
   M --> S[sound.js<br/>sound synthesis]
   M --> ST[engineState.js<br/>regime state machine]
+  M --> RV[reverser.js<br/>sleeve, blocker door linkage,<br/>reverse thrust]
   M --> AT[atmosphere.js<br/>ambient conditions]
   M --> CT[contrail.js<br/>Schmidt — Appleman criterion]
   M --> CV[contrailView.js<br/>the trail itself]
   M --> L[i18n.js<br/>lookup, interpolation,<br/>number formatting]
   L --> LOC[["locales/*.js<br/>eight dictionaries"]]
+  E --> RV
   E --> B[blade.js<br/>blade generator]
   E --> LV[livery.js<br/>markings on the<br/>nacelle skin]
   L -.checked by.-> T7[test/i18n.test.mjs]
   ST -.checked by.-> T[test/engine-state.test.mjs]
+  RV -.checked by.-> T8[test/reverser.test.mjs]
   ST -.checked by.-> T2[test/heat-haze.test.mjs]
   E -.checked by.-> T3[test/spiral-blur.test.mjs]
   E -.checked by.-> T4["test/geometry.test.mjs<br/>test/clearance.test.mjs"]
@@ -39,9 +42,11 @@ graph TD
   style T6 fill:#1c3a4d,stroke:#4fc3ff
   style L fill:#1c3a4d,stroke:#4fc3ff
   style T7 fill:#1c3a4d,stroke:#4fc3ff
+  style RV fill:#1c3a4d,stroke:#4fc3ff
+  style T8 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Dependencies run one way. Five modules deliberately know nothing about either
+Dependencies run one way. Six modules deliberately know nothing about either
 Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
@@ -52,6 +57,13 @@ Three.js or the DOM:
   `contrailView.js` for the same reason;
 * **`sound.js`** — accepts a substitute audio context, so the graph can be
   rendered in an `OfflineAudioContext` and measured;
+* **`reverser.js`** — the deployment state machine, the drag-link kinematics of
+  the blocker doors and the thrust factor. A deployment takes two seconds and
+  the interesting part of it is what the interlocks refuse to do, neither of
+  which can be judged from a screenshot. It is the one of the six that another
+  module imports rather than only `main.js`: `engine.js` needs the door angle,
+  because the door geometry IS the linkage and a second copy of that curve in
+  the geometry would be a second authority for it;
 * **`i18n.js`** — lookup, `{placeholder}` interpolation, number formatting and
   matching the reader's languages against the eight we have. Kept pure because
   eight dictionaries drift apart in silence: a key added to the English and
@@ -64,31 +76,38 @@ check the rotor rundown other than watching the screen.
 
 | File | Lines | Responsibility |
 |---|---:|---|
-| `src/locales/*.js` | 1355 | Eight dictionaries, 128 keys each |
-| `src/engine.js` | 1238 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 830 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/locales/*.js` | 1416 | Eight dictionaries, 141 keys each |
+| `src/engine.js` | 1614 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 901 | Scene, lighting, post-processing, cutaway, UI, frame loop |
 | `src/heathaze.js` | 367 | Screen-space pass for the exhaust gas aft of the nozzle |
 | `src/style.css` | 359 | Panel styling |
-| `src/sound.js` | 351 | Sound synthesis on Web Audio |
-| `src/airflow.js` | 333 | Flow ducts, particles, streamlines, exhaust plume |
+| `src/sound.js` | 386 | Sound synthesis on Web Audio |
+| `src/airflow.js` | 390 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/contrailView.js` | 220 | The trail itself: a camera-facing strip along the axis |
-| `index.html` | 219 | Markup of the panel, the legend and the module card |
-| `src/livery.js` | 344 | Joints, service doors and titles painted on the nacelle skin |
+| `index.html` | 233 | Markup of the panel, the legend and the module card |
+| `src/livery.js` | 348 | Joints, service doors and titles painted on the nacelle skin |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
-| `src/engineState.js` | 150 | Regime state machine: start, running, shutdown, rundown |
+| `src/engineState.js` | 163 | Regime state machine: start, running, shutdown, rundown, gross thrust |
+| `src/reverser.js` | 241 | Thrust reverser: deployment, door linkage, reverse thrust |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
 | `src/i18n.js` | 96 | Lookup, interpolation, number formatting, locale matching |
 
-`engine.js` lost 49 lines to localisation and `main.js` gained 104: the module
-card prose moved out of the geometry into the dictionary, and the panel gained
-the switcher and the code that re-renders everything on a language change.
+`engine.js` gained 376 lines to the thrust reverser, which is the largest single
+addition it has taken: the aft nacelle is now a module of its own with a
+translating sleeve, a cascade box and twelve blocker doors on a linkage.
 
 ## Data flow within a frame
 
 ```mermaid
 flowchart LR
+  RB[Reverser<br/>button] --> RV[reverser.update<br/>sleeve travel, door angle]
+  RV -- throttle cap --> R
   R[Throttle<br/>slider] --> ES[engineState.update<br/>speeds, combustion, T4]
+  RV --> GEO[setReverser<br/>sleeve and doors]
+  RV -- blocked fraction --> AF
+  RV -- blocked fraction --> SND
+  RV -- thrust factor --> UI
   ES --> ROT[Rotor rotation]
   ES --> GL[Hot section glow,<br/>flame brightness]
   ES --> AF[airflow.update<br/>particle speed and colour]
@@ -101,6 +120,11 @@ flowchart LR
   ES --> TR
   CAM[Camera] --> SND
 ```
+
+The reverser is updated **before** the engine: the cap it puts on the throttle
+belongs to this frame's sleeve position rather than the last one. It takes the
+same time scale as the engine — a start run at ×4 with a sleeve moving at ×1
+would be two clocks in one scene.
 
 The ambient conditions enter the picture from the side and reach the station
 table and the contrail: nothing inside the engine depends on them. The traffic
@@ -141,7 +165,7 @@ have moved apart.
 ## Performance
 
 * Every blade row is a single `InstancedMesh`: the geometry is stored once and
-  the rotation matrices are supplied per blade. There are 37 rows holding 2341
+  the rotation matrices are supplied per blade. There are 37 rows holding 2350
   blades:
 
   | Module | Rows | Blades |
@@ -153,12 +177,21 @@ have moved apart.
   | LP turbine | 8 | 660 |
 
   Plus the ten rear frame struts built the same way. That comes to about
-  **771 thousand triangles** and **123 draw calls** — of which the rows account
-  for 38, the rest being made up by individual meshes: casings, barrels, discs,
-  the 20 fuel nozzles, the pipework.
+  **777 thousand triangles** and **132 draw calls** — of which the blade rows
+  account for 37, the rest being made up by individual meshes: casings, barrels,
+  discs, the 20 fuel nozzles, the pipework.
+
+  (The blade count read 2341 here for a long time and was nine out. The rows
+  were right.)
+* Instancing is not only for blades. The thrust reverser is twelve doors at one
+  angle, twelve identical drag links, twelve cascade ribs and 288 turning
+  vanes, and as separate meshes it cost 51 draw calls on its own — more than a
+  third of the scene for one assembly. As five `InstancedMesh`es it costs 9,
+  and the doors and links have their matrices rewritten only when the sleeve
+  moves.
 * Module picking goes **not** through the real geometry but through invisible
-  proxy cylinders (`engine.pickables`, 11 objects — one per module): raycasting
-  771 thousand triangles on every mouse move would be unacceptably expensive.
+  proxy cylinders (`engine.pickables`, 12 objects — one per module): raycasting
+  777 thousand triangles on every mouse move would be unacceptably expensive.
   The proxy material has `visible: false` — it is not rendered, but stays
   visible to ray tracing.
 * With the cutaway or the transparent casings switched on, the shell proxies are
