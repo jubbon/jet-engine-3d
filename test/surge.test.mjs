@@ -10,6 +10,12 @@ import {
   t4Of,
   T4_MIN,
   T4_SPAN,
+  createSurge,
+  SURGE_HZ,
+  LOCK_TIME,
+  SM_RECOVER,
+  RECOVER_HOLD,
+  STALL_CHOKE,
 } from '../src/surge.js';
 import { IDLE_N2 } from '../src/engineState.js';
 
@@ -153,6 +159,109 @@ console.log('\n=== COMPRESSOR MAP ===');
         `T4ref=${(refT4(n2) - 273.15).toFixed(0)} °C`
     );
   }
+}
+
+/* ================================================================== *
+ *  The sub-state machine, driven by SYNTHETIC margins.
+ *
+ *  Deliberately not by an engine. Checked this way, a failure here is
+ *  unambiguously in the oscillator; when the trigger scenarios arrive
+ *  they can only fail because of the trigger.
+ * ================================================================== */
+
+console.log('\n=== SURGE CYCLE ===');
+
+const DT = 1 / 60;
+// step a fresh machine with a constant margin for `secs`, return it
+function run(margin, secs, running = true, s = createSurge(), n2 = 0.7) {
+  const m = typeof margin === 'function' ? margin : () => margin;
+  for (let t = 0; t < secs; t += DT) s.update(DT, m(t), running, n2);
+  return s;
+}
+
+{
+  const s = run(-0.1, 10);
+  // one bang on entry plus SURGE_HZ per second while surging; it locks at
+  // LOCK_TIME, so only the first LOCK_TIME seconds produce any
+  const expected = 1 + Math.floor(SURGE_HZ * LOCK_TIME);
+  check('a negative margin bangs at the design frequency', Math.abs(s.bangs - expected) <= 1,
+    `${s.bangs} bangs against ${expected} expected`);
+  check('and it locks into a stall', s.state === 'stall');
+  check('nothing is expelled forward once it has locked', s.reverse === 0);
+  check('but the throughput stays choked', s.choke === STALL_CHOKE);
+}
+
+{
+  // it must not lock EARLY: at LOCK_TIME minus a margin it is still surging
+  const s = run(-0.1, LOCK_TIME - 0.3);
+  check('it does not lock before its time', s.state === 'surging', `after ${(LOCK_TIME - 0.3).toFixed(1)} s`);
+}
+
+{
+  const s = createSurge();
+  run(-0.1, 1.0, true, s);
+  check('a surge is under way', s.state === 'surging');
+  run(+0.1, RECOVER_HOLD / 2, true, s);
+  check('a restored margin does not clear it instantly', s.state === 'surging',
+    `after ${(RECOVER_HOLD / 2).toFixed(2)} s of margin`);
+  run(+0.1, RECOVER_HOLD, true, s);
+  check('but it clears once the margin has been held', s.state === 'clear');
+  check('and nothing is left running backwards', s.reverse === 0 && s.choke === 0);
+}
+
+{
+  // a margin dithering across zero must not chatter the state: below
+  // SM_RECOVER it stays surging however often the sign flips
+  const s = run((t) => (Math.floor(t * 40) % 2 ? 0.02 : -0.02), 2.0);
+  check('a margin dithering on the boundary does not chatter', s.state === 'surging',
+    `SM_RECOVER = ${SM_RECOVER}`);
+}
+
+{
+  const s = createSurge();
+  run(-0.1, LOCK_TIME + 0.5, true, s);
+  check('locked into a stall', s.state === 'stall');
+  run(+0.5, 10, true, s);
+  check('no margin whatever clears a locked stall', s.state === 'stall',
+    'the throttle cannot undo it');
+  run(+0.5, 0.5, false, s); // fuel cut
+  check('only a fuel cut clears it', s.state === 'clear');
+}
+
+{
+  const s = run(-0.1, 2.0, false);
+  check('with the fuel off it never surges at all', s.state === 'clear' && s.bangs === 0);
+}
+
+{
+  // The reason bangs is a counter and the oscillator wraps in a while: stepped
+  // with a dt spanning several cycles it must count all of them, not one.
+  const s = createSurge();
+  s.update(DT, -0.1, true, 0.7); // entry bang
+  const entry = s.bangs;
+  s.update(0.6, -0.1, true, 0.7); // 0.6 s at 4 Hz = 2.4 cycles
+  check('a step spanning several cycles counts all of them', s.bangs - entry >= 2,
+    `${s.bangs - entry} bangs across a 0.60 s step at ${SURGE_HZ} Hz`);
+}
+
+{
+  // the pulse peaks at the bang, so what is heard and what is expelled agree
+  const s = createSurge();
+  s.update(DT, -0.1, true, 0.7);
+  check('the flow reversal peaks at the bang, not after it', s.reverse > 0.8,
+    `reverse = ${s.reverse.toFixed(2)} on the banging update`);
+}
+
+{
+  // the stall cells must travel slower than the rotor - they propagate, they
+  // are not carried round with the blades
+  const s = createSurge();
+  run(-0.1, LOCK_TIME + 0.5, true, s, 0.7);
+  const before = s.cell;
+  s.update(1.0, -0.1, true, 0.7);
+  const cellRevs = (s.cell - before) / (Math.PI * 2);
+  check('the stall cells run slower than the rotor', cellRevs < 0.7 && cellRevs > 0,
+    `${cellRevs.toFixed(2)} turns against the rotor's 0.70 in the same second`);
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);

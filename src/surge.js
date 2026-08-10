@@ -187,3 +187,152 @@ export function surgeMargin(n2, wf) {
   const ratio = Math.sqrt(t4K(Math.max(0, wf)) / refT4(n2));
   return (1 + marginAt(n2)) / ratio - 1;
 }
+
+/* ================================================================== *
+ *  What happens once the boundary has been crossed.
+ * ================================================================== */
+
+/* Cycles per second. Real full surge runs at 3…10 Hz; 4 is inside that and
+   slow enough that the individual bangs read as bangs rather than as a buzz. */
+export const SURGE_HZ = 4;
+
+/* How long the engine can surge before it stops being a transient. Hold the
+   lever up and the surge turns into a steady stall - hung speed, rising
+   temperature - from which only a shutdown remains. Both outcomes are worth
+   showing, and 4 s is long enough to see a dozen bangs and decide. */
+export const LOCK_TIME = 4.0; // s
+
+/* Recovery hysteresis. Without it the state chatters on the boundary, which
+   would look like a fault in the model rather than a fault in the engine. */
+export const SM_RECOVER = 0.04; // margin needed before recovery can begin
+export const RECOVER_HOLD = 0.3; // s it must be held for
+
+/* Shape of one cycle. The flow does not spend half of each cycle running
+   backwards: it breaks down sharply, is expelled, and re-establishes. So the
+   pulse is at its peak AT the bang and decays over the first 30 % of the cycle
+   - which also keeps `bang` and `reverse` consistent with one another, so the
+   particles expelled by a bang are expelled at the moment it is heard. */
+const PULSE_W = 0.3;
+
+/* Loss of speed per second at the peak of a pulse. The HP rotor loses more than
+   twice what the LP one does: it is the HP compressor that has stalled, while
+   the fan is still being driven by an LP turbine that is still being fed.
+
+   This is also what makes a surge SELF-SUSTAINING while the lever stays up. N2
+   falls, the reference temperature falls with it, the margin stays negative,
+   and the next cycle follows. Pull the lever back and the fuel command
+   collapses, the margin goes positive, and it clears. Both outcomes fall out of
+   one mechanism rather than being scripted separately. */
+export const DROOP_N1 = 0.50;
+export const DROOP_N2 = 1.20;
+
+/* Where the spools hang once the stall has locked. A stalled compressor cannot
+   pass the air to go faster, however far the lever is advanced. */
+export const HUNG_N1 = 0.30;
+export const HUNG_N2 = 0.45;
+
+/* And the steady loss of throughput that stands in for a locked stall, feeding
+   the same temperature rise and thrust collapse the pulse does. Nothing is
+   expelled forward in a stall: the flow is no longer oscillating, it is simply
+   bad. */
+export const STALL_CHOKE = 0.35;
+
+/* Speed of the stall cells round the annulus, as a fraction of rotor speed.
+   Rotating stall really does travel at roughly half rotor speed, and that it is
+   SLOWER than the rotor is the whole visual point - the cells are not carried
+   round with the blades, they propagate. */
+export const STALL_CELL = 0.48;
+
+/* Extra fuel-to-air excess seen by the burner when the air stops arriving, and
+   the share of the thrust that goes with the flow. */
+export const T4_BOOST = 0.55;
+export const THRUST_LOSS = 0.85;
+
+/** How much of the core flow is going the wrong way, 0..1, at this phase. */
+function reversePulse(phase) {
+  return phase < PULSE_W ? 1 - phase / PULSE_W : 0;
+}
+
+/**
+ * The surge sub-state machine.
+ *
+ *   clear -> surging : the margin has gone to zero
+ *   surging -> clear : the margin restored, and held
+ *   surging -> stall : surging for LOCK_TIME without let-up
+ *   stall -> clear   : fuel cut only
+ *
+ * It is a sub-state of the engine's `run`, not a fifth engine mode. The engine
+ * is still running: the reverser interlock still reads `run`, and the throttle
+ * is still live - and it MUST be live, because pulling it back is the recovery
+ * action. A fifth mode would have broken all three.
+ */
+export function createSurge() {
+  let phase = 0;
+  let surgingFor = 0;
+  let clearFor = 0;
+
+  const s = {
+    state: 'clear',
+    reverse: 0, // core flow running backwards, 0..1, pulsed
+    choke: 0, // steady loss of throughput in a locked stall, 0..1
+    cell: 0, // angle of the stall cells, radians
+    bangs: 0, // monotone count; consumers latch on a change
+
+    /**
+     * @param {number} dt seconds
+     * @param {number} margin the surge margin this instant
+     * @param {boolean} running fuel on and the flame lit
+     * @param {number} n2 HP rotor speed, for the stall cell rotation
+     */
+    update(dt, margin, running, n2 = 0) {
+      /* A fuel cut clears everything, from any state. This is the ONLY exit
+         from a locked stall, and it lives here rather than at the call site so
+         that the rule can be tested without an engine attached. */
+      if (!running) {
+        s.state = 'clear';
+        s.reverse = 0;
+        s.choke = 0;
+        surgingFor = 0;
+        clearFor = 0;
+        return s.state;
+      }
+
+      if (s.state === 'clear') {
+        if (margin <= 0) {
+          s.state = 'surging';
+          surgingFor = 0;
+          clearFor = 0;
+          phase = 0;
+          s.bangs++; // the crossing is itself the first bang
+        }
+      } else if (s.state === 'surging') {
+        surgingFor += dt;
+        phase += SURGE_HZ * dt;
+        /* A `while`, not a single subtraction, and `bangs` a counter rather
+           than a flag. dt is capped at 0.05 s but the x4 time scale multiplies
+           it, so a step can span most of a cycle already - and all of one if
+           SURGE_HZ is ever moved within the 3…10 Hz that real surge occupies.
+           A flag would drop the extra bangs silently, and the sound would fall
+           out of step with the flow it is supposed to share an instant with. */
+        while (phase >= 1) {
+          phase -= 1;
+          s.bangs++;
+        }
+        if (margin >= SM_RECOVER) {
+          clearFor += dt;
+          if (clearFor >= RECOVER_HOLD) s.state = 'clear';
+        } else {
+          clearFor = 0;
+        }
+        if (s.state === 'surging' && surgingFor >= LOCK_TIME) s.state = 'stall';
+      }
+
+      s.reverse = s.state === 'surging' ? reversePulse(phase) : 0;
+      s.choke = s.state === 'stall' ? STALL_CHOKE : 0;
+      if (s.state === 'stall') s.cell += STALL_CELL * n2 * dt * Math.PI * 2;
+      return s.state;
+    },
+  };
+
+  return s;
+}
