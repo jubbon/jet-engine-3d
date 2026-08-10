@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { makeBladeGeometry, bladeRow } from './blade.js';
 import { createNacelleLivery } from './livery.js';
+import { STROKE, LINK } from './reverser.js';
 
 /* ------------------------------------------------------------------ *
  *  Geometric layout of a high-bypass turbofan. The prototype is the
@@ -47,6 +48,14 @@ export const ST = {
   lptOut: 1.11,
   frame: 1.48, // turbine rear frame, also the engine rear flange, 3.55 m
   bypassExit: 1.16, // fan nozzle exit, 3.18 m
+  /* The reverser makes up the aft section of the nacelle: fixed structure from
+     the fan cowl joint back to the sleeve, then the band of cascades the sleeve
+     covers when it is home. The band is DERIVED from the sleeve stroke rather
+     than stated, because the sleeve has to uncover the whole band and no more -
+     stated separately, the two would drift. */
+  reverser: -1.19, // fan cowl / reverser joint, 2.01 m
+  sleeve: -0.79, // translating sleeve leading edge, stowed, 2.21 m
+  cascadeAft: -0.79 + STROKE, // aft edge of the cascade band, 2.66 m
   coreExit: 2.9, // core nozzle exit, 4.05 m
   plugTip: 4.8, // plug tip, 5.00 m
   fanTip: 1.549, // fan Ø 1.549 m (61 in)
@@ -190,6 +199,24 @@ function lathe(points, material, segments = 96) {
   return m;
 }
 
+/* Lathes part of a profile, with the texture coordinate it would have had as
+   part of the whole.
+
+   LatheGeometry hands out v by point index over whatever profile it is given,
+   so a slice lathed on its own restarts v at 0 - and the markings in livery.js
+   are placed by station against the whole generatrix. Remapping v back into the
+   range the slice occupies is what lets the nacelle skin be two meshes and one
+   texture: the paint does not know the sleeve can slide away. */
+function latheSlice(profile, i0, i1, material, segments = 96) {
+  const mesh = lathe(profile.slice(i0, i1 + 1), material, segments);
+  const uv = mesh.geometry.attributes.uv;
+  const v0 = i0 / (profile.length - 1);
+  const v1 = i1 / (profile.length - 1);
+  for (let i = 0; i < uv.count; i++) uv.setY(i, v0 + uv.getY(i) * (v1 - v0));
+  uv.needsUpdate = true;
+  return mesh;
+}
+
 /* Resamples a profile along a spline through its control points, at even
    spacing. Two things come out of it, and both matter for the nacelle skin.
    The silhouette stops being a chain of straight segments - lathe() joins the
@@ -201,6 +228,31 @@ function lathe(points, material, segments = 96) {
 function smoothProfile(points, samples) {
   const curve = new THREE.SplineCurve(points.map((p) => new THREE.Vector2(p[0], p[1])));
   return curve.getSpacedPoints(samples).map((p) => [p.x, p.y]);
+}
+
+/* Inserts a point at a station into a profile, and says where it landed.
+   Profiles here run either way along x - the outer skin from the lip aft, the
+   inner gas path from the nozzle forward - so the segment is found by
+   bracketing rather than by comparison.
+
+   The insertion is what lets one profile be lathed as two meshes: both pieces
+   then share an exact edge instead of meeting at whatever the nearest sample
+   happened to be. It has to happen BEFORE the profile is handed to livery.js,
+   because LatheGeometry lays out the texture coordinate v by point index and
+   the markings are placed against that index; a point added afterwards would
+   shift every marking aft of it. */
+function insertStation(profile, x) {
+  for (let i = 1; i < profile.length; i++) {
+    const [r0, x0] = profile[i - 1];
+    const [r1, x1] = profile[i];
+    if (x0 === x1) continue; // the annular faces: no room between them
+    const t = (x - x0) / (x1 - x0);
+    if (t <= 0 || t >= 1) continue;
+    const points = profile.slice();
+    points.splice(i, 0, [THREE.MathUtils.lerp(r0, r1, t), x]);
+    return { points, cut: i };
+  }
+  throw new Error(`insertStation: ${x} is not inside the profile`);
 }
 
 /* Radius of the outer skin at a station. Reads NAC_OUTER, which is declared
@@ -404,13 +456,17 @@ const NAC_OUTER_CTL = [
 /* 64 samples put a point about every 55 mm of skin. Fewer and the spline
    still shows as facets on the barrel, where the surface is nearly flat and
    the eye is most sensitive to them; more buys nothing visible and only
-   stretches the texture rows thinner. */
-const NAC_OUTER = smoothProfile(NAC_OUTER_CTL, 64);
+   stretches the texture rows thinner.
+
+   The extra point at ST.sleeve is where the skin comes apart: everything aft
+   of it belongs to the translating sleeve and slides away from the rest. */
+const OUTER_SPLIT = insertStation(smoothProfile(NAC_OUTER_CTL, 64), ST.sleeve);
+const NAC_OUTER = OUTER_SPLIT.points;
 
 /* Inner gas path: throat Ø 1.52 m, diffuser out to Ø 1.58 m over the blade
    tips (15 mm clearance) and the bypass duct up to the nozzle exit. The first
    point is the annular trailing face that closes the shell against the skin. */
-const NAC_INNER = [
+const NAC_INNER_CTL = [
   [1.7, ST.bypassExit],
   [1.62, ST.bypassExit],
   [1.64, 1.0],
@@ -425,6 +481,13 @@ const NAC_INNER = [
   [1.52, ST.throat],
   [1.7, ST.lip],
 ];
+
+/* The duct wall comes apart further aft than the skin does: over the forward
+   half of the cascade band the wall is the blocker doors themselves, lying
+   flush, and they are hinged to the sleeve. So the wall that belongs to the
+   sleeve starts where the stowed doors end. */
+const INNER_SPLIT = insertStation(NAC_INNER_CTL, ST.sleeve + LINK.chord);
+const NAC_INNER = INNER_SPLIT.points;
 
 MATS.nacelleSkin.map = createNacelleLivery(NAC_OUTER, ST);
 
@@ -494,10 +557,35 @@ export function buildEngine() {
   /* ===================== 1. Nacelle / intake ========================= */
   const mNac = module('nacelle', new THREE.Vector3(0, 4.4, 0));
 
-  // NAC_OUTER / NAC_INNER are module-level: the markings on the skin are laid
-  // out against the outer profile, so it has to exist before buildEngine runs.
-  mNac.add(flattenBelly(lathe(NAC_OUTER, MATS.nacelleSkin, 120), outerBelly));
-  mNac.add(flattenBelly(lathe(NAC_INNER, MATS.nacelle, 120), innerBelly));
+  /* NAC_OUTER / NAC_INNER are module-level: the markings on the skin are laid
+     out against the outer profile, so it has to exist before buildEngine runs.
+
+     Both shells are lathed in two pieces, cut where the translating sleeve
+     begins. Forward of the cut the pieces belong to the nacelle; aft of it they
+     are the sleeve, and they are collected further down into the reverser. The
+     outer profile runs from the lip aft, the inner one from the nozzle
+     forward, so the piece that is the sleeve is the second slice of one and the
+     first slice of the other. */
+  const skinFwd = flattenBelly(
+    latheSlice(NAC_OUTER, 0, OUTER_SPLIT.cut, MATS.nacelleSkin, 120),
+    outerBelly
+  );
+  const skinAft = flattenBelly(
+    latheSlice(NAC_OUTER, OUTER_SPLIT.cut, NAC_OUTER.length - 1, MATS.nacelleSkin, 120),
+    outerBelly
+  );
+  const wallAft = flattenBelly(
+    latheSlice(NAC_INNER, 0, INNER_SPLIT.cut, MATS.nacelle, 120),
+    innerBelly
+  );
+  const wallFwd = flattenBelly(
+    latheSlice(NAC_INNER, INNER_SPLIT.cut, NAC_INNER.length - 1, MATS.nacelle, 120),
+    innerBelly
+  );
+  mNac.add(skinFwd);
+  mNac.add(wallFwd);
+  mNac.add(skinAft);
+  mNac.add(wallAft);
   // the polished intake lip: it lies entirely within the fully flattened zone,
   // so it is cut the same way inside and out
   mNac.add(

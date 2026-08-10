@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { readFileSync } from 'node:fs';
 import { buildEngine, ST } from '../src/engine.js';
+import { STROKE } from '../src/reverser.js';
 
 /* ------------------------------------------------------------------ *
  *  The dimensions of the model must agree with the reference data for
@@ -207,6 +208,38 @@ const order = [
 ];
 const misordered = order.filter((k, i) => i > 0 && ST[k] <= ST[order[i - 1]]);
 check('Stations run in flow order', misordered.length === 0, misordered.join(', '));
+
+console.log('\n=== THRUST REVERSER ===');
+
+/* The reverser is the aft section of the nacelle: fan cowl joint, then fixed
+   structure, then the cascade band the sleeve covers when it is home, then
+   whatever the sleeve has left to reach the fan nozzle. Nothing in the
+   reference fixes the split - it lists all of it under not_published - so what
+   is guarded here is that the model's own decisions stay consistent with each
+   other. */
+const nacelleOrder = ['a1', 'reverser', 'sleeve', 'cascadeAft', 'bypassExit'];
+const nacMisordered = nacelleOrder.filter((k, i) => i > 0 && ST[k] <= ST[nacelleOrder[i - 1]]);
+check('Reverser stations run aft in order', nacMisordered.length === 0, nacMisordered.join(', '));
+
+// The sleeve has to uncover the whole cascade band and no more.
+near('Cascade band = sleeve stroke', m(ST.cascadeAft - ST.sleeve), m(STROKE), 1e-9);
+
+// A third to a half of the nacelle: on the prototype the reverser is the aft
+// section of the cowl, not a collar round the nozzle.
+const revShare = (ST.bypassExit - ST.reverser) / (ST.bypassExit - ST.lip);
+check(
+  'Reverser is the aft third of the nacelle',
+  revShare > 0.3 && revShare < 0.5,
+  `${(100 * revShare).toFixed(0)} % of the length to the fan nozzle`
+);
+
+// Deployed, the sleeve must not reach the core nozzle: there is nothing to
+// collide with out there, but a sleeve hanging over the exit would be wrong.
+check(
+  'The deployed sleeve stays ahead of the core nozzle',
+  ST.bypassExit + STROKE < ST.coreExit,
+  `trailing edge at ${station(ST.bypassExit + STROKE).toFixed(2)} m, exit at ${station(ST.coreExit).toFixed(2)} m`
+);
 
 console.log(failures ? `\n${failures} failures` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

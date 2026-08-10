@@ -117,11 +117,11 @@ export function createNacelleLivery(profile, ST) {
   const pxPerU = (x) => W / (2 * Math.PI * radiusAt(profile, x));
 
   /* The fan cowl runs from the joint with the intake to the leading edge of
-     the reverser; the reverser makes up the rest of the nacelle. Only the
-     first of those two is a station the rest of the model cares about, so the
-     second is expressed as a fraction of the barrel rather than as a number
-     that would have to be kept in step with ST by hand. */
-  const cowlAft = THREE.MathUtils.lerp(ST.a1, ST.bypassExit, 0.5);
+     the reverser; the reverser makes up the rest of the nacelle. Both joints
+     are stations now - the skin is lathed in two pieces so the sleeve can
+     slide - so both are read from ST rather than guessed at as a fraction of
+     the barrel. */
+  const cowlAft = ST.reverser;
 
   /* ---------------------------- joints ------------------------------- */
 
@@ -314,6 +314,10 @@ export function createNacelleLivery(profile, ST) {
   // Fan cowl to reverser.
   joint(cowlAft);
   rivetRing(cowlAft, 0.09);
+  // Reverser fixed structure to translating sleeve. This one is not a panel
+  // joint but a sliding one: it is the line the nacelle opens along, and on the
+  // real thing it is the widest gap on the cowl.
+  joint(ST.sleeve);
 
   // The fan cowl is two doors hinged at the top, on the pylon, and latched at
   // the bottom; the reverser halves are hinged the same way. The top split
