@@ -409,7 +409,9 @@ The buzz-saw comb is left alone. It radiates forward out of the intake, and the
 intake is doing exactly what it was doing before.
 
 `sound.update()` gains a `rev` parameter (the blocked fraction) with a default
-of 0, so the audio test scripts that call it with the old signature keep working.
+of 0. The default is not decoration: `test/audio/README.md` documents a console
+snippet that renders the graph offline with a five-argument call, and that
+snippet is how the synthesis is compared against the recordings.
 
 ## Interface
 
