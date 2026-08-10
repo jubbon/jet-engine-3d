@@ -39,17 +39,25 @@ const near = (name, got, want, tol, unit = 'm') =>
 
 const engine = buildEngine();
 
+/* The nacelle is two modules: the reverser is the aft section of the same
+   cowl, and the skin runs continuously from one into the other. Every envelope
+   below is taken over both - the dimensions in the reference are of the
+   nacelle, and where the model happens to draw the seam is its own business. */
+const NACELLE = [engine.parts.mNac, engine.parts.mRev];
+
 // Extent of a group taken from its own geometry: this is the only way the
 // flattened bottom of the nacelle is accounted for - the lathe profile knows
 // nothing about it.
-function bbox(obj, skip = []) {
+function bbox(objs, skip = []) {
   const box = new THREE.Box3();
-  obj.updateWorldMatrix(true, true);
-  obj.traverse((o) => {
-    if (!o.isMesh || !o.geometry || o.material?.visible === false) return;
-    if (skip.includes(o.name)) return;
-    o.geometry.computeBoundingBox();
-    box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+  [objs].flat().forEach((obj) => {
+    obj.updateWorldMatrix(true, true);
+    obj.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.material?.visible === false) return;
+      if (skip.includes(o.name)) return;
+      o.geometry.computeBoundingBox();
+      box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+    });
   });
   return box;
 }
@@ -57,7 +65,7 @@ function bbox(obj, skip = []) {
 console.log('\n=== NACELLE DIMENSIONS ===');
 
 // Skin only: the pylon fairing is not part of the nacelle dimensions.
-const nac = bbox(engine.parts.mNac, ['pylon']);
+const nac = bbox(NACELLE, ['pylon']);
 near('Maximum width', m(nac.max.z - nac.min.z), nod.max_width.value, 0.15);
 
 // Height: the nacelle without the pylon fairing. The drawing gave 2.40 m as a
@@ -88,15 +96,17 @@ near(
 const belly = new Map(); // station -> lowest point of the skin there
 {
   const v = new THREE.Vector3();
-  engine.parts.mNac.updateWorldMatrix(true, true);
-  engine.parts.mNac.traverse((o) => {
-    if (!o.isMesh || !o.geometry || o.material?.visible === false || o.name === 'pylon') return;
-    const pos = o.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
-      const b = Math.round(v.x * 10) / 10;
-      if (!belly.has(b) || v.y < belly.get(b)) belly.set(b, v.y);
-    }
+  NACELLE.forEach((mod) => {
+    mod.updateWorldMatrix(true, true);
+    mod.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.material?.visible === false || o.name === 'pylon') return;
+      const pos = o.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        const b = Math.round(v.x * 10) / 10;
+        if (!belly.has(b) || v.y < belly.get(b)) belly.set(b, v.y);
+      }
+    });
   });
 }
 const floor = Math.min(...belly.values());

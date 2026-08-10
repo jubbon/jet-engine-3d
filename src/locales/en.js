@@ -152,6 +152,7 @@ export default {
 
   /* ---------------------------- 3D labels ----------------------------- */
   'label.nacelle': 'Nacelle',
+  'label.reverser': 'Reverser',
   'label.fan': 'Fan',
   'label.booster': 'Booster',
   'label.hpc': 'HPC',
@@ -166,6 +167,9 @@ export default {
   'module.nacelle.title': 'Nacelle and air intake',
   'module.nacelle.info':
     'Intake barrel with anti-icing, fan cowls and the bypass duct. Largest dimension 2.44 m, length to the fan nozzle exit 3.18 m. The bottom and the lip are flattened (the "hamster pouch"): the 737 wing sits low above the ground.',
+  'module.reverser.title': 'Thrust reverser',
+  'module.reverser.info':
+    'Cascade reverser of the bypass duct. The sleeve slides 0.45 m aft, uncovering the turning vanes, and twelve blocker doors swing across the duct - dragged round by links to the fixed wall, not driven, so they close only towards the end of the travel. The core stream is untouched: only the fan air is turned, and it gives about a fifth of take-off thrust in reverse.',
   'module.fan.title': 'Fan (N1)',
   'module.fan.info':
     '24 wide-chord blades, largest chord 0.279 m. Diameter 1.549 m, 5175 rpm at take-off power. Produces up to 80 % of the thrust by driving air into the bypass duct. Bypass ratio 5.1.',

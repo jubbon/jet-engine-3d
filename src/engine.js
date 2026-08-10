@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { makeBladeGeometry, bladeRow } from './blade.js';
 import { createNacelleLivery } from './livery.js';
-import { STROKE, LINK } from './reverser.js';
+import { STROKE, LINK, LINK_L, DOORS, blockerAngle } from './reverser.js';
 
 /* ------------------------------------------------------------------ *
  *  Geometric layout of a high-bypass turbofan. The prototype is the
@@ -584,8 +584,6 @@ export function buildEngine() {
   );
   mNac.add(skinFwd);
   mNac.add(wallFwd);
-  mNac.add(skinAft);
-  mNac.add(wallAft);
   // the polished intake lip: it lies entirely within the fully flattened zone,
   // so it is cut the same way inside and out
   mNac.add(
@@ -637,6 +635,170 @@ export function buildEngine() {
   pylon.name = 'pylon';
   pylon.position.set(0, 2.28, -0.15);
   mNac.add(pylon);
+
+  /* ===================== 1b. Thrust reverser ========================= *
+   *  The aft section of the nacelle, and the only part of it that moves.
+   *  A cascade reverser: the sleeve slides aft to uncover a band of
+   *  turning vanes, and blocker doors hinged on the sleeve are dragged
+   *  across the bypass duct by links to the fixed inner wall, so the fan
+   *  air has nowhere to go but out through the vanes, forward and
+   *  outward. The mechanics of it live in reverser.js, which is where
+   *  the door angle comes from; here it is only put on the screen.
+   * ------------------------------------------------------------------ */
+  const mRev = module('reverser', new THREE.Vector3(2.2, 4.4, 0));
+
+  /* The sleeve cannot be moved by moving the module: main.js writes
+     module.position every frame for the exploded view and would undo it. It
+     gets a child group of its own, and that is what translates. */
+  const sleeveGroup = new THREE.Group();
+  mRev.add(sleeveGroup);
+  sleeveGroup.add(skinAft);
+  sleeveGroup.add(wallAft);
+
+  const R_HINGE = 1.69; // the duct wall the doors stow flush with
+  const DOOR_W = 0.8; // tangential width; the pitch at 12 doors is 0.885
+
+  /* ---- the cascade box: fixed, and hidden under the sleeve when home ---- *
+   *  Everything in the box has to stay under the skin, and the skin at the
+   *  bottom is not where a radius says it is: flattenBelly() cuts it off at
+   *  BELLY_FLOOR. The two lathed frames go through the same flattening as the
+   *  skin does. The ribs and the vanes are not surfaces of revolution, so they
+   *  are clamped one by one - at six o'clock the band is 0.40 units deep
+   *  instead of 0.64, and a cascade sized for the sides would hang out through
+   *  the flat.
+   */
+  const bandMid = (ST.sleeve + ST.cascadeAft) / 2;
+  const CASCADE_IN = 1.72; // inner face of the box, just outside the duct wall
+  const outerAt = (x, a) => {
+    const skin = skinRadiusAt(x) - 0.05;
+    const cos = Math.cos(a);
+    return cos < -1e-6 ? Math.min(skin, BELLY_FLOOR / -cos - 0.05) : skin;
+  };
+
+  // end frames, closing the band against the skin at each end
+  [ST.sleeve, ST.cascadeAft].forEach((x) => {
+    mRev.add(
+      flattenBelly(tube(x - 0.03, x + 0.03, 1.66, skinRadiusAt(x) - 0.02, MATS.composite, 96), outerBelly)
+    );
+  });
+  /* Ribs dividing the band into cascade segments, one per door. Twelve of
+     anything is an InstancedMesh here, not twelve meshes: this module is
+     already the most expensive thing added to the scene, and the difference
+     between one draw call and twelve is free. The ribs differ only in how deep
+     they are - the flat bottom again - which the instance scale carries. */
+  const RIB_H = 1; // the box is built at unit height and scaled per instance
+  const ribs = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(ST.cascadeAft - ST.sleeve, RIB_H, 0.05),
+    MATS.composite,
+    DOORS
+  );
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const axis = new THREE.Vector3(1, 0, 0);
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3();
+    for (let i = 0; i < DOORS; i++) {
+      const a = (i / DOORS) * Math.PI * 2;
+      const rOut = outerAt(bandMid, a);
+      const rMid = (CASCADE_IN + rOut) / 2;
+      q.setFromAxisAngle(axis, a);
+      p.set(bandMid, rMid * Math.cos(a), rMid * Math.sin(a));
+      s.set(1, rOut - CASCADE_IN, 1);
+      ribs.setMatrixAt(i, m.compose(p, q, s));
+    }
+  }
+  mRev.add(ribs);
+
+  /* The turning vanes. Four rows of 72 in one InstancedMesh: what makes a
+     cascade read as a cascade is the grille, and a grille is a lot of small
+     identical parts - the one case instancing was made for. They lean 135°
+     from the flow: air arriving down the duct leaves forward and outward,
+     which is the whole trick. */
+  const VANE_ROWS = 4;
+  const VANE_AROUND = 72;
+  const vaneTilt = THREE.MathUtils.degToRad(135);
+  const vaneGeo = new THREE.BoxGeometry(0.14, 0.012, 0.14);
+  const vanes = new THREE.InstancedMesh(vaneGeo, MATS.titanium, VANE_ROWS * VANE_AROUND);
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const qt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), vaneTilt);
+    const qs = new THREE.Quaternion();
+    const axis = new THREE.Vector3(1, 0, 0);
+    const p = new THREE.Vector3();
+    const one = new THREE.Vector3(1, 1, 1);
+    let k = 0;
+    for (let j = 0; j < VANE_ROWS; j++) {
+      const x = THREE.MathUtils.lerp(ST.sleeve + 0.14, ST.cascadeAft - 0.14, j / (VANE_ROWS - 1));
+      for (let i = 0; i < VANE_AROUND; i++) {
+        const a = (i / VANE_AROUND) * Math.PI * 2;
+        const r = (CASCADE_IN + outerAt(x, a)) / 2;
+        qs.setFromAxisAngle(axis, a);
+        q.copy(qs).multiply(qt);
+        p.set(x, r * Math.cos(a), r * Math.sin(a));
+        vanes.setMatrixAt(k++, m.compose(p, q, one));
+      }
+    }
+  }
+  mRev.add(vanes);
+
+  /* ---- blocker doors and their drag links ---- *
+   *  Each door is a curved plate - a segment of the duct wall, which is
+   *  exactly what it is when stowed. The pivot lives inside the sleeve group
+   *  so the hinge travels with the sleeve; the anchor and the link live
+   *  outside it, because the anchor is on structure that does not move. That
+   *  split is the mechanism: if both ends travelled together the link would
+   *  have nothing to pull against.
+   */
+  const doorHalf = DOOR_W / (2 * R_HINGE);
+  const doorGeo = new THREE.CylinderGeometry(
+    R_HINGE, R_HINGE, LINK.chord, 12, 1, true,
+    -Math.PI / 2 - doorHalf, 2 * doorHalf
+  );
+  doorGeo.rotateZ(-Math.PI / 2);
+  doorGeo.translate(LINK.chord / 2, -R_HINGE, 0);
+  // A rigid link never changes length, so the rod is built once at its own
+  // length and only ever moved: a unit cylinder rescaled every frame would say
+  // the opposite about the thing being modelled.
+  const linkGeo = new THREE.CylinderGeometry(0.022, 0.022, LINK_L, 6);
+  linkGeo.rotateZ(-Math.PI / 2);
+
+  const anchor = new THREE.Vector2(ST.sleeve - LINK.u0, R_HINGE - LINK.v);
+
+  /* Doors and links are instanced too, and both are rewritten whenever the
+     sleeve moves. All twelve doors are always at the same angle - one
+     actuator, one linkage repeated round the ring - so there is nothing to
+     gain from twelve independent groups and a draw call each. */
+  const doors = new THREE.InstancedMesh(doorGeo, MATS.titanium, DOORS);
+  doors.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  sleeveGroup.add(doors); // the hinge travels with the sleeve
+  const dragLinks = new THREE.InstancedMesh(linkGeo, MATS.steel, DOORS);
+  dragLinks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mRev.add(dragLinks); // the anchor does not
+
+  // The anchor brackets: fixed, and the only reason the links visibly attach
+  // to anything.
+  const brackets = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.1, 0.09, 0.1),
+    MATS.steel,
+    DOORS
+  );
+  {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const axis = new THREE.Vector3(1, 0, 0);
+    const p = new THREE.Vector3();
+    const one = new THREE.Vector3(1, 1, 1);
+    const rb = anchor.y - 0.045;
+    for (let i = 0; i < DOORS; i++) {
+      const a = (i / DOORS) * Math.PI * 2;
+      q.setFromAxisAngle(axis, a);
+      p.set(anchor.x, rb * Math.cos(a), rb * Math.sin(a));
+      brackets.setMatrixAt(i, m.compose(p, q, one));
+    }
+  }
+  mRev.add(brackets);
 
   /* ===================== 2. Fan ====================================== */
   const mFan = module('fan', new THREE.Vector3(-2.6, 0, 0));
@@ -1301,6 +1463,7 @@ export function buildEngine() {
   // resolves them, and can re-resolve them when the language changes.
   const labels = [
     { module: mNac, key: 'label.nacelle', pos: new THREE.Vector3(-4.0, 2.5, 0) },
+    { module: mRev, key: 'label.reverser', pos: new THREE.Vector3(0.1, 2.35, 0) },
     { module: mFan, key: 'label.fan', pos: new THREE.Vector3(ST.fan, 1.7, 0) },
     { module: mBoost, key: 'label.booster', pos: new THREE.Vector3(-2.56, 1.02, 0) },
     { module: mHpc, key: 'label.hpc', pos: new THREE.Vector3(-1.61, 0.9, 0) },
@@ -1325,7 +1488,10 @@ export function buildEngine() {
   const pickMat = new THREE.MeshBasicMaterial({ visible: false });
   const pickables = [];
   const PROXY = [
-    [mNac, ST.lip, ST.bypassExit, 2.3, true],
+    // the nacelle stops where the reverser starts, or the two would fight over
+    // every ray that hits the aft half of the cowl
+    [mNac, ST.lip, ST.reverser, 2.3, true],
+    [mRev, ST.reverser, ST.bypassExit, 2.3, true],
     [mFan, ST.fan - 1.05, -2.72, 1.55, false],
     [mBoost, ST.splitter, -2.26, 0.95, false],
     [mHpc, -2.26, -0.94, 0.8, false],
@@ -1374,6 +1540,65 @@ export function buildEngine() {
     spiral.instanceMatrix.needsUpdate = true;
   }
 
+  /* ------------------------ thrust reverser ------------------------- */
+  const _revM = new THREE.Matrix4();
+  const _revQ = new THREE.Quaternion();
+  const _revClock = new THREE.Quaternion();
+  const _revSwing = new THREE.Quaternion();
+  const _revP = new THREE.Vector3();
+  const _revOne = new THREE.Vector3(1, 1, 1);
+  const _revAxisX = new THREE.Vector3(1, 0, 0);
+  const _revAxisZ = new THREE.Vector3(0, 0, 1);
+  const _revRod = new THREE.Quaternion();
+  let shownTravel = -1;
+
+  /**
+   * Puts the reverser where the state machine says it is: the sleeve at its
+   * travel, the doors at the angle the linkage gives for that travel, and the
+   * links joining the two.
+   * @param {number} travel sleeve travel, model units, 0..STROKE
+   */
+  function setReverser(travel) {
+    if (travel === shownTravel) return;
+    shownTravel = travel;
+    sleeveGroup.position.x = travel;
+
+    // the door swings inboard, and inboard is -Y in the clock frame
+    const th = blockerAngle(travel);
+    _revSwing.setFromAxisAngle(_revAxisZ, -th);
+
+    /* The link joins a point on the door - which has both translated with the
+       sleeve and swung with the door - to an anchor that has done neither, so
+       it belongs to no single parent and is placed outright. Its LENGTH is
+       never touched: the whole mechanism rests on the link being rigid, and a
+       rod that quietly stretched to fit would hide an error in the kinematics
+       instead of showing it as a gap. */
+    const px = ST.sleeve + travel + LINK.a * Math.cos(th);
+    const py = R_HINGE - LINK.a * Math.sin(th);
+    const rodAngle = Math.atan2(py - anchor.y, px - anchor.x);
+    const rodX = (px + anchor.x) / 2;
+    const rodR = (py + anchor.y) / 2;
+    _revRod.setFromAxisAngle(_revAxisZ, rodAngle);
+
+    for (let i = 0; i < DOORS; i++) {
+      const a = (i / DOORS) * Math.PI * 2;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      _revClock.setFromAxisAngle(_revAxisX, a);
+
+      _revQ.copy(_revClock).multiply(_revSwing);
+      _revP.set(ST.sleeve, R_HINGE * cos, R_HINGE * sin);
+      doors.setMatrixAt(i, _revM.compose(_revP, _revQ, _revOne));
+
+      _revQ.copy(_revClock).multiply(_revRod);
+      _revP.set(rodX, rodR * cos, rodR * sin);
+      dragLinks.setMatrixAt(i, _revM.compose(_revP, _revQ, _revOne));
+    }
+    doors.instanceMatrix.needsUpdate = true;
+    dragLinks.instanceMatrix.needsUpdate = true;
+  }
+  setReverser(0);
+
   return {
     root,
     modules,
@@ -1383,6 +1608,7 @@ export function buildEngine() {
     labels,
     flameMat,
     setSpiralBlur,
-    parts: { mNac, mFan, mBoost, mHpc, mComb, mHpt, mLpt, mExh, mCowl, mShaft, mAcc },
+    setReverser,
+    parts: { mNac, mRev, mFan, mBoost, mHpc, mComb, mHpt, mLpt, mExh, mCowl, mShaft, mAcc },
   };
 }

@@ -72,8 +72,10 @@ export const DOORS = 12;
 export const LINK = { u0: -0.45, v: 0.49, a: 0.45, chord: 0.5 };
 
 /* Link length. Not a free constant: it is whatever makes the door flush with
-   the duct wall when the sleeve is home, which is what "stowed" means. */
-const LINK_L = Math.hypot(LINK.u0 + LINK.a, LINK.v);
+   the duct wall when the sleeve is home, which is what "stowed" means. Exported
+   because the rod has to be drawn, and a rod drawn at any other length would be
+   a link that stretches. */
+export const LINK_L = Math.hypot(LINK.u0 + LINK.a, LINK.v);
 
 /* Height of the bypass duct where the door tip lands. Measured off the model's
    own profiles - the inner nacelle wall against the core cowl - which run

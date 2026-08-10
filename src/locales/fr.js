@@ -117,6 +117,7 @@ export default {
   'view.contrail': 'Traînée de condensation',
 
   'label.nacelle': 'Nacelle',
+  'label.reverser': 'Inverseur',
   'label.fan': 'Soufflante',
   'label.booster': 'Booster',
   'label.hpc': 'Compresseur HP',
@@ -130,6 +131,9 @@ export default {
   'module.nacelle.title': 'Nacelle et entrée d’air',
   'module.nacelle.info':
     'Virole d’entrée d’air avec dégivrage, capots de soufflante et flux secondaire. Dimension maximale 2,44 m, longueur jusqu’à la sortie de la tuyère de soufflante 3,18 m. Le bas et la lèvre sont aplatis (la « bajoue de hamster ») : l’aile du 737 est basse au-dessus du sol.',
+  'module.reverser.title': 'Inverseur de poussée',
+  'module.reverser.info':
+    'Inverseur à grilles du flux secondaire. Le capot mobile recule de 0,45 m et découvre les aubes de déviation ; douze portes d\'obturation traversent la veine, entraînées par des bielles reliées à la paroi fixe plutôt que motorisées, de sorte qu\'elles ne se ferment qu\'en fin de course. Le flux primaire n\'est pas touché : seul l\'air de la soufflante est dévié, et il fournit en inversion environ un cinquième de la poussée au décollage.',
   'module.fan.title': 'Soufflante (N1)',
   'module.fan.info':
     '24 aubes à large corde, corde maximale 0,279 m. Diamètre 1,549 m, 5175 tr/min à la puissance de décollage. Produit jusqu’à 80 % de la poussée en refoulant l’air dans le flux secondaire. Taux de dilution 5,1.',

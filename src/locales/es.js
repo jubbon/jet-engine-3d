@@ -117,6 +117,7 @@ export default {
   'view.contrail': 'Estela de condensación',
 
   'label.nacelle': 'Góndola',
+  'label.reverser': 'Inversor',
   'label.fan': 'Fan',
   'label.booster': 'Booster',
   'label.hpc': 'Compresor AP',
@@ -130,6 +131,9 @@ export default {
   'module.nacelle.title': 'Góndola y entrada de aire',
   'module.nacelle.info':
     'Anillo de entrada con sistema antihielo, capós del fan y conducto secundario. Dimensión máxima 2,44 m, longitud hasta la salida de la tobera del fan 3,18 m. La parte inferior y el labio están achatados (la «bolsa de hámster»): el ala del 737 queda baja sobre el suelo.',
+  'module.reverser.title': 'Inversor de empuje',
+  'module.reverser.info':
+    'Inversor de cascadas del flujo secundario. El manguito se desplaza 0,45 m hacia atrás y descubre los álabes deflectores; doce puertas obturadoras cierran el conducto, arrastradas por bielas a la pared fija en lugar de ir accionadas, de modo que solo cierran al final del recorrido. El flujo primario no se toca: solo se desvía el aire del fan, y en inversión da alrededor de una quinta parte del empuje de despegue.',
   'module.fan.title': 'Fan (N1)',
   'module.fan.info':
     '24 álabes de cuerda ancha, cuerda máxima 0,279 m. Diámetro 1,549 m, 5175 rpm a potencia de despegue. Produce hasta el 80 % del empuje impulsando aire al conducto secundario. Índice de derivación 5,1.',

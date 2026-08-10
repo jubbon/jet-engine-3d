@@ -117,6 +117,7 @@ export default {
   'view.contrail': 'Rastro de condensação',
 
   'label.nacelle': 'Nacele',
+  'label.reverser': 'Reversor',
   'label.fan': 'Fan',
   'label.booster': 'Booster',
   'label.hpc': 'Compressor AP',
@@ -130,6 +131,9 @@ export default {
   'module.nacelle.title': 'Nacele e entrada de ar',
   'module.nacelle.info':
     'Anel de entrada com sistema antigelo, capôs do fan e fluxo secundário. Maior dimensão 2,44 m, comprimento até a saída do bocal do fan 3,18 m. A parte de baixo e o bordo são achatados (a “bochecha de hamster”): a asa do 737 fica baixa em relação ao solo.',
+  'module.reverser.title': 'Reversor de empuxo',
+  'module.reverser.info':
+    'Reversor de grades do fluxo secundário. A capota móvel recua 0,45 m e descobre as palhetas defletoras; doze portas bloqueadoras atravessam o duto, arrastadas por bielas ligadas à parede fixa em vez de acionadas, de modo que só fecham no fim do curso. O fluxo primário não é tocado: apenas o ar do fan é desviado, e na reversão ele rende cerca de um quinto do empuxo de decolagem.',
   'module.fan.title': 'Fan (N1)',
   'module.fan.info':
     '24 pás de corda larga, corda máxima 0,279 m. Diâmetro 1,549 m, 5175 rpm na potência de decolagem. Produz até 80 % do empuxo empurrando ar para o fluxo secundário. Razão de derivação 5,1.',

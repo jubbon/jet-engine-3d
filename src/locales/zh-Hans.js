@@ -117,6 +117,7 @@ export default {
   'view.contrail': '凝结尾迹',
 
   'label.nacelle': '短舱',
+  'label.reverser': '反推',
   'label.fan': '风扇',
   'label.booster': '增压级',
   'label.hpc': '高压压气机',
@@ -130,6 +131,9 @@ export default {
   'module.nacelle.title': '短舱与进气道',
   'module.nacelle.info':
     '带防冰系统的进气道筒体、风扇整流罩和外涵道。最大尺寸 2.44 m，至风扇喷口长度 3.18 m。下部和唇口被压扁（所谓“仓鼠颊囊”）：737 的机翼离地面很近。',
+  'module.reverser.title': '反推力装置',
+  'module.reverser.info':
+    '外涵道叶栅式反推力装置。移动整流罩后移 0.45 米，露出导流叶栅，十二扇阻流门横越涵道——它们由连杆牵引至固定壁面，而非直接驱动，因此只在行程末段才关闭。内涵道不受影响：只有风扇气流被折转，反推时约产生起飞推力的五分之一。',
   'module.fan.title': '风扇（N1）',
   'module.fan.info':
     '24 片宽弦叶片，最大弦长 0.279 m。直径 1.549 m，起飞状态 5175 rpm。通过将空气送入外涵道，产生高达 80 % 的推力。涵道比 5.1。',

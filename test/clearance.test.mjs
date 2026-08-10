@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { buildEngine, ST } from '../src/engine.js';
+import { buildEngine, ST, MATS } from '../src/engine.js';
+import { STROKE, blockedFraction } from '../src/reverser.js';
 import { createAirflow } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
@@ -181,6 +182,153 @@ check(
   rOut > rIn,
   `${rIn.toFixed(2)} at x=${xIn.toFixed(1)} to ${rOut.toFixed(2)} at x=${xOut.toFixed(1)}`
 );
+
+console.log('\n=== THE BLOCKER DOORS CLOSE THE DUCT WITHOUT GOING THROUGH IT ===');
+
+/* The doors are the one part of this model that sweeps through a space
+ * occupied by something else. reverser.js solves their angle from a linkage
+ * and knows nothing about where the geometry was actually placed; this checks
+ * the placement, off the real vertices, over the WHOLE sweep rather than at
+ * the ends. The minimum clearance is not at either end - it is wherever the
+ * door happens to point at the core cowl, and a door that grazes it mid-stroke
+ * looks perfect in both the stowed and the deployed screenshot. */
+
+/* Outer radius of the core cowl at a station, interpolated along its profile.
+ *
+ * Sampling "the vertices within a tolerance of x" is the obvious way and is
+ * wrong here: the cowl is a lathe of a dozen control points, so between them
+ * there are no vertices at all, and the answer comes back as zero - which
+ * makes every clearance look enormous. Reconstructing the profile from the
+ * vertices and interpolating is exact for a lathe. */
+const cowlProfile = (() => {
+  const byX = new Map();
+  engine.parts.mCowl.updateWorldMatrix(true, true);
+  engine.parts.mCowl.traverse((o) => {
+    if (!o.isMesh || !o.geometry?.attributes?.position || o.material?.visible === false) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      const k = Math.round(v.x * 1e4) / 1e4;
+      byX.set(k, Math.max(byX.get(k) ?? 0, Math.hypot(v.y, v.z)));
+    }
+  });
+  return [...byX.entries()].sort((a, b) => a[0] - b[0]);
+})();
+
+const cowlR = (x) => {
+  if (x <= cowlProfile[0][0]) return cowlProfile[0][1];
+  for (let i = 1; i < cowlProfile.length; i++) {
+    const [x0, r0] = cowlProfile[i - 1];
+    const [x1, r1] = cowlProfile[i];
+    if (x <= x1) return x1 === x0 ? r1 : r0 + ((r1 - r0) * (x - x0)) / (x1 - x0);
+  }
+  return cowlProfile[cowlProfile.length - 1][1];
+};
+
+/* Every vertex of every door, at a given travel.
+ *
+ * The doors are one InstancedMesh - all twelve are always at the same angle -
+ * so the world position of a vertex is the instance matrix on top of the mesh
+ * matrix. Reading only the mesh matrix would put every door at twelve o'clock
+ * and find a clearance that no door has. */
+const doorMesh = (() => {
+  let found = null;
+  engine.parts.mRev.traverse((o) => {
+    if (!o.isInstancedMesh || o.geometry?.type !== 'CylinderGeometry') return;
+    if (Math.abs(o.geometry.parameters.radiusTop - 1.69) > 1e-6) return;
+    found = o;
+  });
+  return found;
+})();
+
+const _im = new THREE.Matrix4();
+function doorPoints(travel) {
+  engine.setReverser(travel);
+  engine.parts.mRev.updateWorldMatrix(true, true);
+  const pts = [];
+  const pos = doorMesh.geometry.attributes.position;
+  for (let k = 0; k < doorMesh.count; k++) {
+    doorMesh.getMatrixAt(k, _im);
+    _im.premultiply(doorMesh.matrixWorld);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(_im);
+      pts.push([v.x, Math.hypot(v.y, v.z)]);
+    }
+  }
+  return pts;
+}
+
+check(
+  'The doors are there to be measured',
+  doorMesh !== null && doorMesh.count === 12,
+  `${doorMesh?.count} doors, ${doorPoints(STROKE).length} vertices`
+);
+
+let minGap = Infinity;
+let minAt = 0;
+for (let i = 0; i <= 40; i++) {
+  const travel = (STROKE * i) / 40;
+  for (const [x, r] of doorPoints(travel)) {
+    const gap = r - cowlR(x);
+    if (gap < minGap) {
+      minGap = gap;
+      minAt = travel;
+    }
+  }
+}
+check(
+  'No door touches the core cowl anywhere in the sweep',
+  minGap > 0.01,
+  `closest ${(minGap * 500).toFixed(0)} mm at travel ${minAt.toFixed(2)} of ${STROKE}`
+);
+
+// And having got there without hitting anything, they have to do their job.
+{
+  const pts = doorPoints(STROKE);
+  const tip = pts.reduce((lo, p) => (p[1] < lo[1] ? p : lo), pts[0]);
+  const wall = 1.69; // the duct wall the doors are hinged to
+  const closed = (wall - tip[1]) / (wall - cowlR(tip[0]));
+  check(
+    'The doors close the bypass duct',
+    closed > 0.85,
+    `${(100 * closed).toFixed(0)} % of the duct at x = ${tip[0].toFixed(2)}`
+  );
+  // what reverser.js believes about the same thing, computed from the linkage
+  check(
+    'and the linkage agrees with the metal',
+    Math.abs(closed - blockedFraction(STROKE)) < 0.06,
+    `mesh ${closed.toFixed(3)}, linkage ${blockedFraction(STROKE).toFixed(3)}`
+  );
+}
+
+// The sleeve translates over the core cowl, which narrows aft: it must clear it.
+{
+  engine.setReverser(STROKE);
+  let sleeveMin = Infinity;
+  let sleeveAft = -Infinity;
+  engine.parts.mRev.updateWorldMatrix(true, true);
+  engine.parts.mRev.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || !o.geometry?.attributes?.position) return;
+    if (o.material !== MATS.nacelle && o.material !== MATS.nacelleSkin) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      sleeveAft = Math.max(sleeveAft, v.x);
+      sleeveMin = Math.min(sleeveMin, Math.hypot(v.y, v.z) - cowlR(v.x));
+    }
+  });
+  check(
+    'The deployed sleeve clears the core cowl',
+    sleeveMin > 0.1,
+    `closest ${(sleeveMin * 500).toFixed(0)} mm`
+  );
+  check(
+    'and stops short of the core nozzle',
+    sleeveAft < ST.coreExit,
+    `trailing edge at ${sleeveAft.toFixed(2)}, exit at ${ST.coreExit}`
+  );
+  engine.setReverser(0);
+}
 
 console.log(failures ? `\n${failures} failures` : '\nAll checks passed');
 process.exit(failures ? 1 : 0);

@@ -117,6 +117,7 @@ export default {
   'view.contrail': 'Kondensstreifen',
 
   'label.nacelle': 'Gondel',
+  'label.reverser': 'Umkehrschub',
   'label.fan': 'Fan',
   'label.booster': 'Booster',
   'label.hpc': 'HD-Verdichter',
@@ -130,6 +131,9 @@ export default {
   'module.nacelle.title': 'Gondel und Lufteinlauf',
   'module.nacelle.info':
     'Einlaufring mit Enteisung, Fanhauben und Nebenstromkanal. Größte Abmessung 2,44 m, Länge bis zum Austritt der Fandüse 3,18 m. Unterseite und Lippe sind abgeflacht (die „Hamsterbacke“): die Tragfläche der 737 sitzt tief über dem Boden.',
+  'module.reverser.title': 'Schubumkehr',
+  'module.reverser.info':
+    'Kaskaden-Schubumkehr des Nebenstromkanals. Die Schiebehaube fährt 0,45 m nach hinten und gibt die Umlenkgitter frei; zwölf Sperrklappen legen sich quer in den Kanal - von Zugstangen zur festen Wand herumgezogen, nicht angetrieben, und deshalb schließen sie erst gegen Ende des Wegs. Der Kernstrom bleibt unberührt: umgelenkt wird nur die Fanluft, und sie liefert in der Umkehr etwa ein Fünftel des Startschubs.',
   'module.fan.title': 'Fan (N1)',
   'module.fan.info':
     '24 Schaufeln großer Profiltiefe, größte Sehne 0,279 m. Durchmesser 1,549 m, 5175 min⁻¹ bei Startleistung. Erzeugt bis zu 80 % des Schubs, indem er Luft in den Nebenstromkanal fördert. Nebenstromverhältnis 5,1.',
