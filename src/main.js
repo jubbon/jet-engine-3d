@@ -12,6 +12,7 @@ import { createAirflow } from './airflow.js';
 import { createHeatHaze } from './heathaze.js';
 import { createEngineSound } from './sound.js';
 import { createEngineState } from './engineState.js';
+import { createReverser, thrustFactor } from './reverser.js';
 import { atmosphere, humidity } from './atmosphere.js';
 import { contrail, flipAltitude, H_MAX } from './contrail.js';
 import { createContrail } from './contrailView.js';
@@ -221,6 +222,7 @@ let n2Angle = 0;
 
 /* ---------------------------- engine state --------------------------- */
 const eng = createEngineState(state.throttle);
+const rev = createReverser();
 
 // Only the class names live here. The text moved to the dictionary, and the
 // two are kept apart on purpose: a typo in one of eight locale files must not
@@ -255,11 +257,55 @@ function refreshModeUI() {
           : 'power.hint.off'
   );
   $('thr-wrap').classList.toggle('disabled', mode !== 'run');
+  // the reverser can only be selected on a running engine, so its button
+  // changes with the mode as well
+  refreshReverserUI();
 }
 
 function setMode(mode) {
   eng.setMode(mode);
+  // Anything but running stows the reverser. The stow takes 3 s against a 35 s
+  // rundown, so it always gets home; an engine that has stopped is never left
+  // with the sleeve out.
+  if (mode !== 'run') rev.request(false, mode);
   refreshModeUI();
+}
+
+/* --------------------------- thrust reverser ------------------------- *
+ *  Class names only, for the same reason as MODE_CLASS: a typo in one of
+ *  eight locale files must not be able to break the styling.
+ * --------------------------------------------------------------------- */
+const REV_CLASS = { stowed: 'off', deploying: 'busy', deployed: '', stowing: 'busy' };
+
+// as with the engine mode, the transitions "deploying -> deployed" and
+// "stowing -> stowed" happen inside the state machine when the sleeve actually
+// arrives, so the panel is refreshed on a change rather than on a click
+let shownRev = null;
+
+function refreshReverserUI() {
+  shownRev = rev.mode;
+  $('rev-bar').className = `statusbar ${REV_CLASS[rev.mode]}`;
+  $('val-rev').textContent = t(`rev.${rev.mode}`);
+
+  const btn = $('btn-rev');
+  const armed = eng.mode === 'run';
+  btn.disabled = !armed;
+  btn.classList.toggle('on', rev.mode === 'deployed' || rev.mode === 'deploying');
+  btn.classList.toggle('busy', rev.mode === 'deploying' || rev.mode === 'stowing');
+  $('rev-hint').textContent = t(
+    !armed
+      ? 'rev.hint.off'
+      : rev.mode === 'stowed'
+        ? 'rev.hint.deploy'
+        : rev.mode === 'deployed'
+          ? 'rev.hint.stow'
+          : 'rev.hint.moving'
+  );
+}
+
+function toggleReverser() {
+  rev.request(rev.mode === 'stowed' || rev.mode === 'stowing', eng.mode);
+  refreshReverserUI();
 }
 
 /* ----------------------------- elements ------------------------------ */
@@ -365,6 +411,8 @@ $('btn-power').onclick = () => {
   setMode(eng.mode === 'run' || eng.mode === 'start' ? 'stop' : 'start');
 };
 
+$('btn-rev').onclick = () => toggleReverser();
+
 // time scale: a start takes about 40 s and a rundown 35 s, as on a real engine;
 // the speed-up saves waiting through them in full
 function setTimeScale(k) {
@@ -428,6 +476,8 @@ addEventListener('keydown', (e) => {
     setMode(eng.mode === 'run' || eng.mode === 'start' ? 'stop' : 'start');
   } else if (e.key === 's' || e.key === 'S' || e.key === 'ы' || e.key === 'Ы') {
     toggleSound(!state.sound);
+  } else if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
+    toggleReverser();
   } else if (e.key === 'x' || e.key === 'X' || e.key === 'ч' || e.key === 'Ч') {
     $('chk-xray').checked = !state.xray;
     state.xray = !state.xray;
@@ -506,11 +556,16 @@ function updateGauges() {
   // hash of the state, so the DOM is not touched every frame without need.
   // The ambient conditions are not in the hash: they change only when a slider
   // is moved, and that invalidates the hash directly.
-  const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001;
+  // The sleeve is in the hash because the thrust follows it: at a steady N1
+  // through a deployment nothing else here changes, and the read-out would
+  // freeze at the forward figure while the number it shows goes negative.
+  const h = eng.n1 * 7 + eng.n2 * 13 + eng.t4 * 0.001 + rev.travel * 3;
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
 
-  const thrust = eng.grossThrust;
+  // Reverse turns this negative: the fan stream, four fifths of the thrust, is
+  // sent forward through the cascades while the core carries on aft.
+  const thrust = eng.grossThrust * thrustFactor(rev.travel);
   $('val-n1').textContent = `${n(eng.n1 * 100, 0)} %`;
   $('val-n2').textContent = `${n(eng.n2 * 100, 0)} %`;
   $('val-t4').textContent = `${n(eng.t4, 0)} °C`;
@@ -709,7 +764,7 @@ function applyLanguage(tag) {
   labelDivs.forEach(({ div, key }) => {
     div.textContent = t(key);
   });
-  refreshModeUI();
+  refreshModeUI(); // and with it the reverser panel
   refreshContrail();
   // re-formats the ambient read-outs, which is where the decimal separator
   // changes for five of the eight languages
@@ -740,7 +795,15 @@ function animate() {
   // the time scale affects the engine processes only: start and rundown run at
   // their natural pace (tens of seconds), and waiting them out is not always
   // appropriate
-  const keff = eng.update(dt * state.timeScale, state.throttle);
+  /* The reverser goes first: the cap it puts on the throttle belongs to this
+     frame's sleeve position, not to the last one. The time scale applies to it
+     too - a start run at x4 with a sleeve moving at x1 would be two clocks in
+     one scene. */
+  rev.update(dt * state.timeScale);
+  if (rev.mode !== shownRev) refreshReverserUI();
+  engine.setReverser(rev.travel);
+
+  const keff = eng.update(dt * state.timeScale, Math.min(state.throttle, rev.throttleLimit()));
   if (eng.mode !== shownMode) refreshModeUI();
   updateGauges();
 

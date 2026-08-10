@@ -30,6 +30,16 @@ export default {
   'panel.state': 'État',
   'panel.timescale': 'Échelle de temps',
   'panel.throttle': 'Puissance moteur (manette)',
+  'panel.rev.title': 'Inverseur de poussée',
+  'panel.reverser': 'Inverseur',
+  'rev.stowed': 'RENTRÉ',
+  'rev.deploying': 'DÉPLOIEMENT',
+  'rev.deployed': 'DÉPLOYÉ',
+  'rev.stowing': 'RENTRÉE',
+  'rev.hint.deploy': 'le capot mobile recule, les portes ferment le flux secondaire',
+  'rev.hint.stow': 'les portes s’ouvrent, le capot mobile revient en place',
+  'rev.hint.moving': 'le capot est en mouvement, le moteur est maintenu au ralenti',
+  'rev.hint.off': 'le moteur doit tourner',
 
   'gauge.n1.sub': 'soufflante',
   'gauge.n2.sub': 'rotor HP',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': 'Clic gauche — orbite · molette — zoom · clic droit — translation',
   'footer.keys1': 'Space — écoulements · C — coupe · X — transparence · S — son',
-  'footer.keys2': 'E — démarrage/arrêt · H — échappement · T — traînée',
+  'footer.keys2': 'E — démarrage/arrêt · R — inverseur · H — gaz · T — traînée',
   'footer.keys3': '1…9, 0 — vues',
 
   'legend.title': 'Écoulements',

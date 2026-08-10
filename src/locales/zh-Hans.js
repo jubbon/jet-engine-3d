@@ -30,6 +30,16 @@ export default {
   'panel.state': '状态',
   'panel.timescale': '时间倍率',
   'panel.throttle': '发动机功率（油门）',
+  'panel.rev.title': '反推力装置',
+  'panel.reverser': '反推',
+  'rev.stowed': '已收起',
+  'rev.deploying': '展开中',
+  'rev.deployed': '已展开',
+  'rev.stowing': '收起中',
+  'rev.hint.deploy': '移动整流罩后移，阻流门封闭外涵道',
+  'rev.hint.stow': '阻流门打开，移动整流罩归位',
+  'rev.hint.moving': '整流罩正在移动，发动机保持慢车',
+  'rev.hint.off': '发动机必须处于运转状态',
 
   'gauge.n1.sub': '风扇',
   'gauge.n2.sub': '高压转子',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': '左键 — 旋转 · 滚轮 — 缩放 · 右键 — 平移',
   'footer.keys1': 'Space — 气流 · C — 剖视 · X — 透视 · S — 声音',
-  'footer.keys2': 'E — 起动/关车 · H — 尾喷气流 · T — 尾迹',
+  'footer.keys2': 'E — 启动/停车 · R — 反推 · H — 尾气 · T — 尾迹',
   'footer.keys3': '1…9、0 — 视角',
 
   'legend.title': '气流',

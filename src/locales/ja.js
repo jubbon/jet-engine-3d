@@ -30,6 +30,16 @@ export default {
   'panel.state': '状態',
   'panel.timescale': '時間スケール',
   'panel.throttle': 'エンジン出力（スロットル）',
+  'panel.rev.title': '逆推力装置',
+  'panel.reverser': '逆推力',
+  'rev.stowed': '格納',
+  'rev.deploying': '展開中',
+  'rev.deployed': '展開',
+  'rev.stowing': '格納中',
+  'rev.hint.deploy': 'スリーブが後退し、ドアがバイパスダクトを塞ぎます',
+  'rev.hint.stow': 'ドアが開き、スリーブが元の位置に戻ります',
+  'rev.hint.moving': 'スリーブが動作中、エンジンはアイドルに保たれます',
+  'rev.hint.off': 'エンジンが運転中である必要があります',
 
   'gauge.n1.sub': 'ファン',
   'gauge.n2.sub': '高圧ローター',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': '左ボタン — 回転 · ホイール — ズーム · 右ボタン — 平行移動',
   'footer.keys1': 'Space — 流れ · C — 断面 · X — 透過 · S — 音',
-  'footer.keys2': 'E — 始動/停止 · H — 排気 · T — 飛行機雲',
+  'footer.keys2': 'E — 始動/停止 · R — 逆推力 · H — 排気 · T — 飛行機雲',
   'footer.keys3': '1…9、0 — 視点',
 
   'legend.title': '流れ',

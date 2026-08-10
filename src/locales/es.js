@@ -30,6 +30,16 @@ export default {
   'panel.state': 'Estado',
   'panel.timescale': 'Escala de tiempo',
   'panel.throttle': 'Potencia del motor (palanca)',
+  'panel.rev.title': 'Inversor de empuje',
+  'panel.reverser': 'Inversor',
+  'rev.stowed': 'REPLEGADO',
+  'rev.deploying': 'DESPLEGANDO',
+  'rev.deployed': 'DESPLEGADO',
+  'rev.stowing': 'REPLEGANDO',
+  'rev.hint.deploy': 'el manguito retrocede y las puertas cierran el flujo secundario',
+  'rev.hint.stow': 'las puertas se abren y el manguito vuelve a su sitio',
+  'rev.hint.moving': 'el manguito está en movimiento, el motor se mantiene a ralentí',
+  'rev.hint.off': 'el motor debe estar en marcha',
 
   'gauge.n1.sub': 'fan',
   'gauge.n2.sub': 'rotor de alta',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': 'Clic izq. — orbitar · rueda — zoom · clic der. — desplazar',
   'footer.keys1': 'Space — flujos · C — sección · X — rayos X · S — sonido',
-  'footer.keys2': 'E — arranque/parada · H — escape · T — estela',
+  'footer.keys2': 'E — arranque/parada · R — inversor · H — gases · T — estela',
   'footer.keys3': '1…9, 0 — vistas',
 
   'legend.title': 'Flujos',

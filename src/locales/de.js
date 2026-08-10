@@ -30,6 +30,16 @@ export default {
   'panel.state': 'Zustand',
   'panel.timescale': 'Zeitmaßstab',
   'panel.throttle': 'Triebwerksleistung (Schubhebel)',
+  'panel.rev.title': 'Schubumkehr',
+  'panel.reverser': 'Umkehrschub',
+  'rev.stowed': 'EINGEFAHREN',
+  'rev.deploying': 'FÄHRT AUS',
+  'rev.deployed': 'AUSGEFAHREN',
+  'rev.stowing': 'FÄHRT EIN',
+  'rev.hint.deploy': 'die Schiebehaube fährt zurück, die Klappen sperren den Nebenstrom',
+  'rev.hint.stow': 'die Klappen öffnen, die Schiebehaube fährt zurück in ihre Lage',
+  'rev.hint.moving': 'die Haube fährt, das Triebwerk wird im Leerlauf gehalten',
+  'rev.hint.off': 'das Triebwerk muss laufen',
 
   'gauge.n1.sub': 'Fan',
   'gauge.n2.sub': 'Hochdruckrotor',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': 'Linke Maustaste — drehen · Mausrad — zoomen · rechte Maustaste — verschieben',
   'footer.keys1': 'Space — Strömungen · C — Schnitt · X — Durchsicht · S — Ton',
-  'footer.keys2': 'E — Anlassen/Abstellen · H — Abgas · T — Streifen',
+  'footer.keys2': 'E — Start/Abstellen · R — Umkehrschub · H — Abgas · T — Kondensstreifen',
   'footer.keys3': '1…9, 0 — Ansichten',
 
   'legend.title': 'Strömungen',

@@ -30,6 +30,16 @@ export default {
   'panel.state': 'Estado',
   'panel.timescale': 'Escala de tempo',
   'panel.throttle': 'Potência do motor (manete)',
+  'panel.rev.title': 'Reversor de empuxo',
+  'panel.reverser': 'Reversor',
+  'rev.stowed': 'RECOLHIDO',
+  'rev.deploying': 'ACIONANDO',
+  'rev.deployed': 'ACIONADO',
+  'rev.stowing': 'RECOLHENDO',
+  'rev.hint.deploy': 'a capota móvel recua e as portas fecham o fluxo secundário',
+  'rev.hint.stow': 'as portas abrem e a capota móvel volta ao lugar',
+  'rev.hint.moving': 'a capota está em movimento, o motor é mantido em marcha lenta',
+  'rev.hint.off': 'o motor precisa estar funcionando',
 
   'gauge.n1.sub': 'fan',
   'gauge.n2.sub': 'rotor de alta',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': 'Botão esq. — orbitar · roda — zoom · botão dir. — deslocar',
   'footer.keys1': 'Space — fluxos · C — corte · X — raios X · S — som',
-  'footer.keys2': 'E — partida/corte · H — escape · T — rastro',
+  'footer.keys2': 'E — partida/corte · R — reversor · H — gases · T — rastro',
   'footer.keys3': '1…9, 0 — vistas',
 
   'legend.title': 'Fluxos',

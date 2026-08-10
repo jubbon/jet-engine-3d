@@ -30,6 +30,16 @@ export default {
   'panel.state': 'Состояние',
   'panel.timescale': 'Масштаб времени',
   'panel.throttle': 'Мощность двигателя (РУД)',
+  'panel.rev.title': 'Реверс тяги',
+  'panel.reverser': 'Реверс',
+  'rev.stowed': 'УБРАН',
+  'rev.deploying': 'ВЫПУСК',
+  'rev.deployed': 'ВЫПУЩЕН',
+  'rev.stowing': 'УБОРКА',
+  'rev.hint.deploy': 'обечайка отъезжает назад, створки перекрывают наружный контур',
+  'rev.hint.stow': 'створки открываются, обечайка возвращается на место',
+  'rev.hint.moving': 'обечайка в движении, двигатель удерживается на малом газе',
+  'rev.hint.off': 'двигатель должен работать',
 
   'gauge.n1.sub': 'вентилятор',
   'gauge.n2.sub': 'ротор ВД',
@@ -81,7 +91,7 @@ export default {
 
   'footer.mouse': 'ЛКМ — вращение · колесо — приближение · ПКМ — сдвиг',
   'footer.keys1': 'Space — потоки · C — разрез · X — просвет · S — звук',
-  'footer.keys2': 'E — запуск/останов · H — выхлоп · T — след',
+  'footer.keys2': 'E — запуск/останов · R — реверс · H — выхлоп · T — след',
   'footer.keys3': '1…9, 0 — ракурсы',
 
   'legend.title': 'Потоки',

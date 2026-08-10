@@ -38,6 +38,16 @@ export default {
   'panel.state': 'State',
   'panel.timescale': 'Time scale',
   'panel.throttle': 'Engine power (throttle)',
+  'panel.rev.title': 'Thrust reverser',
+  'panel.reverser': 'Reverser',
+  'rev.stowed': 'STOWED',
+  'rev.deploying': 'DEPLOYING',
+  'rev.deployed': 'DEPLOYED',
+  'rev.stowing': 'STOWING',
+  'rev.hint.deploy': 'the sleeve slides aft, the doors close the bypass duct',
+  'rev.hint.stow': 'the doors open, the sleeve slides home',
+  'rev.hint.moving': 'the sleeve is moving, the engine is held at idle',
+  'rev.hint.off': 'the engine must be running',
 
   /* ------------------------------ gauges ------------------------------ */
   'gauge.n1.sub': 'fan',
@@ -109,7 +119,7 @@ export default {
    * keeps muscle memory and screenshots portable between languages. */
   'footer.mouse': 'LMB — orbit · wheel — zoom · RMB — pan',
   'footer.keys1': 'Space — flows · C — cutaway · X — x-ray · S — sound',
-  'footer.keys2': 'E — start/shutdown · H — exhaust · T — contrail',
+  'footer.keys2': 'E — start/shutdown · R — reverser · H — exhaust · T — contrail',
   'footer.keys3': '1…9, 0 — views',
 
   /* ------------------------------ legend ------------------------------ */
