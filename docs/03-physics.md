@@ -692,9 +692,13 @@ Stated explicitly, so that the model is not mistaken for a calculation tool.
   speeds, the same T4 and the same thrust as on the ground, whereas a real
   engine would run at higher corrected speeds and about a third of the
   sea-level thrust. Ram compression and flight speed are absent altogether.
-* **No limits or protections.** Compressor surge, flame-out, temperature
-  exceedance, T4 and speed limiting and the action of the FADEC governor are not
-  modelled. The engine cannot be broken by any throttle position.
+* **No limits or protections, and no acceleration schedule.** Flame-out,
+  temperature exceedance, T4 and speed limiting and the action of the FADEC
+  governor are not modelled (BL-02). Compressor surge now *is* — see the
+  [compressor map](#the-compressor-map-and-the-stability-boundary) and
+  [operating regimes](05-modes.md#compressor-surge) — and the missing
+  acceleration schedule is precisely why it can be provoked here by a lever
+  movement a real FADEC would ration into safety.
 * **No heat transfer.** Cooling is set by time constants rather than computed
   from the heat capacity and heat transfer of the parts.
 * **No mechanics.** Blade stresses, tip clearances, thermal expansion,
@@ -730,7 +734,28 @@ propositions checked are physically meaningful ones:
 * the flame appears later than the fuel (16.6 s against 19.1 s), and until
   light-off the gas path stays cold;
 * the start to idle takes a realistic time (39.7 s);
-* the acceleration from idle to take-off fits within a sensible time (11.5 s).
+* the acceleration from idle to take-off fits within a sensible time (12.5 s,
+  advanced over two seconds rather than slammed — a slam crosses the stability
+  boundary, which is the subject of the next group).
+
+Compressor stability is covered by 63 checks of its own. The map is checked
+against itself only where that is honest: at the steady fuel command the margin
+equals the tabulated margin to 1e-12, which compares two halves of one fact. The
+propositions that can actually fail are the behavioural ones:
+
+* a flick of the lever from idle surges and a two-second advance does not, and
+  neither does a slam from 50 % power or a chop to idle;
+* held at the stop, the surge locks into a stall within four seconds, the spools
+  hang rather than stopping, and no lever movement clears it — only a fuel cut;
+* pulled back, the engine recovers to a stable idle and can then be accelerated
+  normally;
+* the fuel command in the steady state is identically the old burn target at
+  every throttle position, so nothing settled moved when combustion was
+  re-pointed at it;
+* a start with the lever at idle never surges, and one finishing against a lever
+  left at 85 % does — the model reproducing why the levers go to idle first;
+* a whole reverse cycle with the lever left at the stop never surges, while the
+  same cap released in a single frame does.
 
 The standard atmosphere is checked against a published table rather than against
 itself (27 checks): temperature, pressure and density at 0, 1, 5, 11 and 12 km

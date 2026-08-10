@@ -44,6 +44,22 @@ export const STOW_TIME = 3.0; // s
    the range is N1 = 0.18 + 0.82 * 0.75 = 79.5 %. */
 export const REV_MAX_THROTTLE = 0.75;
 
+/* How fast the cap may RISE, as a fraction of the throttle range per second.
+   Falling is instant - an interlock that bites has to bite at once - but on the
+   way up it is rate limited, and that is not a softening of the interlock.
+
+   The cap stands in for a hand on the reverse levers. Released in one frame it
+   commands the engine from idle to 75 % instantaneously, which is a slam: since
+   the surge work the model has a stability boundary, and a step of that size
+   from idle crosses it. Reverse would surge every single time it was selected,
+   which is both wrong - a reverser is not a way to break an engine - and would
+   have made the documented -19.4 kN unreachable.
+
+   Half the range per second puts the full release at two seconds and the
+   reverse release at one and a half, which is about how quickly the levers come
+   up in practice and is comfortably clear of the boundary. */
+const LIMIT_RATE = 0.5;
+
 /* Six doors per reverser half, hinged on the pylon like the halves themselves.
    A 30 degree pitch reads as a ring of doors rather than as four big flaps and
    leaves room between them for the hinge and link fittings. */
@@ -218,6 +234,7 @@ export function createReverser() {
     mode: 'stowed',
     travel: 0, // model units, 0..STROKE - what the geometry wants
     blocked: 0, // 0..1 - what the flow and the sound want
+    limit: 1, // the throttle cap, rate limited on the way up
 
     /**
      * The button. The engine mode comes in as an argument rather than the
@@ -260,6 +277,12 @@ export function createReverser() {
         }
       }
       rev.blocked = blockedFraction(rev.travel);
+
+      // the cap drops the moment the interlock applies and is eased back up
+      const target = rev.mode === 'deployed' ? REV_MAX_THROTTLE : rev.mode === 'stowed' ? 1 : 0;
+      rev.limit =
+        target < rev.limit ? target : Math.min(target, rev.limit + LIMIT_RATE * dt);
+
       return rev.travel;
     },
 
@@ -272,9 +295,7 @@ export function createReverser() {
      * and levers do not move on their own.
      */
     throttleLimit() {
-      if (rev.mode === 'deployed') return REV_MAX_THROTTLE;
-      if (rev.mode === 'stowed') return 1;
-      return 0;
+      return rev.limit;
     },
   };
 

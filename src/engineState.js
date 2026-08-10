@@ -9,7 +9,17 @@
  *  stop  - fuel cut, rotors coasting down
  * ------------------------------------------------------------------ */
 
-import { t4Of } from './surge.js';
+import {
+  t4Of,
+  createSurge,
+  surgeMargin,
+  DROOP_N1,
+  DROOP_N2,
+  HUNG_N1,
+  HUNG_N2,
+  T4_BOOST,
+  THRUST_LOSS,
+} from './surge.js';
 
 export const IDLE_N1 = 0.18; // idle, fraction of maximum speed
 export const IDLE_N2 = 0.56;
@@ -82,6 +92,8 @@ const BURN_MAX = 1.2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function createEngineState(initialThrottle = 0.85) {
+  const surge = createSurge();
+
   const eng = {
     mode: 'run',
     n1: IDLE_N1 + (1 - IDLE_N1) * initialThrottle, // speeds, fraction of maximum
@@ -94,6 +106,16 @@ export function createEngineState(initialThrottle = 0.85) {
     grossThrust: 0, // kN, before anything is done to the streams; see below
     lightOff: true, // has light-off occurred: the app boots with the engine running
     ignition: 0, // time from fuel introduction to light-off, s
+
+    /* Compressor stability. A sub-state of `run` rather than a fifth mode: the
+       engine is still running, the reverser interlock still reads `run`, and
+       the throttle is still live - and it has to be, because pulling it back is
+       the recovery action. */
+    surge: 'clear', // 'clear' | 'surging' | 'stall'
+    sm: 0, // surge margin; positive stable, zero the boundary
+    bangs: 0, // monotone count of bangs; consumers latch on a change
+    reverse: 0, // core flow running backwards this instant, 0..1
+    cell: 0, // angle of the rotating stall cells, radians
 
     setMode(mode) {
       eng.mode = mode;
@@ -135,6 +157,14 @@ export function createEngineState(initialThrottle = 0.85) {
         case 'run':
           t1 = IDLE_N1 + (1 - IDLE_N1) * throttle;
           t2 = IDLE_N2 + (1 - IDLE_N2) * throttle;
+          /* A locked stall caps what the spools can reach, however far the
+             lever is advanced: a stalled compressor cannot pass the air to go
+             faster. The FUEL command is deliberately not capped with them - see
+             below - and that asymmetry is the whole reason a stall cooks. */
+          if (eng.surge === 'stall') {
+            t1 = Math.min(t1, HUNG_N1);
+            t2 = Math.min(t2, HUNG_N2);
+          }
           break;
         case 'stop':
           if (eng.n1 <= 0 && eng.n2 <= 0) eng.mode = 'off';
@@ -190,8 +220,40 @@ export function createEngineState(initialThrottle = 0.85) {
           ? 0.3
           : clamp(0.1 + 0.9 * eng.keff + (LEAD * (n2cmd - eng.n2)) / (1 - IDLE_N2), 0, BURN_MAX);
 
-      const tauB = eng.wf > eng.burn ? 0.7 : 0.35;
-      eng.burn += (eng.wf - eng.burn) * (1 - Math.exp(-dt / tauB));
+      /* Stability. The margin is taken on the speed the rotors have JUST been
+         integrated to and before any droop is applied, so a droop cannot feed
+         itself within one step.
+
+         `wf` above uses the speed the LEVER commands, not the capped target, so
+         in a locked stall the command stays high while the spools hang. Note
+         that only the lead term sees the uncapped lever - the `0.9 * keff`
+         first term is built from the actual LP speed and so is capped with it.
+         That is the intended reading, and it is what puts the stalled engine at
+         about 1745 °C rather than at either extreme. */
+      eng.sm = surgeMargin(eng.n2, eng.wf);
+      eng.surge = surge.update(dt, eng.sm, Boolean(burning), eng.n2);
+      eng.bangs = surge.bangs;
+      eng.reverse = surge.reverse;
+      eng.cell = surge.cell;
+
+      /* Each bang costs the rotors speed. The HP rotor loses more than twice
+         what the LP one does: it is the HP compressor that has stalled, while
+         the fan is still being driven by an LP turbine still being fed. */
+      const lost = surge.reverse;
+      if (lost > 0) {
+        eng.n1 = Math.max(0, eng.n1 - DROOP_N1 * lost * dt);
+        eng.n2 = Math.max(0, eng.n2 - DROOP_N2 * lost * dt);
+      }
+
+      /* Less air through the burner, the same fuel: the mixture goes rich and
+         the temperature spikes. Added to the TARGET rather than to t4, so the
+         existing lag still shapes it and the needle climbs the way a real one
+         does instead of stepping. */
+      const spike = burning ? T4_BOOST * (surge.reverse + surge.choke) : 0;
+      const burnTarget = clamp(eng.wf + spike, 0, BURN_MAX);
+
+      const tauB = burnTarget > eng.burn ? 0.7 : 0.35;
+      eng.burn += (burnTarget - eng.burn) * (1 - Math.exp(-dt / tauB));
       if (!burning && eng.burn < 0.004) eng.burn = 0;
 
       // gas temperature: rises fast, cools slowly, so the brief burst of
@@ -211,6 +273,10 @@ export function createEngineState(initialThrottle = 0.85) {
          reverser turns it negative, and a number that can change sign is worth
          being able to check under Node. */
       eng.grossThrust = eng.fuel ? 121.4 * Math.pow(eng.keff, 1.45) : 0;
+      /* Thrust goes with the flow. When the gas is coming back out of the
+         intake there is nothing leaving the nozzle to push with, so the
+         read-out collapses on each bang and stays down in a locked stall. */
+      eng.grossThrust *= 1 - THRUST_LOSS * clamp(surge.reverse + surge.choke, 0, 1);
 
       return eng.keff;
     },

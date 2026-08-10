@@ -93,10 +93,16 @@ const check = (name, cond, detail = '') => {
   check('idle is stable', Math.abs(eng.n1 - IDLE_N1) < 0.01 && Math.abs(eng.n2 - IDLE_N2) < 0.01,
     `N1=${(eng.n1*100).toFixed(0)}%  N2=${(eng.n2*100).toFixed(0)}%  T4=${eng.t4.toFixed(0)}°C`);
 
-  // acceleration from idle to take-off power
+  /* Acceleration from idle to take-off power. The lever is ADVANCED over two
+     seconds rather than slammed to the stop, and that is not a workaround: the
+     model now has a stability boundary, and slamming a cold engine from idle
+     crosses it. That is the entire point of the surge work and is checked in
+     test/surge.test.mjs. What this check is about is the time constant of the
+     spool-up, so it uses the lever movement a pilot would actually make. */
   let t2 = 0;
-  while (eng.n1 < 0.99 && t2 < 60) { eng.update(DT, 1.0); t2 += DT; }
+  while (eng.n1 < 0.99 && t2 < 60) { eng.update(DT, Math.min(1, t2 / 2)); t2 += DT; }
   check('acceleration to take-off within a sensible time', t2 > 3 && t2 < 30, `${t2.toFixed(1)} s`);
+  check('and it gets there without surging', eng.surge === 'clear', `state "${eng.surge}"`);
 
   // The rating of the prototype, which is what the exponent 1.45 was chosen
   // against. The thrust reverser turns this number negative, so it is worth

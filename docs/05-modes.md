@@ -114,6 +114,7 @@ interlocks are written in terms it does have:
 |---|---|
 | Reverse can only be selected in `run` | The button is disabled in `off`, `start` and `stop`, and the key is ignored |
 | Selection commands idle first | The throttle is capped at idle while the sleeve moves, in either direction — as on the aircraft, where the levers must be at idle before the reverse levers will lift |
+| The cap drops at once and is eased back | Falling is instant, because an interlock that bites must bite immediately; rising is limited to half the throttle range per second. Released in one frame onto a lever left at the stop it would command a slam, and a slam from idle crosses the stability boundary — reverse would surge every time it was selected |
 | Reverse power is limited | Deployed, the throttle commands up to 0.75 of the range: N1 ≈ 80 % |
 | Shutdown stows the reverser | The stow takes 3 s against a 35 s rundown, so it always completes; an engine that has stopped is never left with the sleeve out |
 | Stow can interrupt a deployment | And deploy can interrupt a stow. Travel is continuous, only its sign changes |
@@ -147,11 +148,110 @@ sleeve position.
 The model designation on the cowl splits in two as the sleeve carries the aft
 half of it away. That happens on the aircraft as well.
 
+## Compressor surge
+
+A third state machine, in `src/surge.js`, driven by **nothing** — there is no
+button for it. A surge is a consequence of how the engine is handled, and a
+button would have destroyed the only thing it has to teach.
+
+```mermaid
+stateDiagram-v2
+  [*] --> clear: application start-up
+  clear --> surging: the surge margin has gone to zero
+  surging --> clear: margin restored, and held for 0.3 s
+  surging --> stall: surging for 4 s without let-up
+  stall --> clear: fuel cut — nothing else
+
+  clear: clear — stable<br/>the operating point is inside its margin
+  surging: surging — 4 bangs a second<br/>gas expelled forward, N2 drooping, T4 spiking
+  stall: stall — locked<br/>spools hung, gas path hot, thrust gone
+```
+
+It is a **sub-state of `run`**, not a fifth engine mode. The engine is still
+running, the reverser interlock still reads `run`, and the throttle is still
+live — and it must be, because pulling it back is the recovery action.
+
+### How to provoke one
+
+Flick the throttle from idle to the stop. The physics is in
+[03-physics](03-physics.md#the-compressor-map-and-the-stability-boundary); what
+matters at the panel is that it depends on how *fast* the lever moves, because a
+slider is dragged rather than stepped:
+
+| Lever from idle to full over | What happens |
+|---|---|
+| a flick, under 0.5 s | surges |
+| about 0.7 s | on the boundary |
+| 1 s or slower | no surge |
+| 2 s, deliberate | margin never falls below +0.07 |
+
+And on where it starts from: an instantaneous advance from idle surges above a
+lever position of **63 %**, while the same slam applied from 30 % power or above
+never does. Surge here is a low-speed, fast-movement phenomenon, which is what
+it is in life.
+
+The model surges where a real 737 would not, and that is the point rather than a
+defect: it has **no acceleration schedule**. Rationing fuel against measured N2
+during an acceleration is exactly what a FADEC does, and doing without one is a
+better explanation of why that schedule exists than any description of it.
+
+### Two ways out
+
+* **Pull the lever back** within the first few seconds and the fuel command
+  collapses, the margin goes positive, and the engine returns to idle stable. It
+  can then be accelerated again normally.
+* **Leave it up** and after four seconds the surge locks into a **stall**: the
+  spools hang near N1 30 % / N2 45 %, the gas path sits above 1700 °C, thrust is
+  gone, and no lever movement whatever will clear it. Only a shutdown will.
+
+Both come out of one mechanism rather than being scripted. Each bang costs the
+rotors speed; N2 falling drags the reference temperature down with it, so the
+margin stays negative and the next cycle follows. Take the fuel away and the
+same arithmetic recovers.
+
+### Leaving the lever advanced
+
+Two ordinary situations command a slam without the reader touching the slider,
+because something else was holding the throttle down and then let go.
+
+* **A start finishing against an advanced lever.** The engine arrives at idle
+  and the lever is where it was left; that is a slam. Below about 61 % the start
+  is clean, above it the engine surges the moment it reaches idle. This is the
+  model reproducing why the checklist puts the thrust levers at idle before a
+  start.
+* **The reverser's cap releasing.** This one is *not* left to bite, because a
+  deploy-and-stow cycle is two clicks and it would have surged on every one,
+  making the documented −19.4 kN unreachable. The cap is eased up instead — see
+  the interlock table above.
+
+### What can be seen and heard
+
+* the instruments: N2 steps down on each bang, T4 spikes, thrust collapses, and
+  the stability bar reads SURGE and then STALLED;
+* the compressor map: the operating point climbs off the working line and into
+  the surge line, and drops back when the lever is pulled;
+* the flow: core particles are expelled **forward** out of the intake at each
+  bang, hot, while the bypass duct carries on untouched — the fan is still being
+  driven;
+* in a locked stall the expulsion stops and two stall cells travel round the
+  annulus at about half rotor speed: the flow is no longer oscillating, it is
+  simply bad;
+* the sound: a bang a quarter of a second apart over a jet noise that comes and
+  goes with the flow.
+
+At the ×4 time scale the surge runs four times as fast, along with everything
+else in the state machine. Watch one at ×1.
+
 ## Throttle response
 
 In `run` mode the speeds follow the throttle not instantly but by a first-order
 lag: acceleration is slower than deceleration, and the LP rotor has more inertia
-than the HP one. From idle to take-off power the engine takes about 11.5 s.
+than the HP one. Advanced from idle to take-off over two seconds, the engine
+takes about 12.5 s to get there.
+
+Advanced over two seconds, because since the surge work the model has a
+stability boundary and the lever can be moved fast enough to cross it — see
+[Compressor surge](#compressor-surge) below.
 
 The slider behaves exactly like a thrust lever: it sets the **target**, while the
 instruments show the **actual** speeds. So a sharp movement makes it visible how

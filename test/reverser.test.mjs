@@ -143,14 +143,27 @@ const deg = (r) => (r * 180) / Math.PI;
   rev.update(DT);
   check('while the sleeve moves, the engine is held at idle', rev.throttleLimit() === 0);
   while (rev.mode !== 'deployed') rev.update(DT);
+  /* The cap is eased back up rather than released in one frame, so it is not at
+     its limit the instant the sleeve arrives. That is deliberate: released in a
+     single step it commands the engine from idle to 75 % instantaneously, which
+     is a slam, and since the surge work a slam of that size from idle crosses
+     the stability boundary. Reverse would surge every time it was selected. */
+  check('the cap does not snap open when the sleeve arrives', rev.throttleLimit() < REV_MAX_THROTTLE,
+    `${rev.throttleLimit().toFixed(2)} on arrival`);
+  let easing = 0;
+  while (rev.throttleLimit() < REV_MAX_THROTTLE - 1e-9 && easing < 10) {
+    rev.update(DT);
+    easing += DT;
+  }
   check(
     'deployed, reverse power is limited',
-    rev.throttleLimit() === REV_MAX_THROTTLE,
-    `${REV_MAX_THROTTLE} of the range`
+    Math.abs(rev.throttleLimit() - REV_MAX_THROTTLE) < 1e-9,
+    `${REV_MAX_THROTTLE} of the range, reached in ${easing.toFixed(1)} s`
   );
+  check('and it takes long enough not to be a slam', easing > 1.0, `${easing.toFixed(1)} s`);
   rev.request(false, 'run');
   rev.update(DT);
-  check('and idle again on the way home', rev.throttleLimit() === 0);
+  check('and idle again on the way home, at once', rev.throttleLimit() === 0);
 }
 
 /* ------------- 4. shutdown does not leave the sleeve out ------------ */
@@ -269,9 +282,21 @@ const deg = (r) => (r * 180) / Math.PI;
     `travel would give ${thrustFactor(STROKE).toFixed(3)}, blocked gives ${thrustFactor(blockedFraction(STROKE)).toFixed(3)}`
   );
 
-  // through the real state machine, at the power the interlock allows
+  /* Through the real state machine, at the power the interlock allows - and
+     through the real cap rather than a hand-written one, so this measures what
+     selecting reverse actually does. The cap eases up from idle over a second
+     and a half, which is what keeps the engine off its stability boundary; fed
+     REV_MAX_THROTTLE as a step instead, it surges and hangs at 30 % N1, and the
+     reverse thrust below would be -1.3 kN rather than the figure the panel and
+     the documentation quote. */
   const eng = createEngineState(0);
-  for (let i = 0; i < 60 * 60; i++) eng.update(DT, REV_MAX_THROTTLE);
+  const revLever = createReverser();
+  revLever.request(true, 'run');
+  for (let i = 0; i < 60 * 60; i++) {
+    revLever.update(DT);
+    eng.update(DT, Math.min(REV_MAX_THROTTLE, revLever.throttleLimit()));
+  }
+  check('selecting reverse does not surge the engine', eng.surge === 'clear', `state "${eng.surge}"`);
   const net = eng.grossThrust * thrustFactor(blockedFraction(STROKE));
   console.log('\n=== REVERSE THRUST ===');
   console.log(

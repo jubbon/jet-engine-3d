@@ -17,7 +17,8 @@ import {
   RECOVER_HOLD,
   STALL_CHOKE,
 } from '../src/surge.js';
-import { IDLE_N2, createEngineState } from '../src/engineState.js';
+import { IDLE_N1, IDLE_N2, createEngineState } from '../src/engineState.js';
+import { createReverser } from '../src/reverser.js';
 
 /* ------------------------------------------------------------------ *
  *  Compressor stability.
@@ -398,6 +399,173 @@ function coldStart(lever) {
   eng.setMode('stop');
   eng.update(DT, 1.0);
   check('a fuel cut zeroes the command immediately', eng.wf === 0, `wf = ${eng.wf}`);
+}
+
+/* ================================================================== *
+ *  The scenarios, through the real state machine.
+ *
+ *  This is where the trigger is checked rather than the oscillator: it
+ *  must cross the boundary where a real engine would and nowhere else.
+ * ================================================================== */
+
+console.log('\n=== SCENARIOS ===');
+
+/**
+ * Settle at `from`, then move the lever to `to` over `ramp` seconds and hold.
+ * A ramp rather than a step because that is what a slider actually does.
+ */
+function lever(from, to, ramp, seconds, trace = false) {
+  const eng = createEngineState(from);
+  for (let i = 0; i < 60 * 90; i++) eng.update(DT, from);
+  const start = { n1: eng.n1, n2: eng.n2, t4: eng.t4, thrust: eng.grossThrust };
+  let t = 0;
+  let worstSM = Infinity;
+  let peakT4 = 0;
+  let lowN2 = 1;
+  let lowThrust = Infinity;
+  let firstBang = null;
+  const rows = [];
+  const bangs0 = eng.bangs;
+  while (t < seconds) {
+    const thr = ramp <= 0 ? to : from + (to - from) * Math.min(1, t / ramp);
+    eng.update(DT, thr);
+    t += DT;
+    worstSM = Math.min(worstSM, eng.sm);
+    peakT4 = Math.max(peakT4, eng.t4);
+    lowN2 = Math.min(lowN2, eng.n2);
+    lowThrust = Math.min(lowThrust, eng.grossThrust);
+    if (firstBang === null && eng.bangs > bangs0) firstBang = t;
+    if (trace && rows.length < 20 && Math.abs(t % 0.4) < DT) {
+      rows.push(
+        `  t=${t.toFixed(1)}s thr=${(thr * 100).toFixed(0).padStart(3)}% ` +
+          `N1=${(eng.n1 * 100).toFixed(0).padStart(3)}% N2=${(eng.n2 * 100).toFixed(0).padStart(3)}% ` +
+          `SM=${eng.sm >= 0 ? '+' : ''}${eng.sm.toFixed(3)} T4=${eng.t4.toFixed(0).padStart(4)}°C ` +
+          `${eng.grossThrust.toFixed(0).padStart(3)}kN ${eng.surge}`
+      );
+    }
+  }
+  return { eng, start, worstSM, peakT4, lowN2, lowThrust, firstBang, bangs: eng.bangs - bangs0, rows };
+}
+
+{
+  const slam = lever(0, 1, 0, 3, true);
+  console.log('\n  --- lever slammed from idle to the stop ---');
+  slam.rows.forEach((r) => console.log(r));
+
+  check('a slam from idle surges', slam.eng.bangs > 0 && slam.worstSM < 0,
+    `${slam.bangs} bangs, lowest margin ${slam.worstSM.toFixed(3)}`);
+  check('and it does so within the first second', slam.firstBang !== null && slam.firstBang < 1.0,
+    `first bang at ${slam.firstBang?.toFixed(2)} s`);
+  check('N2 droops during the surge', slam.lowN2 < slam.start.n2 - 0.005,
+    `${(slam.lowN2 * 100).toFixed(1)} % against ${(slam.start.n2 * 100).toFixed(1)} % at idle`);
+  check('T4 spikes above what the lever alone would give', slam.peakT4 > slam.start.t4 + 200,
+    `${slam.peakT4.toFixed(0)} °C against ${slam.start.t4.toFixed(0)} °C at idle`);
+  check('and the thrust collapses on the bangs', slam.lowThrust < 0.6 * slam.start.thrust + 0.5,
+    `down to ${slam.lowThrust.toFixed(1)} kN`);
+}
+
+{
+  const half = lever(0, 0.5, 0, 4);
+  check('an advance from idle to 50 % never does', half.bangs === 0 && half.worstSM > 0,
+    `lowest margin ${half.worstSM.toFixed(3)}`);
+}
+
+{
+  const cruise = lever(0.5, 1, 0, 4);
+  check('nor a slam to the stop from 50 % power', cruise.bangs === 0 && cruise.worstSM > 0,
+    `lowest margin ${cruise.worstSM.toFixed(3)}`);
+}
+
+{
+  const chop = lever(1, 0, 0, 4);
+  check('nor a chop to idle', chop.bangs === 0 && chop.worstSM > 0,
+    `lowest margin ${chop.worstSM.toFixed(3)}`);
+}
+
+{
+  // the drag, not the step, is what the reader actually applies
+  const flick = lever(0, 1, 0.3, 3);
+  const measured = lever(0, 1, 2.0, 6);
+  check('a flick of the lever surges', flick.bangs > 0, `${flick.bangs} bangs over a 0.3 s drag`);
+  check('a measured advance does not', measured.bangs === 0 && measured.worstSM > 0,
+    `lowest margin ${measured.worstSM.toFixed(3)} over a 2 s drag`);
+}
+
+/* ------------------------- the two outcomes --------------------------- */
+{
+  const held = lever(0, 1, 0, 8);
+  check('holding the lever up locks it into a stall', held.eng.surge === 'stall');
+  check('the spools hang rather than stopping', held.eng.n2 > 0.3 && held.eng.n2 < 0.6,
+    `N2 hung at ${(held.eng.n2 * 100).toFixed(0)} %`);
+  check('and the gas path sits hot', held.eng.t4 > 1400, `${held.eng.t4.toFixed(0)} °C`);
+
+  // no throttle movement clears it
+  for (let i = 0; i < 60 * 10; i++) held.eng.update(DT, i % 120 < 60 ? 0 : 1);
+  check('and no lever movement whatever clears it', held.eng.surge === 'stall');
+
+  // only a fuel cut does
+  held.eng.setMode('stop');
+  held.eng.update(DT, 0);
+  check('only a shutdown clears a locked stall', held.eng.surge === 'clear');
+}
+
+{
+  // pull the lever back within a second and the engine recovers
+  const eng = createEngineState(0);
+  for (let i = 0; i < 60 * 90; i++) eng.update(DT, 0);
+  for (let i = 0; i < 60 * 1; i++) eng.update(DT, 1);
+  const banged = eng.bangs;
+  check('a surge is under way', eng.surge === 'surging' && banged > 0, `${banged} bangs`);
+  for (let i = 0; i < 60 * 12; i++) eng.update(DT, 0);
+  check('pulling the lever back recovers the engine', eng.surge === 'clear');
+  check('and it returns to idle', Math.abs(eng.n1 - IDLE_N1) < 0.02 && Math.abs(eng.n2 - IDLE_N2) < 0.02,
+    `N1 ${(eng.n1 * 100).toFixed(0)} %, N2 ${(eng.n2 * 100).toFixed(0)} %`);
+  // and can then be accelerated properly
+  for (let i = 0; i < 60 * 8; i++) eng.update(DT, Math.min(1, i / (60 * 2)));
+  check('after which a measured advance works normally', eng.surge === 'clear' && eng.n1 > 0.9,
+    `N1 ${(eng.n1 * 100).toFixed(0)} %, ${eng.grossThrust.toFixed(0)} kN`);
+}
+
+/* ------------------- the interlocks that release ---------------------- *
+ *  An interlock that caps the throttle and then releases it is commanding
+ *  the engine, and if it releases in one frame onto a lever left at the
+ *  stop it is commanding a slam. The reverser is the case that matters,
+ *  because a whole deploy-and-stow cycle is two clicks: released as a
+ *  step it surged every time, which would have made reverse thrust
+ *  unreachable rather than instructive. Its cap is eased up instead.
+ *
+ *  A step release is checked alongside it, so the ramp is shown to be
+ *  what is doing the work rather than assumed.
+ * ---------------------------------------------------------------------- */
+{
+  const eng = createEngineState(1);
+  const rev = createReverser();
+  for (let i = 0; i < 60 * 90; i++) eng.update(DT, 1);
+  rev.request(true, 'run');
+  let worst = Infinity;
+  const before = eng.bangs;
+  // deploy, sit in reverse, then stow - the lever never leaves the stop
+  for (let i = 0; i < 60 * 8; i++) {
+    rev.update(DT);
+    eng.update(DT, Math.min(1, rev.throttleLimit()));
+    worst = Math.min(worst, eng.sm);
+  }
+  rev.request(false, 'run');
+  for (let i = 0; i < 60 * 10; i++) {
+    rev.update(DT);
+    eng.update(DT, Math.min(1, rev.throttleLimit()));
+    worst = Math.min(worst, eng.sm);
+  }
+  check('a whole reverse cycle with the lever left up never surges',
+    eng.bangs === before && eng.surge === 'clear',
+    `lowest margin ${worst.toFixed(3)} across deploy, reverse and stow`);
+
+  // and the same release taken as a step does surge - the ramp is the reason
+  const step = createEngineState(0);
+  for (let i = 0; i < 60 * 90; i++) step.update(DT, 0);
+  for (let i = 0; i < 60 * 2; i++) step.update(DT, 1);
+  check('whereas releasing the same cap in one frame does', step.bangs > 0,
+    `${step.bangs} bangs — which is why the cap is rate limited, not snapped`);
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);
