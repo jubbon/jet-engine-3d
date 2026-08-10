@@ -17,8 +17,9 @@ and any divergence is caught by a test — see
 npm install
 npm run dev      # http://localhost:5188, listens on 0.0.0.0
 npm run build    # build into dist/
-npm test         # state machine, exhaust gas, spiral smear, atmosphere,
-                 # contrail, dimensions against the reference, clearances
+npm test         # state machine, compressor surge, exhaust gas, spiral smear,
+                 # atmosphere, contrail, dimensions against the reference,
+                 # clearances, the eight dictionaries
 ```
 
 A single test runs directly: `node test/geometry.test.mjs`.
@@ -165,6 +166,35 @@ remain illustrative: they are not the result of computing a specific cycle. What
 exactly is simplified is listed in
 [Physics of the model](docs/03-physics.md#10-what-the-model-does-not-have).
 
+## Compressor surge (`src/surge.js`)
+
+A compressor is not a pump. Every blade is a wing with a critical angle of
+attack, and the machine has a stability boundary the operating point can be
+driven across — so this model can be broken by the throttle, and it takes a
+particular kind of handling to do it.
+
+**Flick** the throttle from idle to the stop and the engine surges: the gas
+breaks back through the compressor and is expelled forward out of the intake
+several times a second, with a bang and a flash, N2 stepping down and the
+temperature climbing. Advance the same lever over two seconds instead and
+nothing happens. That difference is the whole phenomenon — fuel arrives in a
+fraction of a second and a rotor with real inertia does not, and in between the
+burner is fed for a speed the compressor has not reached.
+
+Pull the lever back within a few seconds and the engine recovers. Leave it up
+and the surge locks into a stall: the spools hang, the gas path cooks, the
+thrust is gone, and only a shutdown will clear it.
+
+A compressor map in the panel shows why — the working line, the surge line above
+it, and the operating point climbing into the boundary and dropping back. The
+surge line is a table of plausible values rather than a computation, and the
+chart says so: the model solves no gas dynamics.
+
+The model surges where a real 737 would not, and that is the point rather than a
+defect. It has **no acceleration schedule** — rationing fuel against measured N2
+is precisely what a FADEC does, and doing without one explains why that schedule
+exists better than any description of it could.
+
 ## Start and shutdown (`src/engineState.js`)
 
 A state machine: `off` → `start` → `run` → `stop` → `off`. The module knows
@@ -250,11 +280,12 @@ src/airflow.js    particles, streamlines, plume
 src/heathaze.js   exhaust gas aft of the nozzle (screen-space pass)
 src/sound.js      procedural engine sound
 src/engineState.js  state machine: start, running, shutdown, rundown
+src/surge.js        compressor map, surge margin, surge and stall
 src/atmosphere.js   standard atmosphere and water vapour: the air of the day
 src/contrail.js     contrail: does a trail form, and does it last
 src/contrailView.js the trail behind the engine
-test/             state machine, exhaust, spiral smear, atmosphere, contrail,
-                  dimensions, clearances
+test/             state machine, surge, exhaust, spiral smear, atmosphere,
+                  contrail, dimensions, clearances, dictionaries
 docs/             documentation
 docs/engines/     machine-readable reference data on prototypes (JSON)
 ```

@@ -46,7 +46,7 @@ graph TD
   style T8 fill:#1c3a4d,stroke:#4fc3ff
 ```
 
-Dependencies run one way. Six modules deliberately know nothing about either
+Dependencies run one way. Seven modules deliberately know nothing about either
 Three.js or the DOM:
 
 * **`engineState.js`** — pure regime logic, so it can be run under Node and
@@ -64,6 +64,14 @@ Three.js or the DOM:
   module imports rather than only `main.js`: `engine.js` needs the door angle,
   because the door geometry IS the linkage and a second copy of that curve in
   the geometry would be a second authority for it;
+* **`surge.js`** — the compressor map, the stability boundary and the surge
+  sub-state machine. A surge lasts a fraction of a second and the interesting
+  part of it is a number crossing zero, which no screenshot can show. It is the
+  second of the seven that another module imports rather than only `main.js`:
+  `engineState.js` needs it, because the surge is a property of the regime
+  rather than something drawn on top of one. `main.js` imports it too, for the
+  chart — the same diamond as `reverser.js`, and for the same reason, so that
+  what is drawn is what is computed;
 * **`i18n.js`** — lookup, `{placeholder}` interpolation, number formatting and
   matching the reader's languages against the eight we have. Kept pure because
   eight dictionaries drift apart in silence: a key added to the English and
@@ -76,22 +84,28 @@ check the rotor rundown other than watching the screen.
 
 | File | Lines | Responsibility |
 |---|---:|---|
-| `src/locales/*.js` | 1467 | Eight dictionaries, 141 keys each |
-| `src/engine.js` | 1725 | All engine geometry, materials, proxies for module picking |
-| `src/main.js` | 905 | Scene, lighting, post-processing, cutaway, UI, frame loop |
-| `src/heathaze.js` | 385 | Screen-space pass for the exhaust gas aft of the nozzle |
-| `src/style.css` | 363 | Panel styling |
-| `src/sound.js` | 396 | Sound synthesis on Web Audio |
-| `src/airflow.js` | 390 | Flow ducts, particles, streamlines, exhaust plume |
+| `src/locales/*.js` | 1627 | Eight dictionaries, 157 keys each |
+| `src/engine.js` | 1731 | All engine geometry, materials, proxies for module picking |
+| `src/main.js` | 1057 | Scene, lighting, post-processing, cutaway, UI, frame loop |
+| `src/heathaze.js` | 415 | Screen-space pass for the exhaust gas aft of the nozzle |
+| `src/style.css` | 410 | Panel styling |
+| `src/sound.js` | 501 | Sound synthesis on Web Audio |
+| `src/airflow.js` | 471 | Flow ducts, particles, streamlines, exhaust plume |
 | `src/contrailView.js` | 220 | The trail itself: a camera-facing strip along the axis |
-| `index.html` | 233 | Markup of the panel, the legend and the module card |
+| `index.html` | 267 | Markup of the panel, the legend and the module card |
 | `src/livery.js` | 363 | Joints, service doors and titles painted on the nacelle skin |
 | `src/blade.js` | 162 | Procedural geometry of blades and rows |
 | `src/contrail.js` | 160 | Schmidt — Appleman criterion: does a trail form, and does it last |
-| `src/engineState.js` | 163 | Regime state machine: start, running, shutdown, rundown, gross thrust |
-| `src/reverser.js` | 275 | Thrust reverser: deployment, door linkage, reverse thrust |
+| `src/engineState.js` | 286 | Regime state machine: start, running, shutdown, rundown, gross thrust |
+| `src/surge.js` | 361 | Compressor map, surge margin, the surge and stall sub-state machine |
+| `src/reverser.js` | 303 | Thrust reverser: deployment, door linkage, reverse thrust |
 | `src/atmosphere.js` | 143 | Standard atmosphere and water vapour: ambient conditions of the day |
 | `src/i18n.js` | 110 | Lookup, interpolation, number formatting, locale matching |
+
+`surge.js` is new with the compressor surge work, and `engineState.js`,
+`airflow.js`, `sound.js` and `main.js` all grew with it — the computation in the
+pure module, and the consequences spread across the flow, the sound and the
+panel.
 
 `engine.js` gained 487 lines to the thrust reverser, which is the largest single
 addition it has taken: the aft nacelle is now a module of its own with a

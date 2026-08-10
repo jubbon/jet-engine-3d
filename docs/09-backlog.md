@@ -18,7 +18,7 @@ or two; L: touches several modules and the physics, longer.
 | BL-01 | Start failures: hot start, hung start | Physics and regimes | P1 | M |
 | BL-27 | Start visualisation: starter, igniters, sequence | Physics and regimes | P1 | M |
 | BL-02 | Limits and protections: T4, maximum speeds, red zones | Physics and regimes | P1 | M |
-| BL-03 | Compressor surge visualisation | Physics and regimes | P2 | L |
+| BL-03 | Compressor surge visualisation | Physics and regimes | — | **done** |
 | BL-04 | Bleed air aft of the HP compressor | Flows | P2 | M |
 | BL-17 | Fuel supply visualisation | Flows | P1 | M |
 | BL-18 | Journey of an air particle from intake to nozzle | Flows | P1 | L |
@@ -147,7 +147,53 @@ decorative.
 Touches: `src/engineState.js`, the instrument panel,
 [Physics of the model](03-physics.md).
 
-### BL-03. Compressor surge visualisation
+### BL-03. Compressor surge visualisation — done
+
+**Done.** The computation is in `src/surge.js` (the compressor map, the surge
+line and the sub-state machine) and in `src/engineState.js` (the fuel command
+that leads the rotor, the droop, the temperature spike and the thrust collapse);
+the consequences are in `airflow.js`, `sound.js`, `main.js` and `index.html`.
+Documented in [operating regimes](05-modes.md#compressor-surge),
+[physics](03-physics.md#the-compressor-map-and-the-stability-boundary),
+[airflow](04-airflow.md#surge-the-core-going-the-other-way),
+[sound](06-sound.md#the-bang-of-a-surge) and
+[the interface](07-ui.md#compressor-stability). 71 checks in
+`test/surge.test.mjs`.
+
+What the entry asked for and got: surge as a consequence of the regime rather
+than a button; the flow reversal and the expulsion forward through the intake;
+the T4 spike, the N2 droop and the thrust collapse; the compressor map with the
+working line, the surge line and the operating point; both outcomes — recovery
+on pulling the lever back, and a locked stall on holding it up; the bangs, built
+as the synthesis had no impulsive component at all; and the honest caveat, in
+the documentation and beside the chart, that the boundary is tabulated rather
+than computed.
+
+Three departures, all deliberate:
+
+* **It was done before BL-02 rather than after.** The entry ordered it second so
+  that surge would follow from exceeding a limit. It follows from the stability
+  margin instead, which is the more direct cause and needs no instruments; the
+  red zones, the T4 and speed limiting and the FADEC governor remain BL-02's.
+  What surge does supply is the argument for them: the model can now be broken
+  by a lever movement, and an acceleration schedule is exactly what would stop
+  it.
+* **The computation went into a module of its own** rather than into
+  `engineState.js` as the entry suggested. It is checked under Node either way,
+  and the seam matches `reverser.js`: the chart in `main.js` is drawn from the
+  same functions that decide the behaviour, which a chart carrying its own copy
+  of the surge line could not be.
+* **Bleed-induced surge is not in it** — BL-04 first, since no bleed air flows
+  yet and there is nothing to mishandle.
+
+Rotating stall is present as the locked outcome — two cells at 0.48 of rotor
+speed — rather than as a separate regime reachable on its own.
+
+---
+
+The original entry follows.
+
+### The phenomenon
 
 The most spectacular of the abnormal phenomena and, perhaps, the best way to
 explain that a compressor is not a pump that pushes harder the faster it spins,

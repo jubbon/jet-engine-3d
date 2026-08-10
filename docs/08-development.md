@@ -96,7 +96,7 @@ hardware, but it does make checking long processes through a browser impossible
 
 ## Tests
 
-Ten files, 309 checks. There is no framework: each test is a plain Node script
+Ten files, 369 checks. There is no framework: each test is a plain Node script
 with its own `check()` helper, printing one `OK`/`FAIL` line per check and
 exiting with code 1 on failure. A single file is run directly —
 `node test/geometry.test.mjs`.
