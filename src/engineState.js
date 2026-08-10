@@ -54,6 +54,7 @@ export function createEngineState(initialThrottle = 0.85) {
     burn: initialThrottle, // combustion intensity
     t4: 350 + 1450 * initialThrottle, // gas temperature ahead of the turbine, °C
     keff: initialThrottle, // effective regime derived from LP speed
+    grossThrust: 0, // kN, before anything is done to the streams; see below
     lightOff: true, // has light-off occurred: the app boots with the engine running
     ignition: 0, // time from fuel introduction to light-off, s
 
@@ -141,6 +142,18 @@ export function createEngineState(initialThrottle = 0.85) {
       const t4Target = burning ? 350 + 1450 * eng.burn : 15;
       const tauT = !burning ? 7.0 : t4Target > eng.t4 ? 0.6 : 2.2;
       eng.t4 += (t4Target - eng.t4) * (1 - Math.exp(-dt / tauT));
+
+      /* Gross thrust: what the engine produces, before anything downstream
+         redirects it. 121.4 kN is the take-off rating of the prototype
+         (CFM56-7B27, 27 300 lbf) and the exponent 1.45 is empirical - both the
+         mass flow and the jet velocity grow with fan speed, so thrust grows
+         faster than either. With the fuel cut it goes to zero at once, without
+         waiting for the rotors.
+
+         It lives here rather than in the display code because the thrust
+         reverser turns it negative, and a number that can change sign is worth
+         being able to check under Node. */
+      eng.grossThrust = eng.fuel ? 121.4 * Math.pow(eng.keff, 1.45) : 0;
 
       return eng.keff;
     },

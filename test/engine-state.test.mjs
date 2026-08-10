@@ -44,6 +44,7 @@ const check = (name, cond, detail = '') => {
   check('speeds fall monotonically', true);
   check('temperature returns to ambient', eng.t4 < 40, `${eng.t4.toFixed(0)} °C`);
   check('thrust is gone (keff = 0)', eng.keff === 0);
+  check('and the thrust itself is zero', eng.grossThrust === 0);
 }
 
 /* --------------- scenario 2: shutdown cannot be undone by throttle ------- */
@@ -96,6 +97,13 @@ const check = (name, cond, detail = '') => {
   let t2 = 0;
   while (eng.n1 < 0.99 && t2 < 60) { eng.update(DT, 1.0); t2 += DT; }
   check('acceleration to take-off within a sensible time', t2 > 3 && t2 < 30, `${t2.toFixed(1)} s`);
+
+  // The rating of the prototype, which is what the exponent 1.45 was chosen
+  // against. The thrust reverser turns this number negative, so it is worth
+  // knowing that it is right at the one point where it is defined.
+  for (let i = 0; i < 60 * 60; i++) eng.update(DT, 1.0);
+  check('take-off thrust is the rating of the prototype', Math.abs(eng.grossThrust - 121.4) < 0.5,
+    `${eng.grossThrust.toFixed(1)} kN against 121.4`);
 }
 
 console.log(failures === 0 ? '\nAll checks passed.' : `\nFAILED checks: ${failures}`);

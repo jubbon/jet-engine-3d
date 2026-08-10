@@ -502,7 +502,7 @@ function buildStationTable() {
 }
 buildStationTable();
 
-function updateGauges(keff) {
+function updateGauges() {
   // hash of the state, so the DOM is not touched every frame without need.
   // The ambient conditions are not in the hash: they change only when a slider
   // is moved, and that invalidates the hash directly.
@@ -510,8 +510,7 @@ function updateGauges(keff) {
   if (Math.abs(h - gaugeShown) < 0.002) return;
   gaugeShown = h;
 
-  // take-off thrust of the prototype: CFM56-7B27, 27 300 lbf = 121.4 kN
-  const thrust = eng.fuel ? 121.4 * Math.pow(keff, 1.45) : 0;
+  const thrust = eng.grossThrust;
   $('val-n1').textContent = `${n(eng.n1 * 100, 0)} %`;
   $('val-n2').textContent = `${n(eng.n2 * 100, 0)} %`;
   $('val-t4').textContent = `${n(eng.t4, 0)} °C`;
@@ -743,7 +742,7 @@ function animate() {
   // appropriate
   const keff = eng.update(dt * state.timeScale, state.throttle);
   if (eng.mode !== shownMode) refreshModeUI();
-  updateGauges(keff);
+  updateGauges();
 
   // rotors: N1 (fan/booster/LPT) and N2 (HPC/HPT) turn independently
   if (state.spin) {
