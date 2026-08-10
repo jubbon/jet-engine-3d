@@ -43,7 +43,7 @@ function edgeFade(x) {
    above - this module depends on nothing, and importing engine.js for one
    number would drag the materials, the livery canvas and buildEngine into its
    graph. */
-const X_DOORS = 0.11;
+export const X_DOORS = 0.11;
 // The cascades turn the flow to about 45° forward of radial. Any steeper and
 // the air would appear to leave along the nacelle rather than away from it.
 const TURN_COS = Math.SQRT1_2;

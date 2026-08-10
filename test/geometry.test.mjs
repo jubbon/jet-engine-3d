@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { readFileSync } from 'node:fs';
 import { buildEngine, ST } from '../src/engine.js';
 import { STROKE } from '../src/reverser.js';
+import { X_DOORS } from '../src/airflow.js';
 
 /* ------------------------------------------------------------------ *
  *  The dimensions of the model must agree with the reference data for
@@ -231,8 +232,16 @@ const nacelleOrder = ['a1', 'reverser', 'sleeve', 'cascadeAft', 'bypassExit'];
 const nacMisordered = nacelleOrder.filter((k, i) => i > 0 && ST[k] <= ST[nacelleOrder[i - 1]]);
 check('Reverser stations run aft in order', nacMisordered.length === 0, nacMisordered.join(', '));
 
-// The sleeve has to uncover the whole cascade band and no more.
-near('Cascade band = sleeve stroke', m(ST.cascadeAft - ST.sleeve), m(STROKE), 1e-9);
+/* airflow.js turns the bypass particles round at the blocker doors, and copies
+   that station rather than importing ST - it depends on nothing, and the two
+   duct tables above it are copied for the same reason. Copies need a keeper:
+   ST.cascadeAft is itself derived from STROKE, so moving the stroke would slide
+   the doors out from under the flow with nothing to say so. */
+check(
+  'The flow turns round where the doors actually are',
+  Math.abs(X_DOORS - ST.cascadeAft) < 1e-9,
+  `airflow ${X_DOORS}, ST.cascadeAft ${ST.cascadeAft}`
+);
 
 // A third to a half of the nacelle: on the prototype the reverser is the aft
 // section of the cowl, not a collar round the nozzle.
